@@ -19,6 +19,7 @@ public class ModelBone {
     private float[] position;   // 相对位置 [x, y, z]
     private float[] rotation;   // 旋转角度 [x, y, z] 单位：度数
     private float[] size;       // 骨骼大小/缩放 [x, y, z]
+    private boolean hasPositionOverride;
 
     // 内容
     private List<ModelCube> cubes;
@@ -40,6 +41,7 @@ public class ModelBone {
         this.position = new float[]{0, 0, 0};
         this.rotation = new float[]{0, 0, 0};
         this.size = new float[]{1, 1, 1};
+        this.hasPositionOverride = false;
 
         this.mirror = false;
         this.neverRender = false;
@@ -93,6 +95,7 @@ public class ModelBone {
     public float getPivotY() { return pivot[1]; }
     public float getPivotZ() { return pivot[2]; }
     public float[] getPosition() { return position; }
+    public boolean hasPositionOverride() { return hasPositionOverride; }
     public float[] getRotation() { return rotation; }
     public float[] getSize() { return size; }
     public List<ModelCube> getCubes() { return cubes; }
@@ -120,6 +123,10 @@ public class ModelBone {
 
     public void setPosition(float[] position) {
         this.position = position;
+    }
+
+    public void setHasPositionOverride(boolean override) {
+        this.hasPositionOverride = override;
     }
 
     public void setRotation(float x, float y, float z) {

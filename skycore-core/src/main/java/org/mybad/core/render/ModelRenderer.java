@@ -22,6 +22,7 @@ import java.util.Objects;
 public final class ModelRenderer {
 
     private static final float PIXEL_SCALE = 1.0f / 16.0f;
+    private static final float POSITION_EPSILON = 1e-4f;
 
     private ModelRenderer() {
     }
@@ -129,9 +130,13 @@ public final class ModelRenderer {
         stack.translate(-pivotX, -pivotY, -pivotZ);
 
         float[] position = bone.getPosition();
-        float translateX = convertX(position[0] - pivot[0]);
-        float translateY = convertY(position[1] - pivot[1]);
-        float translateZ = convertZ(position[2] - pivot[2]);
+        float deltaX = position[0] - pivot[0];
+        float deltaY = position[1] - pivot[1];
+        float deltaZ = position[2] - pivot[2];
+
+        float translateX = convertX(deltaX);
+        float translateY = convertY(deltaY);
+        float translateZ = convertZ(deltaZ);
 
         if (translateX != 0 || translateY != 0 || translateZ != 0) {
             stack.translate(translateX, translateY, translateZ);
