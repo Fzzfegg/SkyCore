@@ -55,15 +55,7 @@ public class RenderEventHandler {
         if (entityName == null || entityName.isEmpty()) {
             return;  // 没有自定义名字，使用原版渲染
         }
-
-        // 调试日志（每秒最多输出一次）
-        long now = System.currentTimeMillis();
-        boolean shouldDebug = (now - lastDebugTime) > 1000;
-        if (shouldDebug) {
-            lastDebugTime = now;
-            SkyCoreMod.LOGGER.info("[SkyCore DEBUG] 检测到实体名字: {}", entityName);
-        }
-
+        
         // 检查配置中是否有该名字的映射
         EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(entityName);
         if (mapping == null) {
@@ -79,7 +71,6 @@ public class RenderEventHandler {
             return;  // 加载失败，跳过渲染
         }
         
-
         // 使用 SkyCore 渲染
         renderEntity(entity, wrapper, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
     }
@@ -119,8 +110,8 @@ public class RenderEventHandler {
         // 获取纹理
         ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
 
-        // 创建包装器
-        BedrockModelWrapper wrapper = new BedrockModelWrapper(model, animation, texture);
+        // 创建包装器，传入配置中的背面剔除设置
+        BedrockModelWrapper wrapper = new BedrockModelWrapper(model, animation, texture, mapping.isEnableCull());
         modelWrapperCache.put(entityName, wrapper);
 
         SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);

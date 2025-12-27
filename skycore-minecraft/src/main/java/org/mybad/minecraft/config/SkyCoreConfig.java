@@ -120,7 +120,17 @@ public class SkyCoreConfig {
             example.addProperty("model", "models/example.geo.json");
             example.addProperty("animation", "animations/example.animation.json");
             example.addProperty("texture", "textures/example.png");
+            example.addProperty("enableCull", true);  // 是否启用背面剔除，默认为 true
             entities.add(example);
+
+            // 添加禁用背面剔除的示例（用于布料、旗子等需要双面渲染的模型）
+            JsonObject example2 = new JsonObject();
+            example2.addProperty("name", "BillboardEntity");
+            example2.addProperty("model", "models/billboard.geo.json");
+            example2.addProperty("animation", "animations/billboard.animation.json");
+            example2.addProperty("texture", "textures/billboard.png");
+            example2.addProperty("enableCull", false);  // 禁用背面剔除，显示双面
+            entities.add(example2);
 
             root.add("entities", entities);
 

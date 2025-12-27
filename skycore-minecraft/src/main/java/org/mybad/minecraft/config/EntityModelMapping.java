@@ -17,6 +17,9 @@ public class EntityModelMapping {
     /** 纹理文件路径 (如: skycore/textures/zombie.png) */
     private String texture;
 
+    /** 是否启用背面剔除 (默认: true) */
+    private boolean enableCull = true;
+
     public EntityModelMapping() {}
 
     public EntityModelMapping(String name, String model, String animation, String texture) {
@@ -31,12 +34,14 @@ public class EntityModelMapping {
     public String getModel() { return model; }
     public String getAnimation() { return animation; }
     public String getTexture() { return texture; }
+    public boolean isEnableCull() { return enableCull; }
 
     // Setters
     public void setName(String name) { this.name = name; }
     public void setModel(String model) { this.model = model; }
     public void setAnimation(String animation) { this.animation = animation; }
     public void setTexture(String texture) { this.texture = texture; }
+    public void setEnableCull(boolean enableCull) { this.enableCull = enableCull; }
 
     @Override
     public String toString() {
@@ -45,6 +50,7 @@ public class EntityModelMapping {
                 ", model='" + model + '\'' +
                 ", animation='" + animation + '\'' +
                 ", texture='" + texture + '\'' +
+                ", enableCull=" + enableCull +
                 '}';
     }
 }

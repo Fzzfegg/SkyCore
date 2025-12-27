@@ -58,9 +58,6 @@ public class BedrockModelWrapper {
     /** 上一次更新时间 */
     private long lastUpdateTime;
 
-    /** 上一次调试输出时间 */
-    private long lastDebugOutputTime;
-
     /** 四边形是否已生成 */
     private boolean quadsGenerated;
     private boolean autoYOffset = false;
@@ -73,9 +70,16 @@ public class BedrockModelWrapper {
     private float[] boneMatrices;
     private final MatrixStack boneMatrixStack = new MatrixStack();
     private boolean gpuSkinningReady;
-    private boolean gpuSkinningLogged;
+
+    /** 是否启用背面剔除 */
+    private final boolean enableCull;
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
+        this(model, animation, texture, true);
+    }
+
+    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull) {
+        this.enableCull = enableCull;
         this.model = model;
         this.texture = texture;
 
@@ -114,35 +118,6 @@ public class BedrockModelWrapper {
         generateAllQuads();
 
         initBoneMatrices();
-
-        // 调试输出
-        int boneCount = model.getBones().size();
-        int cubeCount = countCubes();
-        int quadCount = countQuads();
-        System.out.println("[SkyCore DEBUG] 模型加载: bones=" + boneCount + ", cubes=" + cubeCount + ", quads=" + quadCount + ", texture=" + textureWidth + "x" + textureHeight);
-
-        // 输出第一个 cube 的 UV 信息用于调试
-        debugFirstCubeUV();
-    }
-
-    /**
-     * 调试输出第一个 cube 的 UV 信息
-     */
-    private void debugFirstCubeUV() {
-        for (ModelBone bone : model.getBones()) {
-            for (ModelCube cube : bone.getCubes()) {
-                if (!cube.getQuads().isEmpty()) {
-                    System.out.println("[SkyCore DEBUG] 第一个 Cube UV 信息:");
-                    System.out.println("  origin=" + java.util.Arrays.toString(cube.getOrigin()));
-                    System.out.println("  size=" + java.util.Arrays.toString(cube.getSize()));
-                    for (org.mybad.core.data.ModelQuad quad : cube.getQuads()) {
-                        System.out.println("  Quad(" + quad.direction + "): vertices[0].uv=(" +
-                            quad.vertices[0].u + ", " + quad.vertices[0].v + ")");
-                    }
-                    return;  // 只输出第一个
-                }
-            }
-        }
     }
 
     private int countQuads() {
@@ -222,53 +197,21 @@ public class BedrockModelWrapper {
             animationPlayer.apply(model);
         }
 
-        // 调试：每帧输出一次（限制频率）
-        long now = System.currentTimeMillis();
-        boolean debugThisFrame = now - lastDebugOutputTime > 2000;
-        if (debugThisFrame) {
-            lastDebugOutputTime = now;
-            System.out.println("[SkyCore DEBUG] ========== 渲染帧 ==========");
-            System.out.println("[SkyCore DEBUG] 纹理: " + texture);
-            System.out.println("[SkyCore DEBUG] 位置: (" + x + ", " + y + ", " + z + ")");
-            System.out.println("[SkyCore DEBUG] 朝向: " + entityYaw);
-
-            if (entity != null) {
-                System.out.println("[SkyCore DEBUG] 实体世界坐标: (" + entity.posX + ", " + entity.posY + ", " + entity.posZ + ")");
-            }
-
-            Entity view = Minecraft.getMinecraft().getRenderViewEntity();
-            if (view != null) {
-                double camX = view.lastTickPosX + (view.posX - view.lastTickPosX) * partialTicks;
-                double camY = view.lastTickPosY + (view.posY - view.lastTickPosY) * partialTicks;
-                double camZ = view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partialTicks;
-                System.out.println("[SkyCore DEBUG] 相机世界坐标: (" + camX + ", " + camY + ", " + camZ + ")");
-                if (entity != null) {
-                    double dx = entity.posX - camX;
-                    double dy = entity.posY - camY;
-                    double dz = entity.posZ - camZ;
-                    System.out.println("[SkyCore DEBUG] 实体-相机偏移: (" + dx + ", " + dy + ", " + dz + ")");
-                }
-            }
-        }
-
         // 绑定纹理
         Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
 
-        // 设置 OpenGL 状态
-        if (FORCE_DISABLE_CULL) {
-            GlStateManager.disableCull();
-        } else {
+        // 设置 OpenGL 状态 - 根据配置控制背面剔除
+        if (enableCull) {
             GlStateManager.enableCull();
+        } else {
+            GlStateManager.disableCull();
         }
         GlStateManager.enableRescaleNormal();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableTexture2D();
-        if (FORCE_DISABLE_LIGHTING) {
-            GlStateManager.disableLighting();
-        } else {
-            GlStateManager.enableLighting();
-        }
+        GlStateManager.enableLighting();
+        GlStateManager.enableColorMaterial();
 
         GlStateManager.pushMatrix();
         float yOffset = modelYOffsetReady ? modelYOffset : 0.0f;
@@ -279,13 +222,9 @@ public class BedrockModelWrapper {
             GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
         }
 
-        // 获取光照值
+        // 获取实际光照值
         int lightX = (int) OpenGlHelper.lastBrightnessX;
         int lightY = (int) OpenGlHelper.lastBrightnessY;
-        if (FORCE_FULL_BRIGHT) {
-            lightX = 240;
-            lightY = 240;
-        }
         // 设置 lightmap 纹理坐标
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
 
@@ -307,10 +246,6 @@ public class BedrockModelWrapper {
                 .build();
 
             ModelRenderer.render(model, cubeRenderer, options);
-
-            if (debugThisFrame) {
-                quadConsumer.debugPrintBounds();
-            }
 
             quadConsumer.end();
             Tessellator.getInstance().draw();
@@ -416,7 +351,6 @@ public class BedrockModelWrapper {
         if (minY != null) {
             modelYOffset = -minY;
             modelYOffsetReady = true;
-            System.out.println("[SkyCore DEBUG] 绑定姿态地面偏移: " + modelYOffset);
         }
     }
 
@@ -453,22 +387,10 @@ public class BedrockModelWrapper {
             return true;
         }
         if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
-            if (!gpuSkinningLogged) {
-                System.out.println("[SkyCore] GPU skinning: OFF (unsupported, using CPU fallback)");
-                gpuSkinningLogged = true;
-            }
             return false;
         }
         skinnedMesh = buildSkinnedMesh();
         gpuSkinningReady = skinnedMesh != null;
-        if (!gpuSkinningLogged) {
-            if (gpuSkinningReady) {
-                System.out.println("[SkyCore] GPU skinning: ON");
-            } else {
-                System.out.println("[SkyCore] GPU skinning: OFF (mesh build failed)");
-            }
-            gpuSkinningLogged = true;
-        }
         return gpuSkinningReady;
     }
 
@@ -648,13 +570,7 @@ public class BedrockModelWrapper {
             clearQuadsForBone(child);
         }
     }
-
-    private static final boolean LIGHTMAP_SWAP = false;
-    private static final boolean FORCE_DISABLE_CULL = true;
-    private static final boolean FORCE_FULL_BRIGHT = true;
-    private static final boolean FORCE_FLAT_NORMAL = true;
-    private static final boolean FORCE_DISABLE_LIGHTING = true;
-
+    
     private static void beginBatch(BufferBuilder buffer) {
         buffer.begin(org.lwjgl.opengl.GL11.GL_QUADS, VertexFormatCompat.getFormat(true, true, true, true));
     }
@@ -691,16 +607,6 @@ public class BedrockModelWrapper {
             this.buffer = null;
         }
 
-        void debugPrintBounds() {
-            if (!hasBounds) {
-                System.out.println("[SkyCore DEBUG] QuadBounds: <empty>");
-                return;
-            }
-            float sizeX = maxX - minX;
-            float sizeY = maxY - minY;
-            float sizeZ = maxZ - minZ;
-            System.out.println("[SkyCore DEBUG] QuadBounds: min=(" + minX + ", " + minY + ", " + minZ + ") max=(" + maxX + ", " + maxY + ", " + maxZ + ") size=(" + sizeX + ", " + sizeY + ", " + sizeZ + ") vertices=" + vertexCount);
-        }
 
         Float getMinY() {
             return hasBounds ? minY : null;
@@ -744,21 +650,13 @@ public class BedrockModelWrapper {
                 float nx = normal[0];
                 float ny = normal[1];
                 float nz = normal[2];
-                if (FORCE_FLAT_NORMAL) {
-                    nx = 0f;
-                    ny = 1f;
-                    nz = 0f;
-                }
 
                 // VertexFormatCompat: pos -> color -> tex -> lightmap -> normal
                 buffer.pos(pos[0], pos[1], pos[2])
                     .color(r, g, b, a)
                     .tex(uv[0], uv[1]);
-                if (LIGHTMAP_SWAP) {
-                    buffer.lightmap(lightY, lightX);
-                } else {
-                    buffer.lightmap(lightX, lightY);
-                }
+          
+                buffer.lightmap(lightX, lightY);
                 buffer.normal(nx, ny, nz)
                     .endVertex();
             }
