@@ -133,14 +133,12 @@ public class ModelParser {
         float[] pivot = ParseUtils.getFloatArray(boneJson, "pivot", 0, 0, 0);
         bone.setPivot(pivot);
 
-        float[] position;
-        if (boneJson.has("position")) {
-            position = ParseUtils.getFloatArray(boneJson, "position", 0, 0, 0);
-        } else {
-            // Bedrock 标准：当 position 未指定时，默认使用 pivot 作为初始位置
-            position = pivot.clone();
-        }
+        boolean hasPosition = boneJson.has("position");
+        float[] position = hasPosition
+            ? ParseUtils.getFloatArray(boneJson, "position", 0, 0, 0)
+            : new float[]{0f, 0f, 0f};
         bone.setPosition(position);
+        bone.setHasPositionOverride(hasPosition);
 
         float[] rotation = ParseUtils.getFloatArray(boneJson, "rotation", 0, 0, 0);
         bone.setRotation(rotation);

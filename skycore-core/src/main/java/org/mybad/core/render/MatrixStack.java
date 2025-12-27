@@ -106,12 +106,12 @@ public class MatrixStack {
     }
 
     /**
-     * 欧拉角旋转（X-Y-Z顺序）
+     * 欧拉角旋转（Z-Y-X 顺序，符合 Bedrock/Blockbench）
      */
     public void rotateEuler(float x, float y, float z) {
-        rotateX(x);
-        rotateY(y);
         rotateZ(z);
+        rotateY(y);
+        rotateX(x);
     }
 
     /**

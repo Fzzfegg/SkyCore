@@ -119,7 +119,11 @@ public final class ModelRenderer {
 
         float[] rotation = bone.getRotation();
         if (rotation[0] != 0 || rotation[1] != 0 || rotation[2] != 0) {
-            stack.rotateEuler(convertRotation(rotation[0], true), convertRotation(rotation[1], true), convertRotation(rotation[2], false));
+            stack.rotateEuler(
+                convertRotation(rotation[0], true),
+                convertRotation(rotation[1], true),
+                convertRotation(rotation[2], false)
+            );
         }
 
         float[] size = bone.getSize();
@@ -130,13 +134,9 @@ public final class ModelRenderer {
         stack.translate(-pivotX, -pivotY, -pivotZ);
 
         float[] position = bone.getPosition();
-        float deltaX = position[0] - pivot[0];
-        float deltaY = position[1] - pivot[1];
-        float deltaZ = position[2] - pivot[2];
-
-        float translateX = convertX(deltaX);
-        float translateY = convertY(deltaY);
-        float translateZ = convertZ(deltaZ);
+        float translateX = convertX(position[0]);
+        float translateY = convertY(position[1]);
+        float translateZ = convertZ(position[2]);
 
         if (translateX != 0 || translateY != 0 || translateZ != 0) {
             stack.translate(translateX, translateY, translateZ);
@@ -157,7 +157,11 @@ public final class ModelRenderer {
 
             stack.translate(pivotX, pivotY, pivotZ);
             float[] rotation = cube.getRotation();
-            stack.rotateEuler(convertRotation(rotation[0], true), convertRotation(rotation[1], true), convertRotation(rotation[2], false));
+            stack.rotateEuler(
+                convertRotation(rotation[0], true),
+                convertRotation(rotation[1], true),
+                convertRotation(rotation[2], false)
+            );
             stack.translate(-pivotX, -pivotY, -pivotZ);
         }
     }

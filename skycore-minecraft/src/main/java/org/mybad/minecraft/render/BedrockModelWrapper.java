@@ -502,9 +502,11 @@ public class BedrockModelWrapper {
 
         stack.translate(pivotX, pivotY, pivotZ);
         float[] rotation = cube.getRotation();
-        stack.rotateEuler(convertRotation(rotation[0], true),
+        stack.rotateEuler(
+            convertRotation(rotation[0], true),
             convertRotation(rotation[1], true),
-            convertRotation(rotation[2], false));
+            convertRotation(rotation[2], false)
+        );
         stack.translate(-pivotX, -pivotY, -pivotZ);
         return stack;
     }
@@ -519,9 +521,11 @@ public class BedrockModelWrapper {
 
         float[] rotation = bone.getRotation();
         if (rotation[0] != 0 || rotation[1] != 0 || rotation[2] != 0) {
-            stack.rotateEuler(convertRotation(rotation[0], true),
+            stack.rotateEuler(
+                convertRotation(rotation[0], true),
                 convertRotation(rotation[1], true),
-                convertRotation(rotation[2], false));
+                convertRotation(rotation[2], false)
+            );
         }
 
         float[] size = bone.getSize();
@@ -532,9 +536,9 @@ public class BedrockModelWrapper {
         stack.translate(-pivotX, -pivotY, -pivotZ);
 
         float[] position = bone.getPosition();
-        float translateX = convertX(position[0] - pivot[0]);
-        float translateY = convertY(position[1] - pivot[1]);
-        float translateZ = convertZ(position[2] - pivot[2]);
+        float translateX = convertX(position[0]);
+        float translateY = convertY(position[1]);
+        float translateZ = convertZ(position[2]);
 
         if (translateX != 0 || translateY != 0 || translateZ != 0) {
             stack.translate(translateX, translateY, translateZ);
