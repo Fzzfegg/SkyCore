@@ -1,0 +1,78 @@
+// SkyCore 根项目构建配置 - ForgeGradle 6.0+
+
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.+', changing: true
+    }
+}
+
+// 仅在包含 skycore-minecraft 时应用 ForgeGradle
+configure(project(':skycore-minecraft')) {
+    apply plugin: 'net.minecraftforge.gradle'
+}
+
+group = 'org.mybad'
+version = '1.0.0'
+description = '高性能、功能完整的 Minecraft Bedrock 模型和粒子系统框架'
+
+// 为所有子项目配置通用设置
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'eclipse'
+    apply plugin: 'maven-publish'
+
+    group = 'org.mybad'
+    version = '1.0.0'
+
+    java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        mavenCentral()
+    }
+
+    compileJava {
+        options.encoding = 'UTF-8'
+    }
+
+    compileTestJava {
+        options.encoding = 'UTF-8'
+    }
+}
+
+def modsDir = file('D:/Minecraft/记忆之间客户端模型测试/.minecraft/mods')
+
+tasks.register('copyBuiltMods') {
+    group = 'build'
+    description = 'Copy skycore-core and skycore-minecraft jars (non-sources) to the test mods folder.'
+    dependsOn ':skycore-core:jar', ':skycore-minecraft:reobfJar'
+    doLast {
+        if (!modsDir.exists()) {
+            modsDir.mkdirs()
+        }
+        copy {
+            from('skycore-core/build/libs') {
+                include '*.jar'
+                exclude '*-sources.jar'
+            }
+            from('skycore-minecraft/build/libs') {
+                include '*.jar'
+                exclude '*-sources.jar'
+                exclude '*-dev.jar'
+                exclude '*-deobf.jar'
+            }
+            into modsDir
+        }
+    }
+}
+
+subprojects {
+    tasks.withType(Jar).configureEach {
+        finalizedBy rootProject.tasks.named('copyBuiltMods')
+    }
+}

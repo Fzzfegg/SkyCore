@@ -1,0 +1,53 @@
+version = "${minecraft_version}-${projectVersion}"
+group = mod_base_package
+
+minecraft {
+    mappings channel: mappings_channel, version: mappings_version
+
+    legacy {
+        fixClasspath = true
+        extractMappings = true
+        attachMappings = true
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // skycore-core 核心库
+    implementation project(':skycore-core')
+
+    // javax.vecmath 用于矩阵运算 (Chameleon 风格)
+    implementation 'java3d:vecmath:1.3.1'
+
+    // 测试依赖
+    testImplementation 'junit:junit:4.13.2'
+}
+
+jar {
+    archiveBaseName = 'skycore-minecraft'
+    archiveVersion = projectVersion
+
+    manifest {
+        attributes([
+            'Specification-Title': mod_id,
+            'Specification-Vendor': mod_authors,
+            'Specification-Version': '1',
+            'Implementation-Title': 'SkyCore-Minecraft',
+            'Implementation-Version': projectVersion,
+            'Implementation-Vendor': mod_authors,
+            'Implementation-Timestamp': new Date().format('yyyy-MM-dd\'T\'HH:mm:ssZ')
+        ])
+    }
+}
+
+task sourceJar(type: Jar) {
+    archiveBaseName = 'skycore-minecraft'
+    archiveClassifier = 'sources'
+    archiveVersion = projectVersion
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourceJar
+}

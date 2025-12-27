@@ -1,0 +1,49 @@
+// skycore-core 独立核心库构建配置
+
+group = 'org.mybad'
+version = projectVersion
+description = '独立的 Minecraft Bedrock 模型和粒子系统核心库'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+
+dependencies {
+    // 核心依赖：仅 Gson
+    implementation 'com.google.code.gson:gson:2.8.9'
+
+    // 注解支持
+    implementation 'org.jetbrains:annotations:20.1.0'
+
+    // 测试依赖 - JUnit 4 + JUnit 5
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+    testImplementation 'org.junit.vintage:junit-vintage-engine:5.8.2'
+}
+
+// 配置 JAR 包
+jar {
+    archiveBaseName = 'skycore-core'
+    archiveVersion = projectVersion
+
+    manifest {
+        attributes([
+            'Implementation-Title': 'SkyCore-Core',
+            'Implementation-Version': projectVersion,
+            'Implementation-Vendor': 'org.mybad',
+            'Bundle-Description': '独立的 Minecraft Bedrock 模型和粒子系统核心库',
+            'Implementation-Timestamp': new Date().format('yyyy-MM-dd\'T\'HH:mm:ssZ')
+        ])
+    }
+}
+
+// 生成源代码 JAR
+task sourceJar(type: Jar) {
+    archiveBaseName = 'skycore-core'
+    archiveClassifier = 'sources'
+    archiveVersion = projectVersion
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourceJar
+}

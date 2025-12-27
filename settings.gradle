@@ -1,0 +1,5 @@
+// SkyCore 多模块配置
+rootProject.name = 'SkyCore'
+
+include 'skycore-core'
+include 'skycore-minecraft'
