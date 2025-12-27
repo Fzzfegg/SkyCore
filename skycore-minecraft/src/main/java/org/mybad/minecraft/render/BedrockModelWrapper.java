@@ -14,11 +14,17 @@ import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.core.data.Model;
 import org.mybad.core.data.ModelBone;
 import org.mybad.core.data.ModelCube;
+import org.mybad.core.data.ModelQuad;
 import org.mybad.core.render.CubeRenderer;
 import org.mybad.core.render.ModelRenderer;
 import org.mybad.core.render.MatrixStack;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.nio.FloatBuffer;
+import org.lwjgl.BufferUtils;
 
 /**
  * Bedrock 模型包装器
@@ -60,6 +66,14 @@ public class BedrockModelWrapper {
     private boolean autoYOffset = false;
     private float modelYOffset;
     private boolean modelYOffsetReady;
+    private final Map<ModelBone, Integer> boneIndexMap;
+    private final List<ModelBone> rootBones;
+    private SkinnedMesh skinnedMesh;
+    private FloatBuffer boneMatrixBuffer;
+    private float[] boneMatrices;
+    private final MatrixStack boneMatrixStack = new MatrixStack();
+    private boolean gpuSkinningReady;
+    private boolean gpuSkinningLogged;
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
         this.model = model;
@@ -93,8 +107,13 @@ public class BedrockModelWrapper {
         this.quadConsumer = new BufferingQuadConsumer();
         this.cubeRenderer = new CubeRenderer(quadConsumer);
 
+        this.boneIndexMap = buildBoneIndexMap(model);
+        this.rootBones = collectRootBones(model.getBones());
+
         // 预生成四边形
         generateAllQuads();
+
+        initBoneMatrices();
 
         // 调试输出
         int boneCount = model.getBones().size();
@@ -270,25 +289,32 @@ public class BedrockModelWrapper {
         // 设置 lightmap 纹理坐标
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
 
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-        beginBatch(buffer);
-        quadConsumer.begin(buffer, lightX, lightY);
+        if (ensureGpuSkinningReady()) {
+            updateBoneMatrices();
+            skinnedMesh.updateJointMatrices(boneMatrixBuffer);
+            skinnedMesh.runSkinningPass();
+            skinnedMesh.draw();
+        } else {
+            BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+            beginBatch(buffer);
+            quadConsumer.begin(buffer, lightX, lightY);
 
-        ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
-            .matrixStack(new MatrixStack())
-            .textureWidth(textureWidth)
-            .textureHeight(textureHeight)
-            .applyConstraints(true)
-            .build();
+            ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
+                .matrixStack(new MatrixStack())
+                .textureWidth(textureWidth)
+                .textureHeight(textureHeight)
+                .applyConstraints(true)
+                .build();
 
-        ModelRenderer.render(model, cubeRenderer, options);
+            ModelRenderer.render(model, cubeRenderer, options);
 
-        if (debugThisFrame) {
-            quadConsumer.debugPrintBounds();
+            if (debugThisFrame) {
+                quadConsumer.debugPrintBounds();
+            }
+
+            quadConsumer.end();
+            Tessellator.getInstance().draw();
         }
-
-        quadConsumer.end();
-        Tessellator.getInstance().draw();
 
         GlStateManager.popMatrix();
 
@@ -392,6 +418,223 @@ public class BedrockModelWrapper {
             modelYOffsetReady = true;
             System.out.println("[SkyCore DEBUG] 绑定姿态地面偏移: " + modelYOffset);
         }
+    }
+
+    private static Map<ModelBone, Integer> buildBoneIndexMap(Model model) {
+        Map<ModelBone, Integer> map = new HashMap<>();
+        List<ModelBone> bones = model.getBones();
+        for (int i = 0; i < bones.size(); i++) {
+            map.put(bones.get(i), i);
+        }
+        return map;
+    }
+
+    private static List<ModelBone> collectRootBones(List<ModelBone> bones) {
+        List<ModelBone> roots = new ArrayList<>();
+        for (ModelBone bone : bones) {
+            if (bone.getParent() == null) {
+                roots.add(bone);
+            }
+        }
+        return roots;
+    }
+
+    private void initBoneMatrices() {
+        int boneCount = model.getBones().size();
+        if (boneCount <= 0) {
+            return;
+        }
+        boneMatrices = new float[boneCount * 16];
+        boneMatrixBuffer = BufferUtils.createFloatBuffer(boneCount * 16);
+    }
+
+    private boolean ensureGpuSkinningReady() {
+        if (gpuSkinningReady) {
+            return true;
+        }
+        if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
+            if (!gpuSkinningLogged) {
+                System.out.println("[SkyCore] GPU skinning: OFF (unsupported, using CPU fallback)");
+                gpuSkinningLogged = true;
+            }
+            return false;
+        }
+        skinnedMesh = buildSkinnedMesh();
+        gpuSkinningReady = skinnedMesh != null;
+        if (!gpuSkinningLogged) {
+            if (gpuSkinningReady) {
+                System.out.println("[SkyCore] GPU skinning: ON");
+            } else {
+                System.out.println("[SkyCore] GPU skinning: OFF (mesh build failed)");
+            }
+            gpuSkinningLogged = true;
+        }
+        return gpuSkinningReady;
+    }
+
+    private SkinnedMesh buildSkinnedMesh() {
+        int quadCount = countQuads();
+        if (quadCount <= 0) {
+            return null;
+        }
+        int vertexCount = quadCount * 6;
+        FloatBuffer buffer = SkinnedMesh.allocateInputBuffer(vertexCount);
+        int vertexIndex = 0;
+
+        for (ModelBone bone : model.getBones()) {
+            if (bone.isNeverRender()) {
+                continue;
+            }
+            Integer boneIndex = boneIndexMap.get(bone);
+            if (boneIndex == null) {
+                continue;
+            }
+            for (ModelCube cube : bone.getCubes()) {
+                if (!cube.hasQuads()) {
+                    cube.generateQuads(textureWidth, textureHeight);
+                }
+                MatrixStack cubeRotation = buildCubeRotationStack(cube);
+                for (ModelQuad quad : cube.getQuads()) {
+                    int[] order = new int[]{0, 1, 2, 2, 3, 0};
+                    for (int idx : order) {
+                        float[] pos = new float[]{quad.vertices[idx].x, quad.vertices[idx].y, quad.vertices[idx].z};
+                        float[] normal = new float[]{quad.normalX, quad.normalY, quad.normalZ};
+                        if (cubeRotation != null) {
+                            cubeRotation.transform(pos);
+                            cubeRotation.transformNormal(normal);
+                        }
+
+                        buffer.put(pos[0]).put(pos[1]).put(pos[2]);
+                        buffer.put(quad.vertices[idx].u).put(quad.vertices[idx].v);
+                        buffer.put(normal[0]).put(normal[1]).put(normal[2]);
+
+                        buffer.put(boneIndex.floatValue()).put(0f).put(0f).put(0f);
+                        buffer.put(1f).put(0f).put(0f).put(0f);
+                        buffer.put((float) vertexIndex);
+                        vertexIndex++;
+                    }
+                }
+            }
+        }
+
+        buffer.flip();
+        return new SkinnedMesh(buffer, vertexIndex, model.getBones().size());
+    }
+
+    private void updateBoneMatrices() {
+        if (boneMatrices == null || boneMatrixBuffer == null) {
+            return;
+        }
+
+        applyConstraintsForGpu();
+
+        boneMatrixStack.loadIdentity();
+        for (ModelBone bone : rootBones) {
+            fillBoneMatricesRecursive(bone, boneMatrixStack);
+        }
+
+        boneMatrixBuffer.clear();
+        boneMatrixBuffer.put(boneMatrices, 0, boneMatrices.length);
+        boneMatrixBuffer.flip();
+    }
+
+    private void fillBoneMatricesRecursive(ModelBone bone, MatrixStack stack) {
+        stack.push();
+        applyBoneTransform(bone, stack);
+
+        Integer index = boneIndexMap.get(bone);
+        if (index != null) {
+            float[] current = stack.getCurrentMatrix();
+            System.arraycopy(current, 0, boneMatrices, index * 16, 16);
+        }
+
+        for (ModelBone child : bone.getChildren()) {
+            fillBoneMatricesRecursive(child, stack);
+        }
+
+        stack.pop();
+    }
+
+    private void applyConstraintsForGpu() {
+        if (model.getConstraints().isEmpty()) {
+            return;
+        }
+        for (org.mybad.core.constraint.Constraint constraint : model.getConstraints()) {
+            ModelBone target = model.getBone(constraint.getTargetBone());
+            ModelBone source = model.getBone(constraint.getSourceBone());
+            if (target != null && source != null) {
+                constraint.apply(target, source);
+            }
+        }
+    }
+
+    private static MatrixStack buildCubeRotationStack(ModelCube cube) {
+        if (!cube.hasRotation()) {
+            return null;
+        }
+        MatrixStack stack = new MatrixStack();
+        float[] pivot = cube.getPivot();
+        float pivotX = convertX(pivot[0]);
+        float pivotY = convertY(pivot[1]);
+        float pivotZ = convertZ(pivot[2]);
+
+        stack.translate(pivotX, pivotY, pivotZ);
+        float[] rotation = cube.getRotation();
+        stack.rotateEuler(convertRotation(rotation[0], true),
+            convertRotation(rotation[1], true),
+            convertRotation(rotation[2], false));
+        stack.translate(-pivotX, -pivotY, -pivotZ);
+        return stack;
+    }
+
+    private static void applyBoneTransform(ModelBone bone, MatrixStack stack) {
+        float[] pivot = bone.getPivot();
+        float pivotX = convertX(pivot[0]);
+        float pivotY = convertY(pivot[1]);
+        float pivotZ = convertZ(pivot[2]);
+
+        stack.translate(pivotX, pivotY, pivotZ);
+
+        float[] rotation = bone.getRotation();
+        if (rotation[0] != 0 || rotation[1] != 0 || rotation[2] != 0) {
+            stack.rotateEuler(convertRotation(rotation[0], true),
+                convertRotation(rotation[1], true),
+                convertRotation(rotation[2], false));
+        }
+
+        float[] size = bone.getSize();
+        if (size[0] != 1 || size[1] != 1 || size[2] != 1) {
+            stack.scale(size[0], size[1], size[2]);
+        }
+
+        stack.translate(-pivotX, -pivotY, -pivotZ);
+
+        float[] position = bone.getPosition();
+        float translateX = convertX(position[0] - pivot[0]);
+        float translateY = convertY(position[1] - pivot[1]);
+        float translateZ = convertZ(position[2] - pivot[2]);
+
+        if (translateX != 0 || translateY != 0 || translateZ != 0) {
+            stack.translate(translateX, translateY, translateZ);
+        }
+    }
+
+    private static final float PIXEL_SCALE = 1.0f / 16.0f;
+
+    private static float convertX(float raw) {
+        return -raw * PIXEL_SCALE;
+    }
+
+    private static float convertY(float raw) {
+        return raw * PIXEL_SCALE;
+    }
+
+    private static float convertZ(float raw) {
+        return raw * PIXEL_SCALE;
+    }
+
+    private static float convertRotation(float raw, boolean invert) {
+        return invert ? -raw : raw;
     }
 
     /**
