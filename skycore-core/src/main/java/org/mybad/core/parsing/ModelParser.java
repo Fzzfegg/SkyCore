@@ -163,6 +163,8 @@ public class ModelParser {
             bone.addCube(cube);
         }
 
+        bone.captureBindPose();
+
         return bone;
     }
 

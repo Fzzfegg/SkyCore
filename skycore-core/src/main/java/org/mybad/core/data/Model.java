@@ -62,6 +62,15 @@ public class Model {
         constraints.add(constraint);
     }
 
+    /**
+     * 重置所有骨骼到绑定姿态
+     */
+    public void resetToBindPose() {
+        for (ModelBone bone : bones) {
+            bone.resetToBindPose();
+        }
+    }
+
     // Getters
     public String getName() { return name; }
     public String getTextureWidth() { return textureWidth; }

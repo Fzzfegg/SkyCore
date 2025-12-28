@@ -53,11 +53,19 @@ public class AnimationPlayer {
             }
 
             Animation.BoneAnimation boneAnim = boneAnims.get(boneName);
+            float[] basePosition = bone.getBindPosition();
+            float[] baseRotation = bone.getBindRotation();
+            float[] baseScale = bone.getBindSize();
 
             // 应用位置动画
             if (!boneAnim.positionFrames.isEmpty()) {
                 float[] position = interpolateFrames(boneAnim.positionFrames, currentTime);
-                applyBlendedTransform(bone.getPosition(), position, weight);
+                float[] target = new float[]{
+                    basePosition[0] + position[0],
+                    basePosition[1] + position[1],
+                    basePosition[2] + position[2]
+                };
+                applyBlendedTransform(bone.getPosition(), target, weight);
             }
 
             // 应用旋转动画
@@ -67,13 +75,23 @@ public class AnimationPlayer {
                 if (currentTime < 0.01f && (boneName.contains("arm") || boneName.contains("hand"))) {
                     System.out.println("[动画] " + boneName + " 旋转: [" + rotation[0] + ", " + rotation[1] + ", " + rotation[2] + "]");
                 }
-                applyBlendedTransform(bone.getRotation(), rotation, weight);
+                float[] target = new float[]{
+                    baseRotation[0] + rotation[0],
+                    baseRotation[1] + rotation[1],
+                    baseRotation[2] + rotation[2]
+                };
+                applyBlendedTransform(bone.getRotation(), target, weight);
             }
 
             // 应用缩放动画
             if (!boneAnim.scaleFrames.isEmpty()) {
                 float[] scale = interpolateFrames(boneAnim.scaleFrames, currentTime);
-                applyBlendedTransform(bone.getSize(), scale, weight);
+                float[] target = new float[]{
+                    baseScale[0] * scale[0],
+                    baseScale[1] * scale[1],
+                    baseScale[2] * scale[2]
+                };
+                applyBlendedTransform(bone.getSize(), target, weight);
             }
         }
     }

@@ -194,6 +194,7 @@ public class BedrockModelWrapper {
 
         // 应用动画到模型
         if (animationPlayer != null) {
+            model.resetToBindPose();
             animationPlayer.apply(model);
         }
 

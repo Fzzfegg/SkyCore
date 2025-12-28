@@ -168,6 +168,8 @@ public class AnimationBlender {
             return;
         }
 
+        model.resetToBindPose();
+
         // 逐层应用动画
         for (AnimationLayer layer : layers) {
             if (layer.weight > 0.001f) {  // 只应用权重足够大的动画

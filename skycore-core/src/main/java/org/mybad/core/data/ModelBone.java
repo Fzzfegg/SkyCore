@@ -20,6 +20,9 @@ public class ModelBone {
     private float[] rotation;   // 旋转角度 [x, y, z] 单位：度数
     private float[] size;       // 骨骼大小/缩放 [x, y, z]
     private boolean hasPositionOverride;
+    private float[] bindPosition;
+    private float[] bindRotation;
+    private float[] bindSize;
 
     // 内容
     private List<ModelCube> cubes;
@@ -42,6 +45,9 @@ public class ModelBone {
         this.rotation = new float[]{0, 0, 0};
         this.size = new float[]{1, 1, 1};
         this.hasPositionOverride = false;
+        this.bindPosition = new float[]{0, 0, 0};
+        this.bindRotation = new float[]{0, 0, 0};
+        this.bindSize = new float[]{1, 1, 1};
 
         this.mirror = false;
         this.neverRender = false;
@@ -98,6 +104,9 @@ public class ModelBone {
     public boolean hasPositionOverride() { return hasPositionOverride; }
     public float[] getRotation() { return rotation; }
     public float[] getSize() { return size; }
+    public float[] getBindPosition() { return bindPosition; }
+    public float[] getBindRotation() { return bindRotation; }
+    public float[] getBindSize() { return bindSize; }
     public List<ModelCube> getCubes() { return cubes; }
     public List<Constraint> getConstraints() { return constraints; }
     public boolean isMirror() { return mirror; }
@@ -152,4 +161,25 @@ public class ModelBone {
     public void setMirror(boolean mirror) { this.mirror = mirror; }
     public void setNeverRender(boolean neverRender) { this.neverRender = neverRender; }
     public void setReset(boolean reset) { this.reset = reset; }
+
+    public void captureBindPose() {
+        copyVec3(position, bindPosition);
+        copyVec3(rotation, bindRotation);
+        copyVec3(size, bindSize);
+    }
+
+    public void resetToBindPose() {
+        copyVec3(bindPosition, position);
+        copyVec3(bindRotation, rotation);
+        copyVec3(bindSize, size);
+    }
+
+    private void copyVec3(float[] src, float[] dst) {
+        if (src == null || dst == null || src.length < 3 || dst.length < 3) {
+            return;
+        }
+        dst[0] = src[0];
+        dst[1] = src[1];
+        dst[2] = src[2];
+    }
 }
