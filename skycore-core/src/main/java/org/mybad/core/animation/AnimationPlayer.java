@@ -16,6 +16,26 @@ import java.util.*;
 public class AnimationPlayer {
     private Animation animation;
     private AnimationState state;
+    private final float[] tmpPosition = new float[3];
+    private final float[] tmpRotation = new float[3];
+    private final float[] tmpScale = new float[3];
+    private final float[] tmpTarget = new float[3];
+    private final Map<String, FrameCursor> frameCursors = new HashMap<>();
+    private final Map<String, ModelBone> boneCache = new HashMap<>();
+    private Model cachedModel;
+    private float lastSampleTime = Float.NaN;
+
+    private static final class FrameCursor {
+        int positionIndex = -1;
+        int rotationIndex = -1;
+        int scaleIndex = -1;
+
+        void reset() {
+            positionIndex = -1;
+            rotationIndex = -1;
+            scaleIndex = -1;
+        }
+    }
 
     public AnimationPlayer(Animation animation) {
         this.animation = animation;
@@ -39,53 +59,69 @@ public class AnimationPlayer {
             return;
         }
 
+        if (cachedModel != model) {
+            cachedModel = model;
+            boneCache.clear();
+        }
+
         weight = Math.max(0, Math.min(1, weight));  // 限制权重范围
 
         float currentTime = state.getCurrentTime();
         Map<String, Animation.BoneAnimation> boneAnims = animation.getBoneAnimations();
 
-        for (String boneName : boneAnims.keySet()) {
-            ModelBone bone = model.getBone(boneName);
+        boolean forward = !Float.isNaN(lastSampleTime) && currentTime >= lastSampleTime;
+        if (!forward) {
+            for (FrameCursor cursor : frameCursors.values()) {
+                cursor.reset();
+            }
+        }
+        lastSampleTime = currentTime;
+
+        for (Map.Entry<String, Animation.BoneAnimation> entry : boneAnims.entrySet()) {
+            String boneName = entry.getKey();
+            Animation.BoneAnimation boneAnim = entry.getValue();
+            ModelBone bone = boneCache.get(boneName);
+            if (bone == null && !boneCache.containsKey(boneName)) {
+                bone = model.getBone(boneName);
+                boneCache.put(boneName, bone);
+            }
             if (bone == null) {
                 continue;
             }
-
-            Animation.BoneAnimation boneAnim = boneAnims.get(boneName);
+            FrameCursor cursor = frameCursors.get(boneName);
+            if (cursor == null) {
+                cursor = new FrameCursor();
+                frameCursors.put(boneName, cursor);
+            }
             float[] basePosition = bone.getBindPosition();
             float[] baseRotation = bone.getBindRotation();
             float[] baseScale = bone.getBindSize();
 
             // 应用位置动画
             if (!boneAnim.positionFrames.isEmpty()) {
-                float[] position = interpolateFrames(boneAnim.positionFrames, currentTime);
-                float[] target = new float[]{
-                    basePosition[0] + position[0],
-                    basePosition[1] + position[1],
-                    basePosition[2] + position[2]
-                };
-                applyBlendedTransform(bone.getPosition(), target, weight);
+                cursor.positionIndex = interpolateFrames(boneAnim.positionFrames, currentTime, tmpPosition, cursor.positionIndex, forward);
+                tmpTarget[0] = basePosition[0] + tmpPosition[0];
+                tmpTarget[1] = basePosition[1] + tmpPosition[1];
+                tmpTarget[2] = basePosition[2] + tmpPosition[2];
+                applyBlendedTransform(bone.getPosition(), tmpTarget, weight);
             }
 
             // 应用旋转动画
             if (!boneAnim.rotationFrames.isEmpty()) {
-                float[] rotation = interpolateRotationFrames(boneAnim.rotationFrames, currentTime);
-                float[] target = new float[]{
-                    baseRotation[0] + rotation[0],
-                    baseRotation[1] + rotation[1],
-                    baseRotation[2] + rotation[2]
-                };
-                applyBlendedTransform(bone.getRotation(), target, weight);
+                cursor.rotationIndex = interpolateRotationFrames(boneAnim.rotationFrames, currentTime, tmpRotation, cursor.rotationIndex, forward);
+                tmpTarget[0] = baseRotation[0] + tmpRotation[0];
+                tmpTarget[1] = baseRotation[1] + tmpRotation[1];
+                tmpTarget[2] = baseRotation[2] + tmpRotation[2];
+                applyBlendedTransform(bone.getRotation(), tmpTarget, weight);
             }
 
             // 应用缩放动画
             if (!boneAnim.scaleFrames.isEmpty()) {
-                float[] scale = interpolateFrames(boneAnim.scaleFrames, currentTime);
-                float[] target = new float[]{
-                    baseScale[0] * scale[0],
-                    baseScale[1] * scale[1],
-                    baseScale[2] * scale[2]
-                };
-                applyBlendedTransform(bone.getSize(), target, weight);
+                cursor.scaleIndex = interpolateFrames(boneAnim.scaleFrames, currentTime, tmpScale, cursor.scaleIndex, forward);
+                tmpTarget[0] = baseScale[0] * tmpScale[0];
+                tmpTarget[1] = baseScale[1] * tmpScale[1];
+                tmpTarget[2] = baseScale[2] * tmpScale[2];
+                applyBlendedTransform(bone.getSize(), tmpTarget, weight);
             }
         }
     }
@@ -100,51 +136,38 @@ public class AnimationPlayer {
     /**
      * 计算给定时间的插值值
      */
-    private float[] interpolateFrames(List<Animation.KeyFrame> frames, float currentTime) {
+    private int interpolateFrames(List<Animation.KeyFrame> frames, float currentTime, float[] out, int lastIndex, boolean forward) {
         if (frames.isEmpty()) {
-            return new float[]{0, 0, 0};
+            setVec(out, 0f, 0f, 0f);
+            return lastIndex;
         }
 
-        // 找到当前时间前后的关键帧
-        Animation.KeyFrame before = null;
-        Animation.KeyFrame after = null;
-        int beforeIndex = -1;
-        int afterIndex = -1;
-
-        for (int i = 0; i < frames.size(); i++) {
-            Animation.KeyFrame frame = frames.get(i);
-
-            if (frame.timestamp <= currentTime) {
-                before = frame;
-                beforeIndex = i;
-            }
-
-            if (frame.timestamp >= currentTime) {
-                after = frame;
-                afterIndex = i;
-                break;
-            }
-        }
+        int afterIndex = forward ? lowerBoundFrom(frames, currentTime, lastIndex) : lowerBound(frames, currentTime);
+        Animation.KeyFrame after = afterIndex < frames.size() ? frames.get(afterIndex) : null;
+        int beforeIndex = afterIndex - 1;
+        Animation.KeyFrame before = beforeIndex >= 0 ? frames.get(beforeIndex) : null;
 
         // 处理边界情况
         if (before == null && after != null) {
             // 在第一个关键帧之前
-            return new float[]{after.value[0], after.value[1], after.value[2]};
+            setVec(out, after.value[0], after.value[1], after.value[2]);
+            return afterIndex;
         }
 
         if (before != null && after == null) {
             // 在最后一个关键帧之后
-            return new float[]{before.value[0], before.value[1], before.value[2]};
+            setVec(out, before.value[0], before.value[1], before.value[2]);
+            return afterIndex;
         }
 
         if (before == null && after == null) {
-            return new float[]{0, 0, 0};
+            setVec(out, 0f, 0f, 0f);
+            return afterIndex;
         }
 
-        // 两个关键帧之间的插值
-        if (before == after) {
-            // 恰好在关键帧上
-            return new float[]{before.value[0], before.value[1], before.value[2]};
+        if (after != null && after.timestamp == currentTime) {
+            setVec(out, after.value[0], after.value[1], after.value[2]);
+            return afterIndex;
         }
 
         // 计算插值系数
@@ -157,22 +180,22 @@ public class AnimationPlayer {
         String mode = interpolation != null ? interpolation.getName() : "linear";
 
         if ("step".equalsIgnoreCase(mode)) {
-            return new float[]{before.value[0], before.value[1], before.value[2]};
+            setVec(out, before.value[0], before.value[1], before.value[2]);
+            return afterIndex;
         }
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
             Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
             Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
 
-            float[] result = new float[3];
             for (int i = 0; i < 3; i++) {
                 float p0 = prev.value[i];
                 float p1 = before.value[i];
                 float p2 = after.value[i];
                 float p3 = next.value[i];
-                result[i] = cubicHermite(p0, p1, p2, p3, t);
+                out[i] = cubicHermite(p0, p1, p2, p3, t);
             }
-            return result;
+            return afterIndex;
         }
 
         if ("bezier".equalsIgnoreCase(mode)) {
@@ -180,59 +203,48 @@ public class AnimationPlayer {
             float[] p3 = after.value;
             float[] p1 = before.post != null ? before.post : p0;
             float[] p2 = after.pre != null ? after.pre : p3;
-            return cubicBezier(p0, p1, p2, p3, t);
+            cubicBezier(p0, p1, p2, p3, t, out);
+            return afterIndex;
         }
 
         float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
 
         // 计算最终值
-        float[] result = new float[3];
         for (int i = 0; i < 3; i++) {
-            result[i] = before.value[i] + (after.value[i] - before.value[i]) * interpolated;
+            out[i] = before.value[i] + (after.value[i] - before.value[i]) * interpolated;
         }
-
-        return result;
+        return afterIndex;
     }
 
-    private float[] interpolateRotationFrames(List<Animation.KeyFrame> frames, float currentTime) {
+    private int interpolateRotationFrames(List<Animation.KeyFrame> frames, float currentTime, float[] out, int lastIndex, boolean forward) {
         if (frames.isEmpty()) {
-            return new float[]{0, 0, 0};
+            setVec(out, 0f, 0f, 0f);
+            return lastIndex;
         }
 
-        Animation.KeyFrame before = null;
-        Animation.KeyFrame after = null;
-        int beforeIndex = -1;
-        int afterIndex = -1;
-
-        for (int i = 0; i < frames.size(); i++) {
-            Animation.KeyFrame frame = frames.get(i);
-
-            if (frame.timestamp <= currentTime) {
-                before = frame;
-                beforeIndex = i;
-            }
-
-            if (frame.timestamp >= currentTime) {
-                after = frame;
-                afterIndex = i;
-                break;
-            }
-        }
+        int afterIndex = forward ? lowerBoundFrom(frames, currentTime, lastIndex) : lowerBound(frames, currentTime);
+        Animation.KeyFrame after = afterIndex < frames.size() ? frames.get(afterIndex) : null;
+        int beforeIndex = afterIndex - 1;
+        Animation.KeyFrame before = beforeIndex >= 0 ? frames.get(beforeIndex) : null;
 
         if (before == null && after != null) {
-            return new float[]{after.value[0], after.value[1], after.value[2]};
+            setVec(out, after.value[0], after.value[1], after.value[2]);
+            return afterIndex;
         }
 
         if (before != null && after == null) {
-            return new float[]{before.value[0], before.value[1], before.value[2]};
+            setVec(out, before.value[0], before.value[1], before.value[2]);
+            return afterIndex;
         }
 
         if (before == null) {
-            return new float[]{0, 0, 0};
+            setVec(out, 0f, 0f, 0f);
+            return afterIndex;
         }
 
-        if (before == after) {
-            return new float[]{before.value[0], before.value[1], before.value[2]};
+        if (after != null && after.timestamp == currentTime) {
+            setVec(out, after.value[0], after.value[1], after.value[2]);
+            return afterIndex;
         }
 
         float frameDuration = after.timestamp - before.timestamp;
@@ -243,26 +255,25 @@ public class AnimationPlayer {
         String mode = interpolation != null ? interpolation.getName() : "linear";
 
         if ("step".equalsIgnoreCase(mode)) {
-            return new float[]{before.value[0], before.value[1], before.value[2]};
+            setVec(out, before.value[0], before.value[1], before.value[2]);
+            return afterIndex;
         }
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
             Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
             Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
 
-            float[] result = new float[3];
             for (int i = 0; i < 3; i++) {
                 float p1 = before.value[i];
                 float p2 = p1 + shortestAngleDelta(p1, after.value[i]);
                 float p0 = p1 + shortestAngleDelta(p1, prev.value[i]);
                 float p3 = p2 + shortestAngleDelta(p2, next.value[i]);
-                result[i] = cubicHermite(p0, p1, p2, p3, t);
+                out[i] = cubicHermite(p0, p1, p2, p3, t);
             }
-            return result;
+            return afterIndex;
         }
 
         if ("bezier".equalsIgnoreCase(mode)) {
-            float[] result = new float[3];
             for (int i = 0; i < 3; i++) {
                 float p0 = before.value[i];
                 float p3 = p0 + shortestAngleDelta(p0, after.value[i]);
@@ -270,20 +281,18 @@ public class AnimationPlayer {
                 float p2 = after.pre != null ? after.pre[i] : after.value[i];
                 float p1u = p0 + shortestAngleDelta(p0, p1);
                 float p2u = p3 + shortestAngleDelta(p3, p2);
-                result[i] = cubicBezier1D(p0, p1u, p2u, p3, t);
+                out[i] = cubicBezier1D(p0, p1u, p2u, p3, t);
             }
-            return result;
+            return afterIndex;
         }
 
         float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
-        float[] result = new float[3];
         for (int i = 0; i < 3; i++) {
             float p0 = before.value[i];
             float p3 = after.value[i];
-            result[i] = p0 + shortestAngleDelta(p0, p3) * interpolated;
+            out[i] = p0 + shortestAngleDelta(p0, p3) * interpolated;
         }
-
-        return result;
+        return afterIndex;
     }
 
     private float shortestAngleDelta(float from, float to) {
@@ -305,22 +314,67 @@ public class AnimationPlayer {
         return uuu * p0 + 3f * uu * t * p1 + 3f * u * tt * p2 + ttt * p3;
     }
 
-    private float[] cubicBezier(float[] p0, float[] p1, float[] p2, float[] p3, float t) {
+    private void cubicBezier(float[] p0, float[] p1, float[] p2, float[] p3, float t, float[] out) {
         float u = 1.0f - t;
         float tt = t * t;
         float uu = u * u;
         float uuu = uu * u;
         float ttt = tt * t;
 
-        float[] result = new float[3];
         for (int i = 0; i < 3; i++) {
-            result[i] =
+            out[i] =
                 uuu * p0[i] +
                 3f * uu * t * p1[i] +
                 3f * u * tt * p2[i] +
                 ttt * p3[i];
         }
-        return result;
+    }
+
+    private void setVec(float[] out, float x, float y, float z) {
+        if (out == null || out.length < 3) {
+            return;
+        }
+        out[0] = x;
+        out[1] = y;
+        out[2] = z;
+    }
+
+    private int lowerBoundFrom(List<Animation.KeyFrame> frames, float time, int lastIndex) {
+        int size = frames.size();
+        if (size == 0) {
+            return 0;
+        }
+        if (lastIndex < 0) {
+            return lowerBound(frames, time);
+        }
+        if (lastIndex >= size) {
+            if (time >= frames.get(size - 1).timestamp) {
+                return size;
+            }
+            return lowerBound(frames, time);
+        }
+        if (frames.get(lastIndex).timestamp >= time) {
+            return lastIndex;
+        }
+        int i = lastIndex + 1;
+        while (i < size && frames.get(i).timestamp < time) {
+            i++;
+        }
+        return i;
+    }
+
+    private int lowerBound(List<Animation.KeyFrame> frames, float time) {
+        int low = 0;
+        int high = frames.size();
+        while (low < high) {
+            int mid = (low + high) >>> 1;
+            if (frames.get(mid).timestamp < time) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
     }
 
     /**
@@ -399,6 +453,10 @@ public class AnimationPlayer {
      */
     public void setCurrentTime(float time) {
         state.setCurrentTime(time);
+        lastSampleTime = Float.NaN;
+        for (FrameCursor cursor : frameCursors.values()) {
+            cursor.reset();
+        }
     }
 
     /**

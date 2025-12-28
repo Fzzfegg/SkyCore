@@ -19,14 +19,18 @@ public class MatrixStack {
 
     // 矩阵栈
     private Stack<float[]> stack;
+    private Deque<float[]> pool;
 
     // 临时矩阵用于计算
     private float[] temp;
+    private float[] scratch;
 
     public MatrixStack() {
         this.current = new float[16];
         this.stack = new Stack<>();
+        this.pool = new ArrayDeque<>();
         this.temp = new float[16];
+        this.scratch = new float[16];
         loadIdentity();
     }
 
@@ -44,12 +48,11 @@ public class MatrixStack {
      * 平移变换
      */
     public void translate(float x, float y, float z) {
-        float[] trans = new float[16];
-        loadIdentity(trans);
-        trans[12] = x;
-        trans[13] = y;
-        trans[14] = z;
-        multiply(trans);
+        loadIdentity(scratch);
+        scratch[12] = x;
+        scratch[13] = y;
+        scratch[14] = z;
+        multiply(scratch);
     }
 
     /**
@@ -74,35 +77,33 @@ public class MatrixStack {
         float sin = (float) Math.sin(radians);
         float ocos = 1 - cos;
 
-        float[] rot = new float[16];
-        loadIdentity(rot);
+        loadIdentity(scratch);
 
         // Rodrigues旋转公式
-        rot[0] = cos + x * x * ocos;
-        rot[1] = x * y * ocos + z * sin;
-        rot[2] = x * z * ocos - y * sin;
+        scratch[0] = cos + x * x * ocos;
+        scratch[1] = x * y * ocos + z * sin;
+        scratch[2] = x * z * ocos - y * sin;
 
-        rot[4] = x * y * ocos - z * sin;
-        rot[5] = cos + y * y * ocos;
-        rot[6] = y * z * ocos + x * sin;
+        scratch[4] = x * y * ocos - z * sin;
+        scratch[5] = cos + y * y * ocos;
+        scratch[6] = y * z * ocos + x * sin;
 
-        rot[8] = x * z * ocos + y * sin;
-        rot[9] = y * z * ocos - x * sin;
-        rot[10] = cos + z * z * ocos;
+        scratch[8] = x * z * ocos + y * sin;
+        scratch[9] = y * z * ocos - x * sin;
+        scratch[10] = cos + z * z * ocos;
 
-        multiply(rot);
+        multiply(scratch);
     }
 
     /**
      * 缩放变换
      */
     public void scale(float x, float y, float z) {
-        float[] scale = new float[16];
-        loadIdentity(scale);
-        scale[0] = x;
-        scale[5] = y;
-        scale[10] = z;
-        multiply(scale);
+        loadIdentity(scratch);
+        scratch[0] = x;
+        scratch[5] = y;
+        scratch[10] = z;
+        multiply(scratch);
     }
 
     /**
@@ -139,7 +140,10 @@ public class MatrixStack {
      * 保存当前矩阵状态到栈
      */
     public void push() {
-        float[] saved = new float[16];
+        float[] saved = pool.pollFirst();
+        if (saved == null) {
+            saved = new float[16];
+        }
         System.arraycopy(current, 0, saved, 0, 16);
         stack.push(saved);
     }
@@ -149,7 +153,9 @@ public class MatrixStack {
      */
     public void pop() {
         if (!stack.isEmpty()) {
+            float[] old = current;
             current = stack.pop();
+            pool.addFirst(old);
         }
     }
 
