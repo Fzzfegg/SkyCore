@@ -33,8 +33,8 @@ public class RenderEventHandler {
     /** 资源加载器 */
     private final ResourceLoader resourceLoader;
 
-    /** 模型包装器缓存: 实体名字 -> ModelWrapper */
-    private final Map<String, BedrockModelWrapper> modelWrapperCache;
+    /** 模型包装器缓存: 实体ID -> 包装器条目 */
+    private final Map<Integer, WrapperEntry> modelWrapperCache;
     private final List<DebugStack> debugStacks;
 
     public RenderEventHandler(ResourceLoader resourceLoader) {
@@ -71,7 +71,7 @@ public class RenderEventHandler {
         event.setCanceled(true);
 
         // 获取或创建模型包装器
-        BedrockModelWrapper wrapper = getOrCreateWrapper(entityName, mapping);
+        BedrockModelWrapper wrapper = getOrCreateWrapper(entity, entityName, mapping);
         if (wrapper == null) {
             return;  // 加载失败，跳过渲染
         }
@@ -86,6 +86,7 @@ public class RenderEventHandler {
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
         org.mybad.minecraft.render.GLDeletionQueue.flush();
+        cleanupEntityWrappers();
         if (debugStacks.isEmpty()) {
             return;
         }
@@ -127,10 +128,18 @@ public class RenderEventHandler {
     /**
      * 获取或创建模型包装器
      */
-    private BedrockModelWrapper getOrCreateWrapper(String entityName, EntityModelMapping mapping) {
-        // 检查缓存
-        if (modelWrapperCache.containsKey(entityName)) {
-            return modelWrapperCache.get(entityName);
+    private BedrockModelWrapper getOrCreateWrapper(EntityLivingBase entity, String entityName, EntityModelMapping mapping) {
+        int entityId = entity.getEntityId();
+        long tick = entity.world != null ? entity.world.getTotalWorldTime() : 0L;
+        WrapperEntry entry = modelWrapperCache.get(entityId);
+        if (entry != null) {
+            if (!entity.getUniqueID().equals(entry.entityUuid) || !entityName.equals(entry.mappingName)) {
+                entry.wrapper.dispose();
+                modelWrapperCache.remove(entityId);
+            } else {
+                entry.lastSeenTick = tick;
+                return entry.wrapper;
+            }
         }
 
         // 加载模型
@@ -158,7 +167,7 @@ public class RenderEventHandler {
             mapping.getModel(),
             resourceLoader.getGeometryCache()
         );
-        modelWrapperCache.put(entityName, wrapper);
+        modelWrapperCache.put(entityId, new WrapperEntry(wrapper, entity.getUniqueID(), entityName, tick));
 
         SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);
         return wrapper;
@@ -223,8 +232,8 @@ public class RenderEventHandler {
      * 用于配置 reload 时
      */
     public void clearCache() {
-        for (BedrockModelWrapper wrapper : modelWrapperCache.values()) {
-            wrapper.dispose();
+        for (WrapperEntry entry : modelWrapperCache.values()) {
+            entry.wrapper.dispose();
         }
         modelWrapperCache.clear();
         clearDebugStacks();
@@ -235,9 +244,12 @@ public class RenderEventHandler {
      * 从缓存中移除指定实体的包装器
      */
     public void invalidateWrapper(String entityName) {
-        BedrockModelWrapper wrapper = modelWrapperCache.remove(entityName);
-        if (wrapper != null) {
-            wrapper.dispose();
+        for (java.util.Iterator<Map.Entry<Integer, WrapperEntry>> it = modelWrapperCache.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<Integer, WrapperEntry> entry = it.next();
+            if (entityName.equals(entry.getValue().mappingName)) {
+                entry.getValue().wrapper.dispose();
+                it.remove();
+            }
         }
     }
 
@@ -283,6 +295,21 @@ public class RenderEventHandler {
         return true;
     }
 
+    private void cleanupEntityWrappers() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null) {
+            return;
+        }
+        for (java.util.Iterator<Map.Entry<Integer, WrapperEntry>> it = modelWrapperCache.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<Integer, WrapperEntry> entry = it.next();
+            Entity entity = mc.world.getEntityByID(entry.getKey());
+            if (entity == null || entity.isDead) {
+                entry.getValue().wrapper.dispose();
+                it.remove();
+            }
+        }
+    }
+
     private static final class DebugStack {
         private final BedrockModelWrapper wrapper;
         private final double x;
@@ -300,6 +327,20 @@ public class RenderEventHandler {
             this.yaw = yaw;
             this.count = count;
             this.spacing = spacing;
+        }
+    }
+
+    private static final class WrapperEntry {
+        private final BedrockModelWrapper wrapper;
+        private final java.util.UUID entityUuid;
+        private final String mappingName;
+        private long lastSeenTick;
+
+        private WrapperEntry(BedrockModelWrapper wrapper, java.util.UUID entityUuid, String mappingName, long lastSeenTick) {
+            this.wrapper = wrapper;
+            this.entityUuid = entityUuid;
+            this.mappingName = mappingName;
+            this.lastSeenTick = lastSeenTick;
         }
     }
 }
