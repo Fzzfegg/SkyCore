@@ -3,6 +3,7 @@ package org.mybad.minecraft.render;
 import org.lwjgl.opengl.ContextCapabilities;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GLContext;
+import org.mybad.minecraft.SkyCoreMod;
 
 /**
  * GPU 蒙皮能力检测（SSBO + memory barrier）。
@@ -10,7 +11,6 @@ import org.lwjgl.opengl.GLContext;
 public final class GpuSkinningSupport {
     private static boolean detectionComplete = false;
     private static boolean gpuSkinningSupported = false;
-    private static boolean contextMissingLogged = false;
     private static boolean forceDisabled = false;
 
     private GpuSkinningSupport() {
@@ -23,14 +23,9 @@ public final class GpuSkinningSupport {
         if (!detectionComplete) {
             ContextCapabilities caps = currentCapabilities();
             if (caps == null) {
-                if (!contextMissingLogged) {
-                    System.out.println("[SkyCore] OpenGL context not ready, skip GPU skinning detection.");
-                    contextMissingLogged = true;
-                }
                 return false;
             }
 
-            contextMissingLogged = false;
             gpuSkinningSupported = detectSupport(caps);
             detectionComplete = true;
 
@@ -40,9 +35,9 @@ public final class GpuSkinningSupport {
                     version = GL11.glGetString(GL11.GL_VERSION);
                 } catch (Throwable ignored) {
                 }
-                System.out.println("[SkyCore] GPU skinning enabled (OpenGL " + version + ").");
+                SkyCoreMod.LOGGER.info("[SkyCore] GPU skinning enabled (OpenGL {}).", version);
             } else {
-                System.out.println("[SkyCore] GPU skinning disabled (SSBO not available).");
+                SkyCoreMod.LOGGER.warn("[SkyCore] GPU skinning disabled (SSBO not available).");
             }
         }
         return gpuSkinningSupported;
@@ -51,7 +46,7 @@ public final class GpuSkinningSupport {
     public static void disableGpuSkinning(String reason) {
         if (!forceDisabled) {
             forceDisabled = true;
-            System.out.println("[SkyCore] Disabling GPU skinning: " + reason);
+            SkyCoreMod.LOGGER.warn("[SkyCore] Disabling GPU skinning: {}", reason);
         }
     }
 
@@ -59,7 +54,7 @@ public final class GpuSkinningSupport {
         try {
             return GLContext.getCapabilities();
         } catch (Throwable t) {
-            System.out.println("[SkyCore] Unable to query OpenGL capabilities, disabling GPU skinning.");
+            SkyCoreMod.LOGGER.warn("[SkyCore] Unable to query OpenGL capabilities, disabling GPU skinning.");
             return null;
         }
     }

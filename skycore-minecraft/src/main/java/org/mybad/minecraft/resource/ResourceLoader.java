@@ -66,7 +66,6 @@ public class ResourceLoader {
 
             Model model = modelParser.parse(jsonContent);
             modelCache.put(path, model);
-            SkyCoreMod.LOGGER.debug("[SkyCore] 模型加载成功: {}", path);
             return model;
 
         } catch (Exception e) {
@@ -95,7 +94,6 @@ public class ResourceLoader {
 
             Animation animation = animationParser.parseToAnimation(jsonContent);
             animationCache.put(path, animation);
-            SkyCoreMod.LOGGER.debug("[SkyCore] 动画加载成功: {}", path);
             return animation;
 
         } catch (Exception e) {

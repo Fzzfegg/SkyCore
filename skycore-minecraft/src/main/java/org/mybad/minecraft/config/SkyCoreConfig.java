@@ -2,6 +2,7 @@ package org.mybad.minecraft.config;
 
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
+import org.mybad.minecraft.SkyCoreMod;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -78,19 +79,17 @@ public class SkyCoreConfig {
                 for (EntityModelMapping mapping : list) {
                     if (mapping.getName() != null && !mapping.getName().isEmpty()) {
                         mappings.put(mapping.getName(), mapping);
-                        System.out.println("[SkyCore] 加载实体映射: " + mapping.getName());
+                        SkyCoreMod.LOGGER.info("[SkyCore] 加载实体映射: {}", mapping.getName());
                     }
                 }
             }
 
-            System.out.println("[SkyCore] 配置加载完成，共 " + mappings.size() + " 个实体映射");
+            SkyCoreMod.LOGGER.info("[SkyCore] 配置加载完成，共 {} 个实体映射", mappings.size());
 
         } catch (IOException e) {
-            System.err.println("[SkyCore] 加载配置文件失败: " + e.getMessage());
-            e.printStackTrace();
+            SkyCoreMod.LOGGER.error("[SkyCore] 加载配置文件失败", e);
         } catch (JsonParseException e) {
-            System.err.println("[SkyCore] 配置文件格式错误: " + e.getMessage());
-            e.printStackTrace();
+            SkyCoreMod.LOGGER.error("[SkyCore] 配置文件格式错误", e);
         }
     }
 
@@ -98,7 +97,7 @@ public class SkyCoreConfig {
      * 重新加载配置（运行时 reload）
      */
     public void reload() {
-        System.out.println("[SkyCore] 重新加载配置...");
+        SkyCoreMod.LOGGER.info("[SkyCore] 重新加载配置...");
         load();
     }
     
@@ -138,11 +137,10 @@ public class SkyCoreConfig {
                 gson.toJson(root, writer);
             }
 
-            System.out.println("[SkyCore] 已创建默认配置文件: " + configPath);
+            SkyCoreMod.LOGGER.info("[SkyCore] 已创建默认配置文件: {}", configPath);
 
         } catch (IOException e) {
-            System.err.println("[SkyCore] 创建默认配置文件失败: " + e.getMessage());
-            e.printStackTrace();
+            SkyCoreMod.LOGGER.error("[SkyCore] 创建默认配置文件失败", e);
         }
     }
 

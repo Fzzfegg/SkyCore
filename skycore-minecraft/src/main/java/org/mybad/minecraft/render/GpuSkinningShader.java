@@ -2,6 +2,7 @@ package org.mybad.minecraft.render;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
+import org.mybad.minecraft.SkyCoreMod;
 
 /**
  * GPU 蒙皮顶点着色器（SSBO 输出）。
@@ -12,17 +13,12 @@ public final class GpuSkinningShader {
 
     private static int programId = -1;
     private static int vertexShaderId = -1;
-    private static boolean warnedUnavailable = false;
 
     private GpuSkinningShader() {
     }
 
     public static void use() {
         if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
-            if (!warnedUnavailable) {
-                System.out.println("[SkyCore] GPU skinning shader disabled: SSBO support missing.");
-                warnedUnavailable = true;
-            }
             return;
         }
 
@@ -36,7 +32,7 @@ public final class GpuSkinningShader {
         GL20.glShaderSource(vertexShaderId, shaderCode);
         GL20.glCompileShader(vertexShaderId);
         if (GL20.glGetShaderi(vertexShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE) {
-            System.out.println(GL20.glGetShaderInfoLog(vertexShaderId, Short.MAX_VALUE));
+            SkyCoreMod.LOGGER.error("[SkyCore] GPU skinning vertex shader compile failed: {}", GL20.glGetShaderInfoLog(vertexShaderId, Short.MAX_VALUE));
             throw new RuntimeException("GPU skinning vertex shader compilation failed.");
         }
 
@@ -45,7 +41,7 @@ public final class GpuSkinningShader {
         GL20.glLinkProgram(programId);
         GL20.glDeleteShader(vertexShaderId);
         if (GL20.glGetProgrami(programId, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
-            System.out.println(GL20.glGetProgramInfoLog(programId, Short.MAX_VALUE));
+            SkyCoreMod.LOGGER.error("[SkyCore] GPU skinning shader link failed: {}", GL20.glGetProgramInfoLog(programId, Short.MAX_VALUE));
             throw new RuntimeException("GPU skinning shader link failed.");
         }
     }

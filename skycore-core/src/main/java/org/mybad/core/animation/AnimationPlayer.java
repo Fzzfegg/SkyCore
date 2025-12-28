@@ -47,8 +47,6 @@ public class AnimationPlayer {
         for (String boneName : boneAnims.keySet()) {
             ModelBone bone = model.getBone(boneName);
             if (bone == null) {
-                // TODO: 临时日志，排查骨骼名称不匹配
-                System.out.println("[动画] 骨骼未找到: " + boneName);
                 continue;
             }
 
@@ -70,11 +68,7 @@ public class AnimationPlayer {
 
             // 应用旋转动画
             if (!boneAnim.rotationFrames.isEmpty()) {
-                float[] rotation = interpolateFrames(boneAnim.rotationFrames, currentTime);
-                // TODO: 临时日志，只打印一次（第一帧）
-                if (currentTime < 0.01f && (boneName.contains("arm") || boneName.contains("hand"))) {
-                    System.out.println("[动画] " + boneName + " 旋转: [" + rotation[0] + ", " + rotation[1] + ", " + rotation[2] + "]");
-                }
+                float[] rotation = interpolateRotationFrames(boneAnim.rotationFrames, currentTime);
                 float[] target = new float[]{
                     baseRotation[0] + rotation[0],
                     baseRotation[1] + rotation[1],
@@ -198,6 +192,117 @@ public class AnimationPlayer {
         }
 
         return result;
+    }
+
+    private float[] interpolateRotationFrames(List<Animation.KeyFrame> frames, float currentTime) {
+        if (frames.isEmpty()) {
+            return new float[]{0, 0, 0};
+        }
+
+        Animation.KeyFrame before = null;
+        Animation.KeyFrame after = null;
+        int beforeIndex = -1;
+        int afterIndex = -1;
+
+        for (int i = 0; i < frames.size(); i++) {
+            Animation.KeyFrame frame = frames.get(i);
+
+            if (frame.timestamp <= currentTime) {
+                before = frame;
+                beforeIndex = i;
+            }
+
+            if (frame.timestamp >= currentTime) {
+                after = frame;
+                afterIndex = i;
+                break;
+            }
+        }
+
+        if (before == null && after != null) {
+            return new float[]{after.value[0], after.value[1], after.value[2]};
+        }
+
+        if (before != null && after == null) {
+            return new float[]{before.value[0], before.value[1], before.value[2]};
+        }
+
+        if (before == null) {
+            return new float[]{0, 0, 0};
+        }
+
+        if (before == after) {
+            return new float[]{before.value[0], before.value[1], before.value[2]};
+        }
+
+        float frameDuration = after.timestamp - before.timestamp;
+        float timeOffset = currentTime - before.timestamp;
+        float t = frameDuration > 0 ? timeOffset / frameDuration : 0;
+
+        Interpolation interpolation = before.interpolation;
+        String mode = interpolation != null ? interpolation.getName() : "linear";
+
+        if ("step".equalsIgnoreCase(mode)) {
+            return new float[]{before.value[0], before.value[1], before.value[2]};
+        }
+
+        if ("catmullrom".equalsIgnoreCase(mode)) {
+            Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
+            Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
+
+            float[] result = new float[3];
+            for (int i = 0; i < 3; i++) {
+                float p1 = before.value[i];
+                float p2 = p1 + shortestAngleDelta(p1, after.value[i]);
+                float p0 = p1 + shortestAngleDelta(p1, prev.value[i]);
+                float p3 = p2 + shortestAngleDelta(p2, next.value[i]);
+                result[i] = cubicHermite(p0, p1, p2, p3, t);
+            }
+            return result;
+        }
+
+        if ("bezier".equalsIgnoreCase(mode)) {
+            float[] result = new float[3];
+            for (int i = 0; i < 3; i++) {
+                float p0 = before.value[i];
+                float p3 = p0 + shortestAngleDelta(p0, after.value[i]);
+                float p1 = before.post != null ? before.post[i] : p0;
+                float p2 = after.pre != null ? after.pre[i] : after.value[i];
+                float p1u = p0 + shortestAngleDelta(p0, p1);
+                float p2u = p3 + shortestAngleDelta(p3, p2);
+                result[i] = cubicBezier1D(p0, p1u, p2u, p3, t);
+            }
+            return result;
+        }
+
+        float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
+        float[] result = new float[3];
+        for (int i = 0; i < 3; i++) {
+            float p0 = before.value[i];
+            float p3 = after.value[i];
+            result[i] = p0 + shortestAngleDelta(p0, p3) * interpolated;
+        }
+
+        return result;
+    }
+
+    private float shortestAngleDelta(float from, float to) {
+        float delta = (to - from) % 360f;
+        if (delta > 180f) {
+            delta -= 360f;
+        } else if (delta < -180f) {
+            delta += 360f;
+        }
+        return delta;
+    }
+
+    private float cubicBezier1D(float p0, float p1, float p2, float p3, float t) {
+        float u = 1.0f - t;
+        float tt = t * t;
+        float uu = u * u;
+        float uuu = uu * u;
+        float ttt = tt * t;
+        return uuu * p0 + 3f * uu * t * p1 + 3f * u * tt * p2 + ttt * p3;
     }
 
     private float[] cubicBezier(float[] p0, float[] p1, float[] p2, float[] p3, float t) {
