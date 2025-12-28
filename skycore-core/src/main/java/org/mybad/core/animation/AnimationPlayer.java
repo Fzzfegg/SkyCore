@@ -47,6 +47,8 @@ public class AnimationPlayer {
         for (String boneName : boneAnims.keySet()) {
             ModelBone bone = model.getBone(boneName);
             if (bone == null) {
+                // TODO: 临时日志，排查骨骼名称不匹配
+                System.out.println("[动画] 骨骼未找到: " + boneName);
                 continue;
             }
 
@@ -61,6 +63,10 @@ public class AnimationPlayer {
             // 应用旋转动画
             if (!boneAnim.rotationFrames.isEmpty()) {
                 float[] rotation = interpolateFrames(boneAnim.rotationFrames, currentTime);
+                // TODO: 临时日志，只打印一次（第一帧）
+                if (currentTime < 0.01f && (boneName.contains("arm") || boneName.contains("hand"))) {
+                    System.out.println("[动画] " + boneName + " 旋转: [" + rotation[0] + ", " + rotation[1] + ", " + rotation[2] + "]");
+                }
                 applyBlendedTransform(bone.getRotation(), rotation, weight);
             }
 
@@ -90,16 +96,20 @@ public class AnimationPlayer {
         // 找到当前时间前后的关键帧
         Animation.KeyFrame before = null;
         Animation.KeyFrame after = null;
+        int beforeIndex = -1;
+        int afterIndex = -1;
 
         for (int i = 0; i < frames.size(); i++) {
             Animation.KeyFrame frame = frames.get(i);
 
             if (frame.timestamp <= currentTime) {
                 before = frame;
+                beforeIndex = i;
             }
 
             if (frame.timestamp >= currentTime) {
                 after = frame;
+                afterIndex = i;
                 break;
             }
         }
@@ -132,7 +142,36 @@ public class AnimationPlayer {
 
         // 应用插值
         Interpolation interpolation = before.interpolation;
-        float interpolated = interpolation.interpolate(t);
+        String mode = interpolation != null ? interpolation.getName() : "linear";
+
+        if ("step".equalsIgnoreCase(mode)) {
+            return new float[]{before.value[0], before.value[1], before.value[2]};
+        }
+
+        if ("catmullrom".equalsIgnoreCase(mode)) {
+            Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
+            Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
+
+            float[] result = new float[3];
+            for (int i = 0; i < 3; i++) {
+                float p0 = prev.value[i];
+                float p1 = before.value[i];
+                float p2 = after.value[i];
+                float p3 = next.value[i];
+                result[i] = cubicHermite(p0, p1, p2, p3, t);
+            }
+            return result;
+        }
+
+        if ("bezier".equalsIgnoreCase(mode)) {
+            float[] p0 = before.value;
+            float[] p3 = after.value;
+            float[] p1 = before.post != null ? before.post : p0;
+            float[] p2 = after.pre != null ? after.pre : p3;
+            return cubicBezier(p0, p1, p2, p3, t);
+        }
+
+        float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
 
         // 计算最终值
         float[] result = new float[3];
@@ -141,6 +180,36 @@ public class AnimationPlayer {
         }
 
         return result;
+    }
+
+    private float[] cubicBezier(float[] p0, float[] p1, float[] p2, float[] p3, float t) {
+        float u = 1.0f - t;
+        float tt = t * t;
+        float uu = u * u;
+        float uuu = uu * u;
+        float ttt = tt * t;
+
+        float[] result = new float[3];
+        for (int i = 0; i < 3; i++) {
+            result[i] =
+                uuu * p0[i] +
+                3f * uu * t * p1[i] +
+                3f * u * tt * p2[i] +
+                ttt * p3[i];
+        }
+        return result;
+    }
+
+    /**
+     * Catmull-Rom/Hermite 曲线插值
+     */
+    private float cubicHermite(float p0, float p1, float p2, float p3, float t) {
+        float t2 = t * t;
+        float t3 = t2 * t;
+        return 0.5f * ((2f * p1) +
+            (-p0 + p2) * t +
+            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+            (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
     }
 
     /**

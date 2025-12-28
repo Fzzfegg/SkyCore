@@ -24,6 +24,9 @@ public class AnimationParser {
      */
     public enum InterpolationMode {
         LINEAR("linear"),
+        CATMULLROM("catmullrom"),
+        STEP("step"),
+        BEZIER("bezier"),
         QUAD_IN("quad.in"),
         QUAD_OUT("quad.out"),
         QUAD_INOUT("quad.inout"),
@@ -58,12 +61,19 @@ public class AnimationParser {
         }
 
         public static InterpolationMode fromString(String name) {
+            if (name == null) {
+                return LINEAR;
+            }
+            String normalized = name.trim().toLowerCase();
+            if ("catmull_rom".equals(normalized)) {
+                normalized = "catmullrom";
+            }
             for (InterpolationMode mode : values()) {
-                if (mode.name.equals(name)) {
+                if (mode.name.equals(normalized)) {
                     return mode;
                 }
             }
-            return LINEAR;  // 默认
+            return LINEAR;
         }
     }
 
@@ -159,7 +169,11 @@ public class AnimationParser {
         AnimationData animation = new AnimationData(name);
 
         // 解析长度
-        animation.length = ParseUtils.getFloat(animJson, "length", 1.0f);
+        if (animJson.has("animation_length")) {
+            animation.length = ParseUtils.getFloat(animJson, "animation_length", 1.0f);
+        } else {
+            animation.length = ParseUtils.getFloat(animJson, "length", 1.0f);
+        }
 
         // 解析循环设置
         animation.loop = ParseUtils.getBoolean(animJson, "loop", false);
@@ -186,29 +200,9 @@ public class AnimationParser {
     private BoneAnimation parseBoneAnimation(String boneName, JsonObject boneJson) throws ParseException {
         BoneAnimation boneAnim = new BoneAnimation(boneName);
 
-        // 解析位置关键帧
-        JsonObject positionObj = ParseUtils.getObject(boneJson, "position");
-        for (Map.Entry<String, JsonElement> entry : positionObj.entrySet()) {
-            float time = parseTime(entry.getKey());
-            KeyFrame frame = parseKeyFrame(time, entry.getValue());
-            boneAnim.positionFrames.add(frame);
-        }
-
-        // 解析旋转关键帧
-        JsonObject rotationObj = ParseUtils.getObject(boneJson, "rotation");
-        for (Map.Entry<String, JsonElement> entry : rotationObj.entrySet()) {
-            float time = parseTime(entry.getKey());
-            KeyFrame frame = parseKeyFrame(time, entry.getValue());
-            boneAnim.rotationFrames.add(frame);
-        }
-
-        // 解析缩放关键帧
-        JsonObject scaleObj = ParseUtils.getObject(boneJson, "scale");
-        for (Map.Entry<String, JsonElement> entry : scaleObj.entrySet()) {
-            float time = parseTime(entry.getKey());
-            KeyFrame frame = parseKeyFrame(time, entry.getValue());
-            boneAnim.scaleFrames.add(frame);
-        }
+        parseChannel(boneAnim.positionFrames, boneJson, "position");
+        parseChannel(boneAnim.rotationFrames, boneJson, "rotation");
+        parseChannel(boneAnim.scaleFrames, boneJson, "scale");
 
         // 按时间排序关键帧
         Collections.sort(boneAnim.positionFrames, (a, b) -> Float.compare(a.timestamp, b.timestamp));
@@ -216,6 +210,26 @@ public class AnimationParser {
         Collections.sort(boneAnim.scaleFrames, (a, b) -> Float.compare(a.timestamp, b.timestamp));
 
         return boneAnim;
+    }
+
+    private void parseChannel(List<KeyFrame> frames, JsonObject boneJson, String key) {
+        if (!boneJson.has(key)) {
+            return;
+        }
+
+        JsonElement channel = boneJson.get(key);
+        if (channel.isJsonObject()) {
+            JsonObject obj = channel.getAsJsonObject();
+            for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+                float time = parseTime(entry.getKey());
+                KeyFrame frame = parseKeyFrame(time, entry.getValue());
+                frames.add(frame);
+            }
+        } else {
+            // 直接值（数组/数值），视为 time=0 的关键帧
+            KeyFrame frame = parseKeyFrame(0f, channel);
+            frames.add(frame);
+        }
     }
 
     /**
@@ -244,7 +258,10 @@ public class AnimationParser {
 
         if (valueElement.isJsonArray()) {
             // 简单格式
-            value = ParseUtils.parseFloatArray(valueElement, 0, 0, 0);
+            value = normalizeVec3(ParseUtils.parseFloatArray(valueElement, 0, 0, 0));
+        } else if (valueElement.isJsonPrimitive()) {
+            float v = valueElement.getAsFloat();
+            value = new float[]{v, v, v};
         } else if (valueElement.isJsonObject()) {
             // 复杂格式
             JsonObject obj = valueElement.getAsJsonObject();
@@ -255,15 +272,17 @@ public class AnimationParser {
 
             // 解析值
             if (obj.has("post")) {
-                value = ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0);
+                value = normalizeVec3(ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0));
+            } else if (obj.has("pre")) {
+                value = normalizeVec3(ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0));
             }
 
             // 解析easing切线
             if (obj.has("post")) {
-                post = ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0);
+                post = normalizeVec3(ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0));
             }
             if (obj.has("pre")) {
-                pre = ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0);
+                pre = normalizeVec3(ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0));
             }
         }
 
@@ -273,6 +292,22 @@ public class AnimationParser {
         frame.pre = pre;
 
         return frame;
+    }
+
+    private float[] normalizeVec3(float[] raw) {
+        if (raw == null || raw.length == 0) {
+            return new float[]{0, 0, 0};
+        }
+        if (raw.length == 1) {
+            return new float[]{raw[0], raw[0], raw[0]};
+        }
+        if (raw.length == 2) {
+            return new float[]{raw[0], raw[1], 0};
+        }
+        if (raw.length == 3) {
+            return raw;
+        }
+        return new float[]{raw[0], raw[1], raw[2]};
     }
 
     /**

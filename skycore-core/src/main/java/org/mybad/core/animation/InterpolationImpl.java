@@ -21,6 +21,54 @@ public class InterpolationImpl {
         }
     }
 
+    /**
+     * Catmull-Rom（平滑）插值标记。
+     * 实际的曲线计算在动画播放器中完成。
+     */
+    public static class CatmullRom implements Interpolation {
+        @Override
+        public float interpolate(float t) {
+            return t;
+        }
+
+        @Override
+        public String getName() {
+            return "catmullrom";
+        }
+    }
+
+    /**
+     * Step（步进）插值。
+     * 始终保持上一帧的值。
+     */
+    public static class Step implements Interpolation {
+        @Override
+        public float interpolate(float t) {
+            return 0f;
+        }
+
+        @Override
+        public String getName() {
+            return "step";
+        }
+    }
+
+    /**
+     * Bezier 插值标记。
+     * 实际的曲线计算在动画播放器中完成。
+     */
+    public static class Bezier implements Interpolation {
+        @Override
+        public float interpolate(float t) {
+            return t;
+        }
+
+        @Override
+        public String getName() {
+            return "bezier";
+        }
+    }
+
     // === Quadratic (2nd power) ===
 
     public static class QuadIn implements Interpolation {
@@ -433,6 +481,12 @@ public class InterpolationImpl {
         switch (name.toLowerCase()) {
             case "linear":
                 return new Linear();
+            case "catmullrom":
+                return new CatmullRom();
+            case "step":
+                return new Step();
+            case "bezier":
+                return new Bezier();
 
             case "quad.in":
                 return new QuadIn();
@@ -506,6 +560,7 @@ public class InterpolationImpl {
     public static String[] getSupportedModes() {
         return new String[]{
             "linear",
+            "catmullrom",
             "quad.in", "quad.out", "quad.inout",
             "cubic.in", "cubic.out", "cubic.inout",
             "quart.in", "quart.out", "quart.inout",
