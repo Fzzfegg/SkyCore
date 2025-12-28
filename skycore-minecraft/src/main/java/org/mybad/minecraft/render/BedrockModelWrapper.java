@@ -74,6 +74,7 @@ public class BedrockModelWrapper {
     private FloatBuffer boneMatrixBuffer;
     private float[] boneMatrices;
     private final MatrixStack boneMatrixStack = new MatrixStack();
+    private final MatrixStack renderMatrixStack = new MatrixStack();
     private boolean gpuSkinningReady;
 
     /** 是否启用背面剔除 */
@@ -205,7 +206,6 @@ public class BedrockModelWrapper {
      * 渲染模型
      */
     public void render(Entity entity, double x, double y, double z, float entityYaw, float partialTicks) {
-        GLDeletionQueue.flush();
         // 更新动画
         updateAnimation();
 
@@ -257,12 +257,13 @@ public class BedrockModelWrapper {
             quadConsumer.begin(buffer, lightX, lightY);
 
             ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
-                .matrixStack(new MatrixStack())
+                .matrixStack(renderMatrixStack)
                 .textureWidth(textureWidth)
                 .textureHeight(textureHeight)
                 .applyConstraints(true)
                 .build();
 
+            renderMatrixStack.loadIdentity();
             ModelRenderer.render(model, cubeRenderer, options);
 
             quadConsumer.end();

@@ -85,6 +85,7 @@ public class RenderEventHandler {
      */
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
+        org.mybad.minecraft.render.GLDeletionQueue.flush();
         if (debugStacks.isEmpty()) {
             return;
         }
