@@ -150,14 +150,14 @@ public class AnimationPlayer {
         // 处理边界情况
         if (before == null && after != null) {
             // 在第一个关键帧之前
-            float[] v = after.pre != null ? after.pre : after.value;
+            float[] v = getNextValue(after);
             setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
         if (before != null && after == null) {
             // 在最后一个关键帧之后
-            float[] v = before.post != null ? before.post : before.value;
+            float[] v = getPrevValue(before);
             setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
@@ -168,7 +168,7 @@ public class AnimationPlayer {
         }
 
         if (after != null && after.timestamp == currentTime) {
-            float[] v = after.post != null ? after.post : after.value;
+            float[] v = getNextValue(after);
             setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
@@ -182,9 +182,11 @@ public class AnimationPlayer {
         Interpolation interpolation = before.interpolation;
         String mode = interpolation != null ? interpolation.getName() : "linear";
 
+        float[] start = getPrevValue(before);
+        float[] end = getNextValue(after);
+
         if ("step".equalsIgnoreCase(mode)) {
-            float[] v = before.post != null ? before.post : before.value;
-            setVec(out, v[0], v[1], v[2]);
+            setVec(out, start[0], start[1], start[2]);
             return afterIndex;
         }
 
@@ -192,12 +194,12 @@ public class AnimationPlayer {
             Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
             Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
 
+            float[] p0v = getPrevValue(prev);
+            float[] p1v = start;
+            float[] p2v = end;
+            float[] p3v = getNextValue(next);
             for (int i = 0; i < 3; i++) {
-                float p0 = prev.value[i];
-                float p1 = before.value[i];
-                float p2 = after.value[i];
-                float p3 = next.value[i];
-                out[i] = cubicHermite(p0, p1, p2, p3, t);
+                out[i] = cubicHermite(p0v[i], p1v[i], p2v[i], p3v[i], t);
             }
             return afterIndex;
         }
@@ -215,7 +217,7 @@ public class AnimationPlayer {
 
         // 计算最终值
         for (int i = 0; i < 3; i++) {
-            out[i] = before.value[i] + (after.value[i] - before.value[i]) * interpolated;
+            out[i] = start[i] + (end[i] - start[i]) * interpolated;
         }
         return afterIndex;
     }
@@ -232,13 +234,13 @@ public class AnimationPlayer {
         Animation.KeyFrame before = beforeIndex >= 0 ? frames.get(beforeIndex) : null;
 
         if (before == null && after != null) {
-            float[] v = after.pre != null ? after.pre : after.value;
+            float[] v = getNextValue(after);
             setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
         if (before != null && after == null) {
-            float[] v = before.post != null ? before.post : before.value;
+            float[] v = getPrevValue(before);
             setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
@@ -249,7 +251,7 @@ public class AnimationPlayer {
         }
 
         if (after != null && after.timestamp == currentTime) {
-            float[] v = after.post != null ? after.post : after.value;
+            float[] v = getNextValue(after);
             setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
@@ -261,9 +263,11 @@ public class AnimationPlayer {
         Interpolation interpolation = before.interpolation;
         String mode = interpolation != null ? interpolation.getName() : "linear";
 
+        float[] start = getPrevValue(before);
+        float[] end = getNextValue(after);
+
         if ("step".equalsIgnoreCase(mode)) {
-            float[] v = before.post != null ? before.post : before.value;
-            setVec(out, v[0], v[1], v[2]);
+            setVec(out, start[0], start[1], start[2]);
             return afterIndex;
         }
 
@@ -271,11 +275,15 @@ public class AnimationPlayer {
             Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
             Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
 
+            float[] p0v = getPrevValue(prev);
+            float[] p1v = start;
+            float[] p2v = end;
+            float[] p3v = getNextValue(next);
             for (int i = 0; i < 3; i++) {
-                float p1 = before.value[i];
-                float p2 = p1 + shortestAngleDelta(p1, after.value[i]);
-                float p0 = p1 + shortestAngleDelta(p1, prev.value[i]);
-                float p3 = p2 + shortestAngleDelta(p2, next.value[i]);
+                float p1 = p1v[i];
+                float p2 = p1 + shortestAngleDelta(p1, p2v[i]);
+                float p0 = p1 + shortestAngleDelta(p1, p0v[i]);
+                float p3 = p2 + shortestAngleDelta(p2, p3v[i]);
                 out[i] = cubicHermite(p0, p1, p2, p3, t);
             }
             return afterIndex;
@@ -296,11 +304,19 @@ public class AnimationPlayer {
 
         float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
         for (int i = 0; i < 3; i++) {
-            float p0 = before.value[i];
-            float p3 = after.value[i];
+            float p0 = start[i];
+            float p3 = end[i];
             out[i] = p0 + shortestAngleDelta(p0, p3) * interpolated;
         }
         return afterIndex;
+    }
+
+    private float[] getPrevValue(Animation.KeyFrame frame) {
+        return frame.post != null ? frame.post : frame.value;
+    }
+
+    private float[] getNextValue(Animation.KeyFrame frame) {
+        return frame.pre != null ? frame.pre : frame.value;
     }
 
     private float shortestAngleDelta(float from, float to) {
