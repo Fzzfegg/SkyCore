@@ -174,6 +174,15 @@ public class ModelBone {
         copyVec3(bindSize, size);
     }
 
+    public void copyBindPoseFrom(ModelBone other) {
+        if (other == null) {
+            return;
+        }
+        copyVec3(other.bindPosition, this.bindPosition);
+        copyVec3(other.bindRotation, this.bindRotation);
+        copyVec3(other.bindSize, this.bindSize);
+    }
+
     private void copyVec3(float[] src, float[] dst) {
         if (src == null || dst == null || src.length < 3 || dst.length < 3) {
             return;

@@ -63,9 +63,14 @@ public class BedrockModelWrapper {
     private boolean autoYOffset = false;
     private float modelYOffset;
     private boolean modelYOffsetReady;
+    private static final GeometryCache FALLBACK_GEOMETRY_CACHE = new GeometryCache();
     private final Map<ModelBone, Integer> boneIndexMap;
     private final List<ModelBone> rootBones;
+    private final GeometryCache geometryCache;
+    private final GeometryCache.Key geometryKey;
     private SkinnedMesh skinnedMesh;
+    private SharedGeometry sharedGeometry;
+    private boolean shaderAcquired;
     private FloatBuffer boneMatrixBuffer;
     private float[] boneMatrices;
     private final MatrixStack boneMatrixStack = new MatrixStack();
@@ -75,20 +80,29 @@ public class BedrockModelWrapper {
     private final boolean enableCull;
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
-        this(model, animation, texture, true);
+        this(model, animation, texture, true, null, null);
     }
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull) {
+        this(model, animation, texture, enableCull, null, null);
+    }
+
+    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull, String modelId) {
+        this(model, animation, texture, enableCull, modelId, null);
+    }
+
+    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull, String modelId, GeometryCache geometryCache) {
         this.enableCull = enableCull;
-        this.model = model;
+        Model baseModel = model;
+        this.model = baseModel != null ? baseModel.createInstance() : null;
         this.texture = texture;
 
         // 获取纹理尺寸
         int texWidth = 64;
         int texHeight = 64;
         try {
-            String tw = model.getTextureWidth();
-            String th = model.getTextureHeight();
+            String tw = baseModel.getTextureWidth();
+            String th = baseModel.getTextureHeight();
             if (tw != null && !tw.isEmpty()) {
                 texWidth = Integer.parseInt(tw);
             }
@@ -99,6 +113,8 @@ public class BedrockModelWrapper {
 
         this.textureWidth = texWidth;
         this.textureHeight = texHeight;
+        this.geometryCache = geometryCache != null ? geometryCache : FALLBACK_GEOMETRY_CACHE;
+        this.geometryKey = GeometryCache.key(normalizeModelId(modelId, model), textureWidth, textureHeight);
 
         // 创建动画播放器
         if (animation != null) {
@@ -111,8 +127,8 @@ public class BedrockModelWrapper {
         this.quadConsumer = new BufferingQuadConsumer();
         this.cubeRenderer = new CubeRenderer(quadConsumer);
 
-        this.boneIndexMap = buildBoneIndexMap(model);
-        this.rootBones = collectRootBones(model.getBones());
+        this.boneIndexMap = buildBoneIndexMap(this.model);
+        this.rootBones = collectRootBones(this.model.getBones());
 
         // 预生成四边形
         generateAllQuads();
@@ -189,6 +205,7 @@ public class BedrockModelWrapper {
      * 渲染模型
      */
     public void render(Entity entity, double x, double y, double z, float entityYaw, float partialTicks) {
+        GLDeletionQueue.flush();
         // 更新动画
         updateAnimation();
 
@@ -316,6 +333,23 @@ public class BedrockModelWrapper {
         return model;
     }
 
+    public void dispose() {
+        if (skinnedMesh != null) {
+            skinnedMesh.destroy();
+            skinnedMesh = null;
+        }
+        releaseSharedGeometry();
+        if (shaderAcquired) {
+            GpuSkinningShader.release();
+            shaderAcquired = false;
+        }
+        gpuSkinningReady = false;
+    }
+
+    public static void clearSharedResources() {
+        FALLBACK_GEOMETRY_CACHE.clear();
+    }
+
     /**
      * 获取纹理
      */
@@ -390,12 +424,52 @@ public class BedrockModelWrapper {
         if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
             return false;
         }
-        skinnedMesh = buildSkinnedMesh();
+        if (!shaderAcquired) {
+            GpuSkinningShader.acquire();
+            shaderAcquired = true;
+        }
+        if (sharedGeometry == null || sharedGeometry.isDestroyed()) {
+            sharedGeometry = geometryCache.acquire(geometryKey, this::buildSharedGeometry);
+        }
+        if (sharedGeometry == null || sharedGeometry.isDestroyed()) {
+            if (shaderAcquired) {
+                GpuSkinningShader.release();
+                shaderAcquired = false;
+            }
+            return false;
+        }
+        skinnedMesh = new SkinnedMesh(sharedGeometry, model.getBones().size());
         gpuSkinningReady = skinnedMesh != null;
+        if (!gpuSkinningReady) {
+            releaseSharedGeometry();
+            if (shaderAcquired) {
+                GpuSkinningShader.release();
+                shaderAcquired = false;
+            }
+        }
         return gpuSkinningReady;
     }
 
-    private SkinnedMesh buildSkinnedMesh() {
+    private void releaseSharedGeometry() {
+        if (sharedGeometry == null) {
+            return;
+        }
+        geometryCache.release(geometryKey, sharedGeometry);
+        sharedGeometry = null;
+    }
+
+    private static String normalizeModelId(String modelId, Model model) {
+        if (modelId != null && !modelId.isEmpty()) {
+            return modelId;
+        }
+        String name = model != null ? model.getName() : null;
+        if (name != null && !name.isEmpty()) {
+            return name;
+        }
+        return "unknown";
+    }
+
+    private SharedGeometry buildSharedGeometry() {
         int quadCount = countQuads();
         if (quadCount <= 0) {
             return null;
@@ -441,7 +515,7 @@ public class BedrockModelWrapper {
         }
 
         buffer.flip();
-        return new SkinnedMesh(buffer, vertexIndex, model.getBones().size());
+        return new SharedGeometry(buffer, vertexIndex);
     }
 
     private void updateBoneMatrices() {

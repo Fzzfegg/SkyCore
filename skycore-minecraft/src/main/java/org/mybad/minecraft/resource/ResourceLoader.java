@@ -10,6 +10,7 @@ import org.mybad.core.data.Model;
 import org.mybad.core.parsing.AnimationParser;
 import org.mybad.core.parsing.ModelParser;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.render.GeometryCache;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -39,11 +40,14 @@ public class ResourceLoader {
     /** 动画解析器 */
     private final AnimationParser animationParser;
 
+    private final GeometryCache geometryCache;
+
     public ResourceLoader() {
         this.modelCache = new ConcurrentHashMap<>();
         this.animationCache = new ConcurrentHashMap<>();
         this.modelParser = new ModelParser();
         this.animationParser = new AnimationParser();
+        this.geometryCache = new GeometryCache();
     }
 
     /**
@@ -162,7 +166,12 @@ public class ResourceLoader {
     public void clearCache() {
         modelCache.clear();
         animationCache.clear();
+        geometryCache.clear();
         SkyCoreMod.LOGGER.info("[SkyCore] 资源缓存已清空");
+    }
+
+    public GeometryCache getGeometryCache() {
+        return geometryCache;
     }
 
     /**

@@ -150,13 +150,15 @@ public class AnimationPlayer {
         // 处理边界情况
         if (before == null && after != null) {
             // 在第一个关键帧之前
-            setVec(out, after.value[0], after.value[1], after.value[2]);
+            float[] v = after.pre != null ? after.pre : after.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
         if (before != null && after == null) {
             // 在最后一个关键帧之后
-            setVec(out, before.value[0], before.value[1], before.value[2]);
+            float[] v = before.post != null ? before.post : before.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
@@ -166,7 +168,8 @@ public class AnimationPlayer {
         }
 
         if (after != null && after.timestamp == currentTime) {
-            setVec(out, after.value[0], after.value[1], after.value[2]);
+            float[] v = after.post != null ? after.post : after.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
@@ -180,7 +183,8 @@ public class AnimationPlayer {
         String mode = interpolation != null ? interpolation.getName() : "linear";
 
         if ("step".equalsIgnoreCase(mode)) {
-            setVec(out, before.value[0], before.value[1], before.value[2]);
+            float[] v = before.post != null ? before.post : before.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
@@ -228,12 +232,14 @@ public class AnimationPlayer {
         Animation.KeyFrame before = beforeIndex >= 0 ? frames.get(beforeIndex) : null;
 
         if (before == null && after != null) {
-            setVec(out, after.value[0], after.value[1], after.value[2]);
+            float[] v = after.pre != null ? after.pre : after.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
         if (before != null && after == null) {
-            setVec(out, before.value[0], before.value[1], before.value[2]);
+            float[] v = before.post != null ? before.post : before.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
@@ -243,7 +249,8 @@ public class AnimationPlayer {
         }
 
         if (after != null && after.timestamp == currentTime) {
-            setVec(out, after.value[0], after.value[1], after.value[2]);
+            float[] v = after.post != null ? after.post : after.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 
@@ -255,7 +262,8 @@ public class AnimationPlayer {
         String mode = interpolation != null ? interpolation.getName() : "linear";
 
         if ("step".equalsIgnoreCase(mode)) {
-            setVec(out, before.value[0], before.value[1], before.value[2]);
+            float[] v = before.post != null ? before.post : before.value;
+            setVec(out, v[0], v[1], v[2]);
             return afterIndex;
         }
 

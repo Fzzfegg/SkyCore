@@ -12,23 +12,55 @@ public final class GpuSkinningShader {
     public static final int VERTEX_BUFFER_BINDING = 3;
 
     private static int programId = -1;
-    private static int vertexShaderId = -1;
+    private static int refCount = 0;
 
     private GpuSkinningShader() {
+    }
+
+    public static void acquire() {
+        if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
+            return;
+        }
+        refCount++;
+        ensureProgram();
+    }
+
+    public static void release() {
+        if (refCount <= 0) {
+            return;
+        }
+        refCount--;
+        if (refCount == 0) {
+            enqueueDeleteProgram();
+        }
+    }
+
+    public static void releaseAll() {
+        refCount = 0;
+        enqueueDeleteProgram();
     }
 
     public static void use() {
         if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
             return;
         }
-
+        ensureProgram();
         if (programId != -1) {
             GL20.glUseProgram(programId);
+        }
+    }
+
+    public static void stop() {
+        GL20.glUseProgram(0);
+    }
+
+    private static void ensureProgram() {
+        if (programId != -1) {
             return;
         }
 
         String shaderCode = shaderSource();
-        vertexShaderId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
+        int vertexShaderId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
         GL20.glShaderSource(vertexShaderId, shaderCode);
         GL20.glCompileShader(vertexShaderId);
         if (GL20.glGetShaderi(vertexShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE) {
@@ -36,18 +68,23 @@ public final class GpuSkinningShader {
             throw new RuntimeException("GPU skinning vertex shader compilation failed.");
         }
 
-        programId = GL20.glCreateProgram();
-        GL20.glAttachShader(programId, vertexShaderId);
-        GL20.glLinkProgram(programId);
+        int program = GL20.glCreateProgram();
+        GL20.glAttachShader(program, vertexShaderId);
+        GL20.glLinkProgram(program);
         GL20.glDeleteShader(vertexShaderId);
-        if (GL20.glGetProgrami(programId, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
-            SkyCoreMod.LOGGER.error("[SkyCore] GPU skinning shader link failed: {}", GL20.glGetProgramInfoLog(programId, Short.MAX_VALUE));
+        if (GL20.glGetProgrami(program, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
+            SkyCoreMod.LOGGER.error("[SkyCore] GPU skinning shader link failed: {}", GL20.glGetProgramInfoLog(program, Short.MAX_VALUE));
             throw new RuntimeException("GPU skinning shader link failed.");
         }
+        programId = program;
     }
 
-    public static void stop() {
-        GL20.glUseProgram(0);
+    private static void enqueueDeleteProgram() {
+        int program = programId;
+        programId = -1;
+        if (program != -1) {
+            GLDeletionQueue.enqueueProgram(program);
+        }
     }
 
     private static String shaderSource() {

@@ -119,12 +119,59 @@ public class SkyCoreMod {
         public void onClientChat(net.minecraftforge.client.event.ClientChatEvent event) {
             String message = event.getMessage();
             if (message.equalsIgnoreCase("/skycore reload")) {
-                event.setCanceled(true);
                 if (instance != null) {
                     instance.reload();
                     net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
                         new net.minecraft.util.text.TextComponentString("\u00a7a[SkyCore] \u914d\u7f6e\u5df2\u91cd\u65b0\u52a0\u8f7d")
                     );
+                }
+                return;
+            }
+
+            if (message.equalsIgnoreCase("/skycore geomstats")) {
+                if (instance != null && instance.resourceLoader != null) {
+                    org.mybad.minecraft.render.GeometryCache.Stats stats = instance.resourceLoader.getGeometryCache().getStats();
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 几何缓存统计: " + stats.toString())
+                    );
+                }
+                return;
+            }
+
+            if (message.equalsIgnoreCase("/skycore debug_clear")) {
+                if (instance != null && instance.renderEventHandler != null) {
+                    instance.renderEventHandler.clearDebugStacks();
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 调试堆叠已清空"));
+                }
+                return;
+            }
+
+            if (message.startsWith("/skycore debug_stack")) {
+                if (instance == null || instance.renderEventHandler == null) {return;}
+                String[] parts = message.trim().split("\\s+");
+                if (parts.length < 3) {net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 用法: /skycore debug_stack <名字> [数量] [间距]"));return;}
+                String mappingName = parts[2];
+                int count = 20;
+                double spacing = 1.0;
+                if (parts.length >= 4) {try {count = Integer.parseInt(parts[3]);} catch (NumberFormatException ignored) {}}
+                if (parts.length >= 5) {try {spacing = Double.parseDouble(parts[4]);} catch (NumberFormatException ignored) {}}
+                if (count < 1) {count = 1;} else if (count > 200) {count = 200;}
+                if (spacing <= 0.0) {spacing = 1.0;}
+
+                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+                if (mc.player == null) {
+                    return;
+                }
+                double x = mc.player.posX;
+                double y = mc.player.posY;
+                double z = mc.player.posZ;
+                float yaw = mc.player.rotationYaw;
+
+                boolean ok = instance.renderEventHandler.addDebugStack(mappingName, x, y, z, yaw, count, spacing);
+                if (ok) {
+                    mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 已创建调试堆叠: " + mappingName + "，数量=" + count + "，间距=" + spacing));
+                } else {
+                    mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 创建调试堆叠失败：未找到映射或模型加载失败"));
                 }
             }
         }

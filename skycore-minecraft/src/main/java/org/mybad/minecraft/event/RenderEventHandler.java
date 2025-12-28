@@ -5,6 +5,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderLivingEvent;
+import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -16,6 +17,8 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.resource.ResourceLoader;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,10 +35,12 @@ public class RenderEventHandler {
 
     /** 模型包装器缓存: 实体名字 -> ModelWrapper */
     private final Map<String, BedrockModelWrapper> modelWrapperCache;
+    private final List<DebugStack> debugStacks;
 
     public RenderEventHandler(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
         this.modelWrapperCache = new ConcurrentHashMap<>();
+        this.debugStacks = new ArrayList<>();
     }
 
 
@@ -76,6 +81,39 @@ public class RenderEventHandler {
     }
 
     /**
+     * 渲染调试模型
+     */
+    @SubscribeEvent
+    public void onRenderWorldLast(RenderWorldLastEvent event) {
+        if (debugStacks.isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.getRenderManager() == null) {
+            return;
+        }
+        double camX = mc.getRenderManager().viewerPosX;
+        double camY = mc.getRenderManager().viewerPosY;
+        double camZ = mc.getRenderManager().viewerPosZ;
+        float partialTicks = event.getPartialTicks();
+
+        synchronized (debugStacks) {
+            for (DebugStack stack : debugStacks) {
+                for (int i = 0; i < stack.count; i++) {
+                    double y = stack.y + i * stack.spacing;
+                    stack.wrapper.render(null,
+                        stack.x - camX,
+                        y - camY,
+                        stack.z - camZ,
+                        stack.yaw,
+                        partialTicks
+                    );
+                }
+            }
+        }
+    }
+
+    /**
      * 获取实体自定义名字
      */
     private String getEntityCustomName(Entity entity) {
@@ -111,7 +149,14 @@ public class RenderEventHandler {
         ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
 
         // 创建包装器，传入配置中的背面剔除设置
-        BedrockModelWrapper wrapper = new BedrockModelWrapper(model, animation, texture, mapping.isEnableCull());
+        BedrockModelWrapper wrapper = new BedrockModelWrapper(
+            model,
+            animation,
+            texture,
+            mapping.isEnableCull(),
+            mapping.getModel(),
+            resourceLoader.getGeometryCache()
+        );
         modelWrapperCache.put(entityName, wrapper);
 
         SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);
@@ -177,7 +222,11 @@ public class RenderEventHandler {
      * 用于配置 reload 时
      */
     public void clearCache() {
+        for (BedrockModelWrapper wrapper : modelWrapperCache.values()) {
+            wrapper.dispose();
+        }
         modelWrapperCache.clear();
+        clearDebugStacks();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
     }
 
@@ -185,6 +234,71 @@ public class RenderEventHandler {
      * 从缓存中移除指定实体的包装器
      */
     public void invalidateWrapper(String entityName) {
-        modelWrapperCache.remove(entityName);
+        BedrockModelWrapper wrapper = modelWrapperCache.remove(entityName);
+        if (wrapper != null) {
+            wrapper.dispose();
+        }
+    }
+
+    public void clearDebugStacks() {
+        synchronized (debugStacks) {
+            for (DebugStack stack : debugStacks) {
+                stack.wrapper.dispose();
+            }
+            debugStacks.clear();
+        }
+    }
+
+    public boolean addDebugStack(String mappingName, double x, double y, double z, float yaw, int count, double spacing) {
+        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
+        if (mapping == null) {
+            return false;
+        }
+
+        Model model = resourceLoader.loadModel(mapping.getModel());
+        if (model == null) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载模型: {} for debug stack", mapping.getModel());
+            return false;
+        }
+
+        Animation animation = null;
+        if (mapping.getAnimation() != null && !mapping.getAnimation().isEmpty()) {
+            animation = resourceLoader.loadAnimation(mapping.getAnimation());
+        }
+
+        ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
+        BedrockModelWrapper wrapper = new BedrockModelWrapper(
+            model,
+            animation,
+            texture,
+            mapping.isEnableCull(),
+            mapping.getModel(),
+            resourceLoader.getGeometryCache()
+        );
+
+        synchronized (debugStacks) {
+            debugStacks.add(new DebugStack(wrapper, x, y, z, yaw, count, spacing));
+        }
+        return true;
+    }
+
+    private static final class DebugStack {
+        private final BedrockModelWrapper wrapper;
+        private final double x;
+        private final double y;
+        private final double z;
+        private final float yaw;
+        private final int count;
+        private final double spacing;
+
+        private DebugStack(BedrockModelWrapper wrapper, double x, double y, double z, float yaw, int count, double spacing) {
+            this.wrapper = wrapper;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.yaw = yaw;
+            this.count = count;
+            this.spacing = spacing;
+        }
     }
 }
