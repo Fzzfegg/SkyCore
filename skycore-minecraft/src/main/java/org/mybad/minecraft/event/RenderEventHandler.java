@@ -535,6 +535,7 @@ public class RenderEventHandler {
         private final double initialY;
         private final double initialZ;
         private final float initialYaw;
+        private final BedrockModelWrapper.LocatorTransform locatorTransform;
         private boolean usedInitial;
 
         private EventTransformProvider(EntityLivingBase entity,
@@ -551,28 +552,81 @@ public class RenderEventHandler {
             this.initialY = initialY;
             this.initialZ = initialZ;
             this.initialYaw = initialYaw;
+            this.locatorTransform = new BedrockModelWrapper.LocatorTransform();
             this.usedInitial = false;
         }
 
         @Override
         public void fill(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform, float deltaSeconds) {
+            float yaw = entity != null ? entity.rotationYawHead : 0.0f;
+            if (wrapper != null && locatorName != null && wrapper.getLocatorTransform(locatorName, locatorTransform)) {
+                float scale = wrapper.getModelScale();
+                float lx = locatorTransform.position[0] * scale;
+                float ly = locatorTransform.position[1] * scale;
+                float lz = locatorTransform.position[2] * scale;
+                float yawRad = (float) Math.toRadians(180.0F - yaw);
+                float cos = MathHelper.cos(yawRad);
+                float sin = MathHelper.sin(yawRad);
+                float rx = lx * cos - lz * sin;
+                float rz = lx * sin + lz * cos;
+                double baseX = usedInitial ? (entity != null ? entity.posX : initialX) : initialX;
+                double baseY = usedInitial ? (entity != null ? entity.posY : initialY) : initialY;
+                double baseZ = usedInitial ? (entity != null ? entity.posZ : initialZ) : initialZ;
+                transform.x = baseX + rx;
+                transform.y = baseY + ly;
+                transform.z = baseZ + rz;
+                transform.yaw = 180.0F - yaw;
+                applyYawToBasis(locatorTransform, cos, sin, transform);
+                usedInitial = true;
+                return;
+            }
             if (!usedInitial) {
                 transform.x = initialX;
                 transform.y = initialY;
                 transform.z = initialZ;
                 transform.yaw = initialYaw;
+                setIdentityBasis(transform);
                 usedInitial = true;
                 return;
             }
             if (entity == null) {
+                setIdentityBasis(transform);
                 return;
             }
-            float yaw = entity.rotationYawHead;
             double[] pos = resolveEventPositionNow(entity, wrapper, locatorName, yaw);
             transform.x = pos[0];
             transform.y = pos[1];
             transform.z = pos[2];
             transform.yaw = 180.0F - yaw;
+            setIdentityBasis(transform);
+        }
+
+        private void applyYawToBasis(BedrockModelWrapper.LocatorTransform source, float cos, float sin,
+                                     org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
+            rotateBasis(source.basisX, cos, sin, transform.basisX);
+            rotateBasis(source.basisY, cos, sin, transform.basisY);
+            rotateBasis(source.basisZ, cos, sin, transform.basisZ);
+        }
+
+        private void rotateBasis(float[] axis, float cos, float sin, float[] out) {
+            float x = axis[0];
+            float y = axis[1];
+            float z = axis[2];
+            out[0] = x * cos - z * sin;
+            out[1] = y;
+            out[2] = x * sin + z * cos;
+        }
+
+        private void setIdentityBasis(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
+            transform.basisX[0] = 1.0f;
+            transform.basisX[1] = 0.0f;
+            transform.basisX[2] = 0.0f;
+            transform.basisY[0] = 0.0f;
+            transform.basisY[1] = 1.0f;
+            transform.basisY[2] = 0.0f;
+            transform.basisZ[0] = 0.0f;
+            transform.basisZ[1] = 0.0f;
+            transform.basisZ[2] = 1.0f;
         }
     }
 

@@ -19,6 +19,7 @@ import gg.moonflower.pinwheel.particle.component.ParticleInitialSpeedComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleLifetimeExpressionComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleMotionDynamicComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleMotionParametricComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleMotionCollisionComponent;
 import gg.moonflower.pollen.particle.render.QuadRenderProperties;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
@@ -26,6 +27,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -36,7 +38,9 @@ import org.mybad.minecraft.resource.ResourceLoader;
 import org.mybad.core.legacy.expression.molang.reference.ExpressionBindingContext;
 import org.mybad.core.legacy.expression.molang.reference.ReferenceType;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.BufferUtils;
 
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,6 +56,7 @@ public class BedrockParticleDebugSystem {
 
     private static final float TICK_SECONDS = 1.0f / 20.0f;
     private static final int MAX_DEBUG_PARTICLES = 2000;
+    private static final FloatBuffer ORIENTATION_BUFFER = BufferUtils.createFloatBuffer(16);
 
     private final ResourceLoader resourceLoader;
     private final List<ActiveParticle> particles;
@@ -167,7 +172,7 @@ public class BedrockParticleDebugSystem {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> T getComponent(ParticleData data, String name) {
+    private static <T> T getComponent(ParticleData data, String name) {
         if (data == null) {
             return null;
         }
@@ -200,6 +205,7 @@ public class BedrockParticleDebugSystem {
         private final ParticleInitialSpinComponent initialSpin;
         private final ParticleMotionDynamicComponent motionDynamic;
         private final ParticleMotionParametricComponent motionParametric;
+        private final ParticleMotionCollisionComponent motionCollision;
         private final ResourceLocation texture;
         private final float lifetime;
         private final ParticleMolangContext molangContext;
@@ -229,6 +235,14 @@ public class BedrockParticleDebugSystem {
         private float prevRoll;
         private float rollVelocity;
         private float rollAcceleration;
+        private float collisionRadius;
+        private float collisionDrag;
+        private float collisionRestitution;
+        private boolean expireOnContact;
+        private final float[] tempDir;
+        private final float[] tempAxisX;
+        private final float[] tempAxisY;
+        private final float[] tempAxisZ;
 
         private ActiveParticle(ParticleData data,
                                ActiveEmitter emitter,
@@ -252,6 +266,7 @@ public class BedrockParticleDebugSystem {
             this.initialSpin = getComponent(data, "particle_initial_spin");
             this.motionDynamic = getComponent(data, "particle_motion_dynamic");
             this.motionParametric = getComponent(data, "particle_motion_parametric");
+            this.motionCollision = getComponent(data, "particle_motion_collision");
             this.texture = texture;
             this.renderProps = new QuadRenderProperties();
             this.age = 0.0f;
@@ -273,10 +288,25 @@ public class BedrockParticleDebugSystem {
             this.environment = new ParticleMolangEnvironment(molangContext, bindings);
             this.lifetime = resolveLifetime(lifetimeComponent);
             this.molangContext.particleLifetime = this.lifetime;
+            this.tempDir = new float[3];
+            this.tempAxisX = new float[3];
+            this.tempAxisY = new float[3];
+            this.tempAxisZ = new float[3];
             updateContext(0.0f);
             if (initialSpin != null) {
                 this.roll = environment.safeResolve(initialSpin.rotation());
                 this.rollVelocity = environment.safeResolve(initialSpin.rotationRate()) / 20.0f;
+            }
+            if (motionCollision != null) {
+                this.collisionRadius = motionCollision.collisionRadius();
+                this.collisionDrag = motionCollision.collisionDrag();
+                this.collisionRestitution = motionCollision.coefficientOfRestitution();
+                this.expireOnContact = motionCollision.expireOnContact();
+            } else {
+                this.collisionRadius = 0.0f;
+                this.collisionDrag = 0.0f;
+                this.collisionRestitution = 0.0f;
+                this.expireOnContact = false;
             }
         }
 
@@ -318,10 +348,10 @@ public class BedrockParticleDebugSystem {
                     this.z += emitter.getDeltaZ();
                 }
                 if (localRotation) {
-                    rotateAroundEmitter(emitter.getX(), emitter.getZ(), emitter.getDeltaYawRad());
+                    emitter.applyDeltaRotation(this);
                 }
                 if (localVelocity) {
-                    rotateVelocity(emitter.getDeltaYawRad());
+                    emitter.applyDeltaRotationToVelocity(this);
                 }
             }
             updateContext(this.age);
@@ -332,9 +362,40 @@ public class BedrockParticleDebugSystem {
             this.vz += this.az;
             this.rollVelocity += this.rollAcceleration;
             this.roll += this.rollVelocity;
-            this.x += this.vx;
-            this.y += this.vy;
-            this.z += this.vz;
+            double nextX = this.x + this.vx;
+            double nextY = this.y + this.vy;
+            double nextZ = this.z + this.vz;
+            if (motionCollision != null && isCollisionEnabled()) {
+                boolean collideX = isColliding(nextX, this.y, this.z, collisionRadius);
+                if (collideX) {
+                    this.vx = -this.vx * collisionRestitution;
+                    nextX = this.x;
+                }
+                boolean collideY = isColliding(this.x, nextY, this.z, collisionRadius);
+                if (collideY) {
+                    this.vy = -this.vy * collisionRestitution;
+                    nextY = this.y;
+                }
+                boolean collideZ = isColliding(this.x, this.y, nextZ, collisionRadius);
+                if (collideZ) {
+                    this.vz = -this.vz * collisionRestitution;
+                    nextZ = this.z;
+                }
+                if (collideX || collideY || collideZ) {
+                    if (collisionDrag > 0.0f) {
+                        float drag = Math.max(0.0f, 1.0f - collisionDrag);
+                        this.vx *= drag;
+                        this.vy *= drag;
+                        this.vz *= drag;
+                    }
+                    if (expireOnContact) {
+                        return false;
+                    }
+                }
+            }
+            this.x = nextX;
+            this.y = nextY;
+            this.z = nextZ;
             this.age += TICK_SECONDS;
             updateContext(this.age);
             return this.age < this.lifetime;
@@ -376,25 +437,40 @@ public class BedrockParticleDebugSystem {
             GlStateManager.translate(px - camX, py - camY, pz - camZ);
             float yaw = mc.getRenderManager().playerViewY;
             float pitch = mc.getRenderManager().playerViewX;
+            boolean oriented = false;
             if (billboard != null && billboard.cameraMode() != null) {
                 switch (billboard.cameraMode()) {
                     case ROTATE_Y:
                         GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
-                        break;
-                    case EMITTER_TRANSFORM_XZ:
-                    case EMITTER_TRANSFORM_XY:
-                    case EMITTER_TRANSFORM_YZ:
-                        float emitterYaw = emitter != null ? emitter.getYaw() : yaw;
-                        GlStateManager.rotate(-emitterYaw, 0.0F, 1.0F, 0.0F);
-                        GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+                        oriented = true;
                         break;
                     case ROTATE_XYZ:
-                    default:
                         GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
                         GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+                        oriented = true;
+                        break;
+                    case LOOK_AT_XYZ:
+                        oriented = applyLookAt(camX, camY, camZ, px, py, pz, false);
+                        break;
+                    case LOOK_AT_Y:
+                        oriented = applyLookAt(camX, camY, camZ, px, py, pz, true);
+                        break;
+                    case EMITTER_TRANSFORM_XY:
+                    case EMITTER_TRANSFORM_XZ:
+                    case EMITTER_TRANSFORM_YZ:
+                        oriented = applyEmitterTransform(billboard.cameraMode());
+                        break;
+                    case LOOKAT_DIRECTION:
+                    case DIRECTION_X:
+                    case DIRECTION_Y:
+                    case DIRECTION_Z:
+                        oriented = applyDirectionFacing(billboard.cameraMode());
+                        break;
+                    default:
                         break;
                 }
-            } else {
+            }
+            if (!oriented) {
                 GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
                 GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
             }
@@ -425,6 +501,158 @@ public class BedrockParticleDebugSystem {
             Tessellator.getInstance().draw();
 
             GlStateManager.popMatrix();
+        }
+
+        private boolean applyLookAt(double camX, double camY, double camZ, double px, double py, double pz, boolean yOnly) {
+            float dx = (float) (camX - px);
+            float dy = (float) (camY - py);
+            float dz = (float) (camZ - pz);
+            if (yOnly) {
+                dy = 0.0f;
+            }
+            tempDir[0] = dx;
+            tempDir[1] = dy;
+            tempDir[2] = dz;
+            if (tempDir[0] == 0.0f && tempDir[1] == 0.0f && tempDir[2] == 0.0f) {
+                return false;
+            }
+            return applyDirectionAsNormal(tempDir);
+        }
+
+        private boolean applyDirectionFacing(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
+            if (!resolveFacingDirection(tempDir)) {
+                return false;
+            }
+            switch (mode) {
+                case DIRECTION_X:
+                    return applyDirectionAsAxis(tempDir, 0);
+                case DIRECTION_Y:
+                    return applyDirectionAsAxis(tempDir, 1);
+                case DIRECTION_Z:
+                case LOOKAT_DIRECTION:
+                default:
+                    return applyDirectionAsNormal(tempDir);
+            }
+        }
+
+        private boolean applyEmitterTransform(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
+            if (emitter == null) {
+                return false;
+            }
+            float[] ex = emitter.getBasisX();
+            float[] ey = emitter.getBasisY();
+            float[] ez = emitter.getBasisZ();
+            if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_XZ) {
+                tempAxisX[0] = ex[0];
+                tempAxisX[1] = ex[1];
+                tempAxisX[2] = ex[2];
+                tempAxisY[0] = ez[0];
+                tempAxisY[1] = ez[1];
+                tempAxisY[2] = ez[2];
+                cross(tempAxisX, tempAxisY, tempAxisZ);
+            } else if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_YZ) {
+                tempAxisX[0] = ey[0];
+                tempAxisX[1] = ey[1];
+                tempAxisX[2] = ey[2];
+                tempAxisY[0] = ez[0];
+                tempAxisY[1] = ez[1];
+                tempAxisY[2] = ez[2];
+                cross(tempAxisX, tempAxisY, tempAxisZ);
+            } else {
+                tempAxisX[0] = ex[0];
+                tempAxisX[1] = ex[1];
+                tempAxisX[2] = ex[2];
+                tempAxisY[0] = ey[0];
+                tempAxisY[1] = ey[1];
+                tempAxisY[2] = ey[2];
+                tempAxisZ[0] = ez[0];
+                tempAxisZ[1] = ez[1];
+                tempAxisZ[2] = ez[2];
+            }
+            normalize(tempAxisX);
+            normalize(tempAxisY);
+            normalize(tempAxisZ);
+            multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
+        }
+
+        private boolean resolveFacingDirection(float[] out) {
+            if (billboard != null && billboard.customDirection() != null) {
+                MolangExpression[] custom = billboard.customDirection();
+                out[0] = environment.safeResolve(custom[0]);
+                out[1] = environment.safeResolve(custom[1]);
+                out[2] = environment.safeResolve(custom[2]);
+            } else {
+                float speed = (float) Math.sqrt(vx * vx + vy * vy + vz * vz);
+                float threshold = billboard != null ? billboard.minSpeedThreshold() : 0.0f;
+                if (speed <= threshold) {
+                    return false;
+                }
+                out[0] = (float) vx;
+                out[1] = (float) vy;
+                out[2] = (float) vz;
+            }
+            if (out[0] == 0.0f && out[1] == 0.0f && out[2] == 0.0f) {
+                return false;
+            }
+            normalize(out);
+            return true;
+        }
+
+        private boolean applyDirectionAsNormal(float[] direction) {
+            tempAxisZ[0] = direction[0];
+            tempAxisZ[1] = direction[1];
+            tempAxisZ[2] = direction[2];
+            float[] up = tempAxisY;
+            up[0] = 0.0f;
+            up[1] = 1.0f;
+            up[2] = 0.0f;
+            if (Math.abs(dot(tempAxisZ, up)) > 0.99f) {
+                up[0] = 1.0f;
+                up[1] = 0.0f;
+                up[2] = 0.0f;
+            }
+            cross(up, tempAxisZ, tempAxisX);
+            normalize(tempAxisX);
+            cross(tempAxisZ, tempAxisX, tempAxisY);
+            normalize(tempAxisY);
+            normalize(tempAxisZ);
+            multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
+        }
+
+        private boolean applyDirectionAsAxis(float[] direction, int axis) {
+            float[] up = tempAxisZ;
+            up[0] = 0.0f;
+            up[1] = 1.0f;
+            up[2] = 0.0f;
+            if (axis == 1 && Math.abs(dot(direction, up)) > 0.99f) {
+                up[0] = 1.0f;
+                up[1] = 0.0f;
+                up[2] = 0.0f;
+            }
+            if (axis == 0) {
+                tempAxisX[0] = direction[0];
+                tempAxisX[1] = direction[1];
+                tempAxisX[2] = direction[2];
+                normalize(tempAxisX);
+                cross(up, tempAxisX, tempAxisY);
+                normalize(tempAxisY);
+                cross(tempAxisX, tempAxisY, tempAxisZ);
+            } else if (axis == 1) {
+                tempAxisY[0] = direction[0];
+                tempAxisY[1] = direction[1];
+                tempAxisY[2] = direction[2];
+                normalize(tempAxisY);
+                cross(up, tempAxisY, tempAxisX);
+                normalize(tempAxisX);
+                cross(tempAxisY, tempAxisX, tempAxisZ);
+            } else {
+                return applyDirectionAsNormal(direction);
+            }
+            normalize(tempAxisZ);
+            multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
         }
 
         private static int toColor(float value) {
@@ -486,6 +714,28 @@ public class BedrockParticleDebugSystem {
             }
         }
 
+        private boolean isCollisionEnabled() {
+            if (motionCollision == null) {
+                return false;
+            }
+            return environment.safeResolve(motionCollision.enabled()) != 0.0f;
+        }
+
+        private boolean isColliding(double cx, double cy, double cz, float radius) {
+            if (radius <= 0.0f) {
+                return false;
+            }
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc == null || mc.world == null) {
+                return false;
+            }
+            AxisAlignedBB aabb = new AxisAlignedBB(
+                cx - radius, cy - radius, cz - radius,
+                cx + radius, cy + radius, cz + radius
+            );
+            return !mc.world.getCollisionBoxes(null, aabb).isEmpty();
+        }
+
         private void applyDynamicMotion() {
             if (motionDynamic == null) {
                 this.ax = 0.0;
@@ -513,16 +763,22 @@ public class BedrockParticleDebugSystem {
             }
             MolangExpression[] relative = motionParametric.relativePosition();
             if (relative != null && emitter != null) {
-                double rx = environment.safeResolve(relative[0]);
-                double ry = environment.safeResolve(relative[1]);
-                double rz = environment.safeResolve(relative[2]);
+                double lx = environment.safeResolve(relative[0]);
+                double ly = environment.safeResolve(relative[1]);
+                double lz = environment.safeResolve(relative[2]);
+                double rx = emitter.rotateLocalX(lx, ly, lz);
+                double ry = emitter.rotateLocalY(lx, ly, lz);
+                double rz = emitter.rotateLocalZ(lx, ly, lz);
                 setPosition(emitter.getX() + rx, emitter.getY() + ry, emitter.getZ() + rz);
             }
             MolangExpression[] dir = motionParametric.direction();
             if (dir != null) {
-                double dx = environment.safeResolve(dir[0]);
-                double dy = environment.safeResolve(dir[1]);
-                double dz = environment.safeResolve(dir[2]);
+                double lx = environment.safeResolve(dir[0]);
+                double ly = environment.safeResolve(dir[1]);
+                double lz = environment.safeResolve(dir[2]);
+                double dx = emitter != null ? emitter.rotateLocalX(lx, ly, lz) : lx;
+                double dy = emitter != null ? emitter.rotateLocalY(lx, ly, lz) : ly;
+                double dz = emitter != null ? emitter.rotateLocalZ(lx, ly, lz) : lz;
                 setDirection(dx, dy, dz);
             }
             this.roll = environment.safeResolve(motionParametric.rotation());
@@ -620,6 +876,12 @@ public class BedrockParticleDebugSystem {
         private final EmitterTransformProvider transformProvider;
         private final EmitterTransform currentTransform;
         private final EmitterShapeSpawner spawner;
+        private final float[] basisX;
+        private final float[] basisY;
+        private final float[] basisZ;
+        private final float[] lastBasisX;
+        private final float[] lastBasisY;
+        private final float[] lastBasisZ;
 
         private double x;
         private double y;
@@ -653,6 +915,12 @@ public class BedrockParticleDebugSystem {
             this.y = currentTransform.y;
             this.z = currentTransform.z;
             this.yaw = currentTransform.yaw;
+            this.basisX = new float[]{currentTransform.basisX[0], currentTransform.basisX[1], currentTransform.basisX[2]};
+            this.basisY = new float[]{currentTransform.basisY[0], currentTransform.basisY[1], currentTransform.basisY[2]};
+            this.basisZ = new float[]{currentTransform.basisZ[0], currentTransform.basisZ[1], currentTransform.basisZ[2]};
+            this.lastBasisX = new float[]{basisX[0], basisX[1], basisX[2]};
+            this.lastBasisY = new float[]{basisY[0], basisY[1], basisY[2]};
+            this.lastBasisZ = new float[]{basisZ[0], basisZ[1], basisZ[2]};
             this.lastX = this.x;
             this.lastY = this.y;
             this.lastZ = this.z;
@@ -894,16 +1162,28 @@ public class BedrockParticleDebugSystem {
             lastY = y;
             lastZ = z;
             lastYaw = yaw;
+            copyBasis(basisX, lastBasisX);
+            copyBasis(basisY, lastBasisY);
+            copyBasis(basisZ, lastBasisZ);
             transformProvider.fill(currentTransform, deltaSeconds);
             x = currentTransform.x;
             y = currentTransform.y;
             z = currentTransform.z;
             yaw = currentTransform.yaw;
+            copyBasis(currentTransform.basisX, basisX);
+            copyBasis(currentTransform.basisY, basisY);
+            copyBasis(currentTransform.basisZ, basisZ);
             deltaX = x - lastX;
             deltaY = y - lastY;
             deltaZ = z - lastZ;
             float deltaYawDeg = wrapDegrees(yaw - lastYaw);
             deltaYawRad = (float) Math.toRadians(deltaYawDeg);
+        }
+
+        private void copyBasis(float[] src, float[] dst) {
+            dst[0] = src[0];
+            dst[1] = src[1];
+            dst[2] = src[2];
         }
 
         private boolean isActive() {
@@ -980,12 +1260,77 @@ public class BedrockParticleDebugSystem {
             return x;
         }
 
+        private double getY() {
+            return y;
+        }
+
         private double getZ() {
             return z;
         }
 
         private float getYaw() {
             return yaw;
+        }
+
+        private float[] getBasisX() {
+            return basisX;
+        }
+
+        private float[] getBasisY() {
+            return basisY;
+        }
+
+        private float[] getBasisZ() {
+            return basisZ;
+        }
+
+        private double rotateLocalX(double x, double y, double z) {
+            return basisX[0] * x + basisY[0] * y + basisZ[0] * z;
+        }
+
+        private double rotateLocalY(double x, double y, double z) {
+            return basisX[1] * x + basisY[1] * y + basisZ[1] * z;
+        }
+
+        private double rotateLocalZ(double x, double y, double z) {
+            return basisX[2] * x + basisY[2] * y + basisZ[2] * z;
+        }
+
+        private double rotateFromLastX(double x, double y, double z) {
+            return lastBasisX[0] * x + lastBasisX[1] * y + lastBasisX[2] * z;
+        }
+
+        private double rotateFromLastY(double x, double y, double z) {
+            return lastBasisY[0] * x + lastBasisY[1] * y + lastBasisY[2] * z;
+        }
+
+        private double rotateFromLastZ(double x, double y, double z) {
+            return lastBasisZ[0] * x + lastBasisZ[1] * y + lastBasisZ[2] * z;
+        }
+
+        private void applyDeltaRotation(ActiveParticle particle) {
+            double ox = particle.x - x;
+            double oy = particle.y - y;
+            double oz = particle.z - z;
+            double lx = rotateFromLastX(ox, oy, oz);
+            double ly = rotateFromLastY(ox, oy, oz);
+            double lz = rotateFromLastZ(ox, oy, oz);
+            double rx = rotateLocalX(lx, ly, lz);
+            double ry = rotateLocalY(lx, ly, lz);
+            double rz = rotateLocalZ(lx, ly, lz);
+            particle.x = x + rx;
+            particle.y = y + ry;
+            particle.z = z + rz;
+        }
+
+        private void applyDeltaRotationToVelocity(ActiveParticle particle) {
+            double lx = rotateFromLastX(particle.vx, particle.vy, particle.vz);
+            double ly = rotateFromLastY(particle.vx, particle.vy, particle.vz);
+            double lz = rotateFromLastZ(particle.vx, particle.vy, particle.vz);
+            double rx = rotateLocalX(lx, ly, lz);
+            double ry = rotateLocalY(lx, ly, lz);
+            double rz = rotateLocalZ(lx, ly, lz);
+            particle.setVelocity(rx, ry, rz);
         }
 
         private ActiveParticle createParticle(double px, double py, double pz) {
@@ -1039,7 +1384,7 @@ public class BedrockParticleDebugSystem {
         private final class EmitterShapeSpawner implements ParticleEmitterShape.Spawner {
             @Override
             public ParticleInstance createParticle() {
-                return createParticle(x, y, z);
+                return ActiveEmitter.this.createParticle(x, y, z);
             }
 
             @Override
@@ -1076,7 +1421,10 @@ public class BedrockParticleDebugSystem {
                     return;
                 }
                 ActiveParticle particle = (ActiveParticle) instance;
-                particle.setPosition(ActiveEmitter.this.x + x, ActiveEmitter.this.y + y, ActiveEmitter.this.z + z);
+                double rx = rotateLocalX(x, y, z);
+                double ry = rotateLocalY(x, y, z);
+                double rz = rotateLocalZ(x, y, z);
+                particle.setPosition(ActiveEmitter.this.x + rx, ActiveEmitter.this.y + ry, ActiveEmitter.this.z + rz);
             }
 
             @Override
@@ -1084,9 +1432,12 @@ public class BedrockParticleDebugSystem {
                 if (!(instance instanceof ActiveParticle)) {
                     return;
                 }
-                double vx = dx + ActiveEmitter.this.deltaX;
-                double vy = dy + ActiveEmitter.this.deltaY;
-                double vz = dz + ActiveEmitter.this.deltaZ;
+                double rx = rotateLocalX(dx, dy, dz);
+                double ry = rotateLocalY(dx, dy, dz);
+                double rz = rotateLocalZ(dx, dy, dz);
+                double vx = rx + ActiveEmitter.this.deltaX;
+                double vy = ry + ActiveEmitter.this.deltaY;
+                double vz = rz + ActiveEmitter.this.deltaZ;
                 ActiveParticle particle = (ActiveParticle) instance;
                 particle.setVelocity(vx, vy, vz);
             }
@@ -1364,6 +1715,35 @@ public class BedrockParticleDebugSystem {
         return result;
     }
 
+    private static void normalize(float[] vec) {
+        float len = (float) Math.sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+        if (len > 0.0f) {
+            vec[0] /= len;
+            vec[1] /= len;
+            vec[2] /= len;
+        }
+    }
+
+    private static float dot(float[] a, float[] b) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    private static void cross(float[] a, float[] b, float[] out) {
+        out[0] = a[1] * b[2] - a[2] * b[1];
+        out[1] = a[2] * b[0] - a[0] * b[2];
+        out[2] = a[0] * b[1] - a[1] * b[0];
+    }
+
+    private static void multMatrix(float[] xAxis, float[] yAxis, float[] zAxis) {
+        ORIENTATION_BUFFER.clear();
+        ORIENTATION_BUFFER.put(xAxis[0]).put(xAxis[1]).put(xAxis[2]).put(0.0f);
+        ORIENTATION_BUFFER.put(yAxis[0]).put(yAxis[1]).put(yAxis[2]).put(0.0f);
+        ORIENTATION_BUFFER.put(zAxis[0]).put(zAxis[1]).put(zAxis[2]).put(0.0f);
+        ORIENTATION_BUFFER.put(0.0f).put(0.0f).put(0.0f).put(1.0f);
+        ORIENTATION_BUFFER.flip();
+        GL11.glMultMatrix(ORIENTATION_BUFFER);
+    }
+
     public interface EmitterTransformProvider {
         void fill(EmitterTransform transform, float deltaSeconds);
     }
@@ -1373,6 +1753,9 @@ public class BedrockParticleDebugSystem {
         public double y;
         public double z;
         public float yaw;
+        public final float[] basisX = new float[]{1.0f, 0.0f, 0.0f};
+        public final float[] basisY = new float[]{0.0f, 1.0f, 0.0f};
+        public final float[] basisZ = new float[]{0.0f, 0.0f, 1.0f};
     }
 
     public static final class StaticTransformProvider implements EmitterTransformProvider {
@@ -1394,6 +1777,19 @@ public class BedrockParticleDebugSystem {
             transform.y = y;
             transform.z = z;
             transform.yaw = yaw;
+            setIdentityBasis(transform);
         }
+    }
+
+    private static void setIdentityBasis(EmitterTransform transform) {
+        transform.basisX[0] = 1.0f;
+        transform.basisX[1] = 0.0f;
+        transform.basisX[2] = 0.0f;
+        transform.basisY[0] = 0.0f;
+        transform.basisY[1] = 1.0f;
+        transform.basisY[2] = 0.0f;
+        transform.basisZ[0] = 0.0f;
+        transform.basisZ[1] = 0.0f;
+        transform.basisZ[2] = 1.0f;
     }
 }
