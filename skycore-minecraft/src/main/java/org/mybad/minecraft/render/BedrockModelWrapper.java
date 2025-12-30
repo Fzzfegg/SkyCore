@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
+import org.lwjgl.opengl.GL11;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
@@ -62,6 +63,8 @@ public class BedrockModelWrapper {
 
     /** 纹理位置 */
     private final ResourceLocation texture;
+    private final ResourceLocation emissiveTexture;
+    private float emissiveStrength = 1.0f;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -94,22 +97,23 @@ public class BedrockModelWrapper {
     private final boolean enableCull;
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
-        this(model, animation, texture, true, null, null);
+        this(model, animation, texture, null, true, null, null);
     }
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull) {
-        this(model, animation, texture, enableCull, null, null);
+        this(model, animation, texture, null, enableCull, null, null);
     }
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull, String modelId) {
-        this(model, animation, texture, enableCull, modelId, null);
+        this(model, animation, texture, null, enableCull, modelId, null);
     }
 
-    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull, String modelId, GeometryCache geometryCache) {
+    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
         this.enableCull = enableCull;
         Model baseModel = model;
         this.model = baseModel != null ? baseModel.createInstance() : null;
         this.texture = texture;
+        this.emissiveTexture = emissiveTexture;
 
         // 获取纹理尺寸
         int texWidth = 64;
@@ -271,28 +275,18 @@ public class BedrockModelWrapper {
         // 设置 lightmap 纹理坐标
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
 
-        if (ensureGpuSkinningReady()) {
+        boolean gpu = ensureGpuSkinningReady();
+        if (gpu) {
             updateBoneMatrices();
             skinnedMesh.updateJointMatrices(boneMatrixBuffer);
             skinnedMesh.runSkinningPass();
             skinnedMesh.draw();
         } else {
-            BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-            beginBatch(buffer);
-            quadConsumer.begin(buffer, lightX, lightY);
+            renderCpuModel(lightX, lightY);
+        }
 
-            ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
-                .matrixStack(renderMatrixStack)
-                .textureWidth(textureWidth)
-                .textureHeight(textureHeight)
-                .applyConstraints(true)
-                .build();
-
-            renderMatrixStack.loadIdentity();
-            ModelRenderer.render(model, cubeRenderer, options);
-
-            quadConsumer.end();
-            Tessellator.getInstance().draw();
+        if (emissiveTexture != null) {
+            renderEmissivePass(gpu, lightX, lightY);
         }
 
         GlStateManager.popMatrix();
@@ -437,11 +431,73 @@ public class BedrockModelWrapper {
         return model;
     }
 
+    private void renderCpuModel(int lightX, int lightY) {
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        beginBatch(buffer);
+        quadConsumer.begin(buffer, lightX, lightY);
+
+        ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
+            .matrixStack(renderMatrixStack)
+            .textureWidth(textureWidth)
+            .textureHeight(textureHeight)
+            .applyConstraints(true)
+            .build();
+
+        renderMatrixStack.loadIdentity();
+        ModelRenderer.render(model, cubeRenderer, options);
+
+        quadConsumer.end();
+        Tessellator.getInstance().draw();
+    }
+
+    private void renderEmissivePass(boolean gpu, int lightX, int lightY) {
+        if (emissiveStrength <= 0f) {
+            return;
+        }
+        Minecraft.getMinecraft().getTextureManager().bindTexture(emissiveTexture);
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, emissiveStrength);
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        GlStateManager.depthMask(false);
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+
+        int fullBright = 240;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
+
+        if (gpu) {
+            skinnedMesh.draw();
+        } else {
+            renderCpuModel(fullBright, fullBright);
+        }
+
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+        GlStateManager.depthMask(true);
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
+        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+    }
+
     public void setPrimaryFadeDuration(float seconds) {
         if (Float.isNaN(seconds) || seconds < 0f) {
             return;
         }
         this.primaryFadeDuration = seconds;
+    }
+
+    public void setEmissiveStrength(float strength) {
+        if (Float.isNaN(strength)) {
+            return;
+        }
+        if (strength < 0f) {
+            strength = 0f;
+        } else if (strength > 1f) {
+            strength = 1f;
+        }
+        this.emissiveStrength = strength;
     }
 
     public void setModelScale(float scale) {

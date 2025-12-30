@@ -38,11 +38,13 @@ public class RenderEventHandler {
     /** 模型包装器缓存: 实体ID -> 包装器条目 */
     private final Map<Integer, WrapperEntry> modelWrapperCache;
     private final List<DebugStack> debugStacks;
+    private final Map<String, Animation> forcedAnimations;
 
     public RenderEventHandler(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
         this.modelWrapperCache = new ConcurrentHashMap<>();
         this.debugStacks = new ArrayList<>();
+        this.forcedAnimations = new ConcurrentHashMap<>();
     }
 
 
@@ -87,7 +89,11 @@ public class RenderEventHandler {
         if (entry == null || entry.wrapper == null) {
             return;  // 加载失败，跳过渲染
         }
-        if (entry.controller != null) {
+        Animation forced = getForcedAnimation(mappingName);
+        if (forced != null) {
+            entry.wrapper.setAnimation(forced);
+            entry.wrapper.clearOverlayStates();
+        } else if (entry.controller != null) {
             EntityAnimationController.Frame frame = entry.controller.update(entity);
             if (frame != null) {
                 boolean override = false;
@@ -189,17 +195,23 @@ public class RenderEventHandler {
 
         // 获取纹理
         ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
+        ResourceLocation emissiveTexture = null;
+        if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
+            emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
+        }
 
         // 创建包装器，传入配置中的背面剔除设置
         BedrockModelWrapper wrapper = new BedrockModelWrapper(
             model,
             animation,
             texture,
+            emissiveTexture,
             mapping.isEnableCull(),
             mapping.getModel(),
             resourceLoader.getGeometryCache()
         );
         wrapper.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
+        wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
         wrapper.setModelScale(mapping.getModelScale());
         EntityAnimationController controller = buildController(mapping);
         modelWrapperCache.put(entityId, new WrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick));
@@ -284,6 +296,7 @@ public class RenderEventHandler {
         }
         modelWrapperCache.clear();
         clearDebugStacks();
+        clearAllForcedAnimations();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
     }
 
@@ -309,6 +322,38 @@ public class RenderEventHandler {
         }
     }
 
+    public boolean setForcedAnimation(String mappingName, Animation animation) {
+        if (mappingName == null || mappingName.isEmpty() || animation == null) {
+            return false;
+        }
+        forcedAnimations.put(mappingName, animation);
+        for (WrapperEntry entry : modelWrapperCache.values()) {
+            if (mappingName.equals(entry.mappingName)) {
+                entry.wrapper.setAnimation(animation);
+                entry.wrapper.clearOverlayStates();
+            }
+        }
+        return true;
+    }
+
+    public void clearForcedAnimation(String mappingName) {
+        if (mappingName == null || mappingName.isEmpty()) {
+            return;
+        }
+        forcedAnimations.remove(mappingName);
+    }
+
+    public void clearAllForcedAnimations() {
+        forcedAnimations.clear();
+    }
+
+    private Animation getForcedAnimation(String mappingName) {
+        if (mappingName == null || mappingName.isEmpty()) {
+            return null;
+        }
+        return forcedAnimations.get(mappingName);
+    }
+
     public boolean addDebugStack(String mappingName, double x, double y, double z, float yaw, int count, double spacing) {
         EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
         if (mapping == null) {
@@ -327,14 +372,20 @@ public class RenderEventHandler {
         }
 
         ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
+        ResourceLocation emissiveTexture = null;
+        if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
+            emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
+        }
         BedrockModelWrapper wrapper = new BedrockModelWrapper(
             model,
             animation,
             texture,
+            emissiveTexture,
             mapping.isEnableCull(),
             mapping.getModel(),
             resourceLoader.getGeometryCache()
         );
+        wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
 
         synchronized (debugStacks) {
             debugStacks.add(new DebugStack(wrapper, x, y, z, yaw, count, spacing));

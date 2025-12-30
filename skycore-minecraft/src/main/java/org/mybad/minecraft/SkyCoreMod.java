@@ -9,6 +9,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.event.RenderEventHandler;
 import org.mybad.minecraft.resource.ResourceLoader;
 
@@ -173,6 +174,70 @@ public class SkyCoreMod {
                 } else {
                     mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 创建调试堆叠失败：未找到映射或模型加载失败"));
                 }
+                return;
+            }
+
+            if (message.startsWith("/skycore play_anim_clear")) {
+                if (instance == null || instance.renderEventHandler == null) {return;}
+                String[] parts = message.trim().split("\\s+");
+                if (parts.length < 3) {
+                    instance.renderEventHandler.clearAllForcedAnimations();
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 已清空所有强制动画")
+                    );
+                    return;
+                }
+                String mappingName = parts[2];
+                instance.renderEventHandler.clearForcedAnimation(mappingName);
+                net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                    new net.minecraft.util.text.TextComponentString("[SkyCore] 已清除强制动画: " + mappingName)
+                );
+                return;
+            }
+
+            if (message.startsWith("/skycore play_anim")) {
+                if (instance == null || instance.renderEventHandler == null || instance.resourceLoader == null) {return;}
+                String[] parts = message.trim().split("\\s+");
+                if (parts.length < 4) {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 用法: /skycore play_anim <名字> <动画片段名>")
+                    );
+                    return;
+                }
+                String mappingName = parts[2];
+                String clipName = parts[3];
+                EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
+                if (mapping == null) {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 未找到映射: " + mappingName)
+                    );
+                    return;
+                }
+                String animPath = mapping.getAnimation();
+                if (animPath == null || animPath.isEmpty()) {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 该映射没有动画文件: " + mappingName)
+                    );
+                    return;
+                }
+                org.mybad.core.animation.Animation animation = instance.resourceLoader.loadAnimation(animPath, clipName);
+                if (animation == null) {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 动画片段不存在: " + clipName)
+                    );
+                    return;
+                }
+                boolean ok = instance.renderEventHandler.setForcedAnimation(mappingName, animation);
+                if (ok) {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 已强制播放动画: " + mappingName + " -> " + clipName)
+                    );
+                } else {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 强制播放失败")
+                    );
+                }
+                return;
             }
         }
     }

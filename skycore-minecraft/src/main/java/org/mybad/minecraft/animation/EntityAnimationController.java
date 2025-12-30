@@ -46,11 +46,12 @@ public class EntityAnimationController {
     private static final float SPAWN_FADE_IN = 0.12f;
     private static final float SPAWN_FADE_OUT = 0.15f;
     private static final float SPEED_SMOOTH_BASE = 0.05f;
+    private static final float SPEED_SMOOTH_BASE_DECEL = 0.01f;
     private static final float WALK_ENTER = 0.06f;
-    private static final float WALK_EXIT = 0.035f;
+    private static final float WALK_EXIT = 0.03f;
     private static final float MIN_WALK_TIME = 0.15f;
-    private static final float STOP_SPEED_EPS = 0.004f;
-    private static final float STOP_HOLD_TIME = 0.04f;
+    private static final float STOP_SPEED_EPS = 0.006f;
+    private static final float STOP_HOLD_TIME = 0.055f;
 
     private final Map<String, Animation> actions;
     private String currentAction;
@@ -286,7 +287,13 @@ public class EntityAnimationController {
             lowSpeedTime = 0f;
         }
 
-        float alpha = computeSmoothingAlpha(deltaTime);
+        float alpha = computeSmoothingAlpha(deltaTime, SPEED_SMOOTH_BASE);
+        if (rawSpeed < smoothedSpeed) {
+            float decelAlpha = computeSmoothingAlpha(deltaTime, SPEED_SMOOTH_BASE_DECEL);
+            if (decelAlpha > alpha) {
+                alpha = decelAlpha;
+            }
+        }
         smoothedSpeed = smoothedSpeed * (1f - alpha) + rawSpeed * alpha;
         if (lowSpeedTime >= STOP_HOLD_TIME) {
             smoothedSpeed = 0f;
@@ -328,11 +335,11 @@ public class EntityAnimationController {
         return action;
     }
 
-    private float computeSmoothingAlpha(float deltaTime) {
+    private float computeSmoothingAlpha(float deltaTime, float base) {
         if (deltaTime <= 0f) {
             return 0f;
         }
-        float alpha = 1.0f - (float) Math.pow(SPEED_SMOOTH_BASE, deltaTime);
+        float alpha = 1.0f - (float) Math.pow(base, deltaTime);
         if (alpha < 0f) {
             return 0f;
         }

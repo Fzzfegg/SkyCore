@@ -119,6 +119,8 @@ public class SkyCoreConfig {
             example.addProperty("model", "models/example.geo.json");
             example.addProperty("animation", "animations/example.animation.json");
             example.addProperty("texture", "textures/example.png");
+            example.addProperty("emissive", "textures/example_emissive.png");
+            example.addProperty("emissiveStrength", 1.0f);
             example.addProperty("enableCull", true);  // 是否启用背面剔除，默认为 true
             example.addProperty("scale", 1.0f);  // 模型缩放
             example.addProperty("primaryFadeSeconds", 0.12f);  // 主动画切换淡入淡出时间（秒）
@@ -130,6 +132,8 @@ public class SkyCoreConfig {
             example2.addProperty("model", "models/billboard.geo.json");
             example2.addProperty("animation", "animations/billboard.animation.json");
             example2.addProperty("texture", "textures/billboard.png");
+            example2.addProperty("emissive", "textures/billboard_emissive.png");
+            example2.addProperty("emissiveStrength", 1.0f);
             example2.addProperty("enableCull", false);  // 禁用背面剔除，显示双面
             example2.addProperty("scale", 1.0f);
             example2.addProperty("primaryFadeSeconds", 0.12f);
