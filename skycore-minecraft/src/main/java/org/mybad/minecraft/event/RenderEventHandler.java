@@ -20,7 +20,6 @@ import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.particle.ParticleEngine;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.resource.ResourceLoader;
 
@@ -44,7 +43,6 @@ public class RenderEventHandler {
     private final Map<Integer, WrapperEntry> modelWrapperCache;
     private final List<DebugStack> debugStacks;
     private final Map<String, Animation> forcedAnimations;
-    private final ParticleEngine particleEngine;
 
     private static final float EVENT_EPS = 1.0e-4f;
 
@@ -53,7 +51,6 @@ public class RenderEventHandler {
         this.modelWrapperCache = new ConcurrentHashMap<>();
         this.debugStacks = new ArrayList<>();
         this.forcedAnimations = new ConcurrentHashMap<>();
-        this.particleEngine = new ParticleEngine(resourceLoader);
     }
 
 
@@ -146,7 +143,6 @@ public class RenderEventHandler {
         double camZ = mc.getRenderManager().viewerPosZ;
         float partialTicks = event.getPartialTicks();
 
-        particleEngine.updateAndRender(camX, camY, camZ);
         if (debugStacks.isEmpty()) {
             return;
         }
@@ -365,16 +361,16 @@ public class RenderEventHandler {
         if (animation == null) {
             return;
         }
-        if (animation.getParticleEvents().isEmpty() && animation.getSoundEvents().isEmpty()) {
-            return;
-        }
-
         if (!looped && currentTime + EVENT_EPS < prevTime) {
             return;
         }
 
-        dispatchEventList(entity, wrapper, animation, animation.getParticleEvents(), prevTime, currentTime, looped, entityYaw, partialTicks);
-        dispatchEventList(entity, wrapper, animation, animation.getSoundEvents(), prevTime, currentTime, looped, entityYaw, partialTicks);
+        if (!animation.getSoundEvents().isEmpty()) {
+            dispatchEventList(entity, wrapper, animation, animation.getSoundEvents(), prevTime, currentTime, looped, entityYaw, partialTicks);
+        }
+        if (!animation.getParticleEvents().isEmpty()) {
+            dispatchEventList(entity, wrapper, animation, animation.getParticleEvents(), prevTime, currentTime, looped, entityYaw, partialTicks);
+        }
     }
 
     private void dispatchEventList(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
@@ -415,10 +411,82 @@ public class RenderEventHandler {
                            float entityYaw, float partialTicks) {
         double[] pos = resolveEventPosition(entity, wrapper, event.getLocator(), entityYaw, partialTicks);
         if (event.getType() == Animation.Event.Type.PARTICLE) {
-            particleEngine.playEffect(event.getEffect(), pos[0], pos[1], pos[2]);
-        } else if (event.getType() == Animation.Event.Type.SOUND) {
+            spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), entityYaw, pos);
+        } else {
             playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
         }
+    }
+
+    private void spawnParticleEffect(String effect,
+                                     EntityLivingBase entity,
+                                     BedrockModelWrapper wrapper,
+                                     String locatorName,
+                                     float entityYaw,
+                                     double[] initialPos) {
+        if (effect == null || effect.isEmpty()) {
+            return;
+        }
+        ParticleParams params = parseParticleParams(effect);
+        if (params == null || params.path == null || params.path.isEmpty()) {
+            return;
+        }
+        org.mybad.minecraft.particle.BedrockParticleDebugSystem system = org.mybad.minecraft.SkyCoreMod.getParticleSystem();
+        if (system == null) {
+            return;
+        }
+        if (entity == null) {
+            double[] pos = initialPos != null ? initialPos : new double[]{0.0, 0.0, 0.0};
+            system.spawn(params.path, pos[0], pos[1], pos[2], params.count);
+            return;
+        }
+        float baseYaw = 180.0F - entityYaw;
+        double ix = initialPos != null && initialPos.length > 0 ? initialPos[0] : entity.posX;
+        double iy = initialPos != null && initialPos.length > 1 ? initialPos[1] : entity.posY;
+        double iz = initialPos != null && initialPos.length > 2 ? initialPos[2] : entity.posZ;
+        system.spawn(params.path, new EventTransformProvider(entity, wrapper, locatorName, ix, iy, iz, baseYaw), params.count);
+    }
+
+    private ParticleParams parseParticleParams(String effect) {
+        String path = null;
+        int count = 0;
+        String[] parts = effect.split(";");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int eq = trimmed.indexOf('=');
+            if (eq < 0) {
+                if (path == null) {
+                    path = trimmed;
+                }
+                continue;
+            }
+            String key = trimmed.substring(0, eq).trim().toLowerCase();
+            String value = trimmed.substring(eq + 1).trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            if ("effect".equals(key) || "particle".equals(key) || "path".equals(key)) {
+                path = value;
+            } else if ("count".equals(key) || "num".equals(key) || "amount".equals(key)) {
+                try {
+                    count = Integer.parseInt(value);
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (path == null) {
+            path = effect.trim();
+        }
+        ParticleParams params = new ParticleParams();
+        params.path = path;
+        params.count = count;
+        return params;
+    }
+
+    private static final class ParticleParams {
+        private String path;
+        private int count;
     }
 
     private double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
@@ -426,7 +494,20 @@ public class RenderEventHandler {
         double baseX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
         double baseY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
         double baseZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
+        return resolveEventPosition(entity, wrapper, locatorName, entityYaw, baseX, baseY, baseZ);
+    }
+
+    private double[] resolveEventPositionNow(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
+                                             float entityYaw) {
+        return resolveEventPosition(entity, wrapper, locatorName, entityYaw, entity.posX, entity.posY, entity.posZ);
+    }
+
+    private double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
+                                          float entityYaw, double baseX, double baseY, double baseZ) {
         if (locatorName == null || locatorName.isEmpty()) {
+            return new double[]{baseX, baseY, baseZ};
+        }
+        if (wrapper == null) {
             return new double[]{baseX, baseY, baseZ};
         }
         float[] local = wrapper.getLocatorPosition(locatorName);
@@ -444,6 +525,55 @@ public class RenderEventHandler {
         float rx = lx * cos - lz * sin;
         float rz = lx * sin + lz * cos;
         return new double[]{baseX + rx, baseY + ly, baseZ + rz};
+    }
+
+    private final class EventTransformProvider implements org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransformProvider {
+        private final EntityLivingBase entity;
+        private final BedrockModelWrapper wrapper;
+        private final String locatorName;
+        private final double initialX;
+        private final double initialY;
+        private final double initialZ;
+        private final float initialYaw;
+        private boolean usedInitial;
+
+        private EventTransformProvider(EntityLivingBase entity,
+                                       BedrockModelWrapper wrapper,
+                                       String locatorName,
+                                       double initialX,
+                                       double initialY,
+                                       double initialZ,
+                                       float initialYaw) {
+            this.entity = entity;
+            this.wrapper = wrapper;
+            this.locatorName = locatorName;
+            this.initialX = initialX;
+            this.initialY = initialY;
+            this.initialZ = initialZ;
+            this.initialYaw = initialYaw;
+            this.usedInitial = false;
+        }
+
+        @Override
+        public void fill(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform, float deltaSeconds) {
+            if (!usedInitial) {
+                transform.x = initialX;
+                transform.y = initialY;
+                transform.z = initialZ;
+                transform.yaw = initialYaw;
+                usedInitial = true;
+                return;
+            }
+            if (entity == null) {
+                return;
+            }
+            float yaw = entity.rotationYawHead;
+            double[] pos = resolveEventPositionNow(entity, wrapper, locatorName, yaw);
+            transform.x = pos[0];
+            transform.y = pos[1];
+            transform.z = pos[2];
+            transform.yaw = 180.0F - yaw;
+        }
     }
 
     private void playSoundEffect(String effect, double x, double y, double z) {
@@ -535,7 +665,6 @@ public class RenderEventHandler {
         modelWrapperCache.clear();
         clearDebugStacks();
         clearAllForcedAnimations();
-        particleEngine.clear();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
     }
 

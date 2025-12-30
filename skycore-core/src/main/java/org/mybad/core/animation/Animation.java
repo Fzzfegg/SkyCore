@@ -19,8 +19,8 @@ public class Animation {
     private boolean overridePreviousAnimation; // 是否覆盖之前动画
     private Map<String, BoneAnimation> boneAnimations;
     private float speed = 1.0f;     // 播放速度倍数
-    private final List<Event> particleEvents = new ArrayList<>();
     private final List<Event> soundEvents = new ArrayList<>();
+    private final List<Event> particleEvents = new ArrayList<>();
 
     public Animation(String name) {
         this.name = name;
@@ -68,8 +68,8 @@ public class Animation {
     public boolean isOverridePreviousAnimation() { return overridePreviousAnimation; }
     public Map<String, BoneAnimation> getBoneAnimations() { return boneAnimations; }
     public float getSpeed() { return speed; }
-    public List<Event> getParticleEvents() { return particleEvents; }
     public List<Event> getSoundEvents() { return soundEvents; }
+    public List<Event> getParticleEvents() { return particleEvents; }
 
     public void setLength(float length) { this.length = length; }
     public void setLoop(boolean loop) { this.loopMode = loop ? LoopMode.LOOP : LoopMode.ONCE; }
@@ -81,20 +81,20 @@ public class Animation {
     }
     public void setSpeed(float speed) { this.speed = Math.max(0, speed); }
 
-    public void addParticleEvent(float timestamp, String effect, String locator) {
-        if (effect == null || effect.isEmpty()) {
-            return;
-        }
-        particleEvents.add(new Event(Event.Type.PARTICLE, timestamp, effect, locator));
-        particleEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
-    }
-
     public void addSoundEvent(float timestamp, String effect, String locator) {
         if (effect == null || effect.isEmpty()) {
             return;
         }
         soundEvents.add(new Event(Event.Type.SOUND, timestamp, effect, locator));
         soundEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
+    }
+
+    public void addParticleEvent(float timestamp, String effect, String locator) {
+        if (effect == null || effect.isEmpty()) {
+            return;
+        }
+        particleEvents.add(new Event(Event.Type.PARTICLE, timestamp, effect, locator));
+        particleEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
     }
 
     /**
@@ -142,8 +142,8 @@ public class Animation {
      */
     public static final class Event {
         public enum Type {
-            PARTICLE,
-            SOUND
+            SOUND,
+            PARTICLE
         }
 
         private final Type type;

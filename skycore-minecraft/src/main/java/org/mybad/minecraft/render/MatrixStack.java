@@ -111,6 +111,13 @@ public class MatrixStack {
         last.normal.setIdentity();
     }
 
+    /**
+     * 兼容旧命名：仅重置当前条目为单位矩阵。
+     */
+    public void loadIdentity() {
+        setIdentity();
+    }
+
     // ==================== 变换操作 ====================
 
     /**
@@ -237,6 +244,13 @@ public class MatrixStack {
     }
 
     /**
+     * 欧拉角旋转（度数，Z-Y-X 顺序），与 Bedrock/Blockbench 一致。
+     */
+    public void rotateEuler(float rx, float ry, float rz) {
+        rotateZYX(rx, ry, rz);
+    }
+
+    /**
      * 立方体旋转 (Chameleon rotateCube 风格 - 合并为单次矩阵乘法)
      */
     public void rotateCube(float[] rotation) {
@@ -317,6 +331,16 @@ public class MatrixStack {
     }
 
     /**
+     * 变换顶点位置（原地修改）
+     */
+    public void transform(float[] pos) {
+        if (pos == null || pos.length < 3) {
+            return;
+        }
+        transformPosition(pos[0], pos[1], pos[2], pos);
+    }
+
+    /**
      * 变换法线方向（使用预分配向量）
      */
     public void transformNormal(float nx, float ny, float nz, float[] out) {
@@ -334,6 +358,42 @@ public class MatrixStack {
             out[1] = ny;
             out[2] = nz;
         }
+    }
+
+    /**
+     * 变换法线方向（原地修改）
+     */
+    public void transformNormal(float[] normal) {
+        if (normal == null || normal.length < 3) {
+            return;
+        }
+        transformNormal(normal[0], normal[1], normal[2], normal);
+    }
+
+    /**
+     * 获取当前模型矩阵（列优先，OpenGL 兼容）。
+     */
+    public float[] getCurrentMatrix() {
+        float[] out = new float[16];
+        Matrix4f m = getModelMatrix();
+        // column-major (OpenGL) layout
+        out[0] = m.m00;
+        out[1] = m.m10;
+        out[2] = m.m20;
+        out[3] = m.m30;
+        out[4] = m.m01;
+        out[5] = m.m11;
+        out[6] = m.m21;
+        out[7] = m.m31;
+        out[8] = m.m02;
+        out[9] = m.m12;
+        out[10] = m.m22;
+        out[11] = m.m32;
+        out[12] = m.m03;
+        out[13] = m.m13;
+        out[14] = m.m23;
+        out[15] = m.m33;
+        return out;
     }
 
     // ==================== OpenGL 交互 (HammerAnimations 风格) ====================

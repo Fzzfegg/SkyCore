@@ -16,7 +16,7 @@ import org.mybad.core.data.ModelBone;
 import org.mybad.core.data.ModelCube;
 import org.mybad.core.data.ModelQuad;
 import org.mybad.core.data.ModelLocator;
-import org.mybad.core.render.MatrixStack;
+import org.mybad.core.render.CoreMatrixStack;
 
 import java.util.List;
 import java.util.ArrayList;

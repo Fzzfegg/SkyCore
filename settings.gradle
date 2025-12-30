@@ -3,3 +3,4 @@ rootProject.name = 'SkyCore'
 
 include 'skycore-core'
 include 'skycore-minecraft'
+include 'skycore-bedrockparticle'

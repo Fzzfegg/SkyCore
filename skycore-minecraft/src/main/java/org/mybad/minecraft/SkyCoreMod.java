@@ -11,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.event.RenderEventHandler;
+import org.mybad.minecraft.particle.BedrockParticleDebugSystem;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 /**
@@ -41,6 +42,8 @@ public class SkyCoreMod {
     /** 渲染事件处理器 */
     @SideOnly(Side.CLIENT)
     private RenderEventHandler renderEventHandler;
+    @SideOnly(Side.CLIENT)
+    private BedrockParticleDebugSystem particleDebugSystem;
 
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
@@ -64,6 +67,9 @@ public class SkyCoreMod {
         // 创建并注册渲染事件处理器
         renderEventHandler = new RenderEventHandler(resourceLoader);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
+        // 粒子调试系统
+        particleDebugSystem = new BedrockParticleDebugSystem(resourceLoader);
+        MinecraftForge.EVENT_BUS.register(particleDebugSystem);
 
         // 注册 reload 命令处理器
         MinecraftForge.EVENT_BUS.register(new ReloadCommandHandler());
@@ -90,6 +96,9 @@ public class SkyCoreMod {
         if (renderEventHandler != null) {
             renderEventHandler.clearCache();
         }
+        if (particleDebugSystem != null) {
+            particleDebugSystem.clear();
+        }
 
         LOGGER.info("[SkyCore] 重新加载完成");
     }
@@ -108,6 +117,11 @@ public class SkyCoreMod {
     @SideOnly(Side.CLIENT)
     public static RenderEventHandler getRenderEventHandler() {
         return instance != null ? instance.renderEventHandler : null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public static BedrockParticleDebugSystem getParticleSystem() {
+        return instance != null ? instance.particleDebugSystem : null;
     }
 
     /**
@@ -134,6 +148,27 @@ public class SkyCoreMod {
                     org.mybad.minecraft.render.GeometryCache.Stats stats = instance.resourceLoader.getGeometryCache().getStats();
                     net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
                         new net.minecraft.util.text.TextComponentString("[SkyCore] 几何缓存统计: " + stats.toString())
+                    );
+                }
+                return;
+            }
+
+            if (message.equalsIgnoreCase("/skycore particlestats")) {
+                if (instance != null && instance.resourceLoader != null && instance.particleDebugSystem != null) {
+                    int cached = instance.resourceLoader.getCachedParticleCount();
+                    int active = instance.particleDebugSystem.getActiveCount();
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 粒子缓存: " + cached + " / 活动粒子: " + active)
+                    );
+                }
+                return;
+            }
+
+            if (message.equalsIgnoreCase("/skycore particle_clear")) {
+                if (instance != null && instance.particleDebugSystem != null) {
+                    instance.particleDebugSystem.clear();
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 已清空调试粒子")
                     );
                 }
                 return;
@@ -236,6 +271,36 @@ public class SkyCoreMod {
                     net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
                         new net.minecraft.util.text.TextComponentString("[SkyCore] 强制播放失败")
                     );
+                }
+                return;
+            }
+
+            if (message.startsWith("/skycore particle")) {
+                if (instance == null || instance.particleDebugSystem == null) {return;}
+                String[] parts = message.trim().split("\\s+");
+                if (parts.length < 3) {
+                    net.minecraft.client.Minecraft.getMinecraft().player.sendMessage(
+                        new net.minecraft.util.text.TextComponentString("[SkyCore] 用法: /skycore particle <粒子文件路径> [数量]")
+                    );
+                    return;
+                }
+                String path = parts[2];
+                int count = 0;
+                if (parts.length >= 4) {
+                    try {
+                        count = Integer.parseInt(parts[3]);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+                if (mc.player == null) {
+                    return;
+                }
+                boolean ok = instance.particleDebugSystem.spawn(path, mc.player.posX, mc.player.posY + 1.0, mc.player.posZ, count);
+                if (ok) {
+                    mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 已生成调试粒子: " + path));
+                } else {
+                    mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("[SkyCore] 生成粒子失败: " + path));
                 }
                 return;
             }

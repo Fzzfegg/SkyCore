@@ -86,8 +86,8 @@ public class AnimationParser {
         public Animation.LoopMode loopMode;
         public boolean overridePreviousAnimation;
         public Map<String, BoneAnimation> boneAnimations;
-        public List<AnimationEvent> particleEvents;
         public List<AnimationEvent> soundEvents;
+        public List<AnimationEvent> particleEvents;
 
         public AnimationData(String name) {
             this.name = name;
@@ -95,8 +95,8 @@ public class AnimationParser {
             this.loopMode = Animation.LoopMode.ONCE;
             this.overridePreviousAnimation = false;
             this.boneAnimations = new HashMap<>();
-            this.particleEvents = new ArrayList<>();
             this.soundEvents = new ArrayList<>();
+            this.particleEvents = new ArrayList<>();
         }
     }
 
@@ -247,8 +247,8 @@ public class AnimationParser {
         }
 
         // 解析动画事件
-        parseEventMap(animation.particleEvents, animJson, "particle_effects");
         parseEventMap(animation.soundEvents, animJson, "sound_effects");
+        parseEventMap(animation.particleEvents, animJson, "particle_effects");
 
         // 事件可能延长动画长度
         float eventMax = getMaxEventTime(animation);
@@ -421,12 +421,12 @@ public class AnimationParser {
 
     private float getMaxEventTime(AnimationData animation) {
         float max = 0f;
-        for (AnimationEvent evt : animation.particleEvents) {
+        for (AnimationEvent evt : animation.soundEvents) {
             if (evt != null) {
                 max = Math.max(max, evt.timestamp);
             }
         }
-        for (AnimationEvent evt : animation.soundEvents) {
+        for (AnimationEvent evt : animation.particleEvents) {
             if (evt != null) {
                 max = Math.max(max, evt.timestamp);
             }
@@ -470,14 +470,14 @@ public class AnimationParser {
             animation.addBoneAnimation(boneName, dstBoneAnim);
         }
 
-        for (AnimationEvent evt : data.particleEvents) {
-            if (evt != null) {
-                animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator);
-            }
-        }
         for (AnimationEvent evt : data.soundEvents) {
             if (evt != null) {
                 animation.addSoundEvent(evt.timestamp, evt.effect, evt.locator);
+            }
+        }
+        for (AnimationEvent evt : data.particleEvents) {
+            if (evt != null) {
+                animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator);
             }
         }
 

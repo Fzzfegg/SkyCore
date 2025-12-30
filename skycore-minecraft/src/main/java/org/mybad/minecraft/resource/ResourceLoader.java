@@ -5,12 +5,15 @@ import net.minecraft.client.resources.IResource;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import gg.moonflower.pinwheel.particle.ParticleData;
+import gg.moonflower.pinwheel.particle.ParticleParser;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
 import org.mybad.core.parsing.AnimationParser;
 import org.mybad.core.parsing.ModelParser;
-import org.mybad.core.particle.ParticleEffect;
-import org.mybad.core.particle.ParticleParser;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.GeometryCache;
 
@@ -37,8 +40,8 @@ public class ResourceLoader {
     private final Map<String, Animation> animationCache;
     /** 动画集合缓存: 路径 -> (name -> Animation) */
     private final Map<String, Map<String, Animation>> animationSetCache;
-    /** 粒子缓存: 路径 -> ParticleEffect */
-    private final Map<String, ParticleEffect> particleCache;
+    /** 粒子缓存: 路径 -> ParticleData */
+    private final Map<String, ParticleData> particleCache;
 
     /** 模型解析器 */
     private final ModelParser modelParser;
@@ -208,10 +211,6 @@ public class ResourceLoader {
         animationSetCache.remove(path);
     }
 
-    public void invalidateParticle(String path) {
-        particleCache.remove(path);
-    }
-
     /**
      * 获取缓存的模型数量
      */
@@ -246,39 +245,71 @@ public class ResourceLoader {
         }
     }
 
-    public ParticleEffect loadParticleEffect(String path) {
-        if (path == null || path.isEmpty()) {
-            return null;
-        }
-        ParticleEffect cached = particleCache.get(path);
+    public ParticleData loadParticle(String path) {
+        ParticleData cached = particleCache.get(path);
         if (cached != null) {
             return cached;
         }
-        String jsonContent = null;
-        String resolvedPath = path;
-        boolean hasExt = path.endsWith(".json");
-        String withExt = hasExt ? path : path + ".json";
-        String[] candidates = new String[] {
-            "particles/" + withExt,
-        };
-        for (String candidate : candidates) {
-            jsonContent = loadResourceAsString(candidate);
-            if (jsonContent != null) {
-                resolvedPath = candidate;
-                break;
+        try {
+            String jsonContent = loadResourceAsString(path);
+            if (jsonContent == null) {
+                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载粒子文件: {}", path);
+                return null;
             }
-        }
-        if (jsonContent == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载粒子文件: {}", path);
+            JsonElement root = new JsonParser().parse(jsonContent);
+            ParticleData data = ParticleParser.parseParticle(root);
+            patchParticleTextureNamespace(path, root, data);
+            particleCache.put(path, data);
+            return data;
+        } catch (Exception e) {
+            SkyCoreMod.LOGGER.error("[SkyCore] 解析粒子文件失败: {} - {}", path, e.getMessage());
             return null;
         }
-        String effectId = resolvedPath;
+    }
+
+    public void invalidateParticle(String path) {
+        particleCache.remove(path);
+    }
+
+    public int getCachedParticleCount() {
+        return particleCache.size();
+    }
+
+    private void patchParticleTextureNamespace(String particlePath, JsonElement root, ParticleData data) {
+        if (root == null || !root.isJsonObject() || data == null) {
+            return;
+        }
+        String textureText = extractTexturePath(root.getAsJsonObject());
+        if (textureText == null || textureText.contains(":")) {
+            return;
+        }
+        if (!textureText.endsWith(".png")) {
+            textureText += ".png";
+        }
+        ResourceLocation fileLoc = parseResourceLocation(particlePath);
+        String namespace = fileLoc.getNamespace();
+        data.setTexture(new org.mybad.bedrockparticle.ResourceLocation(namespace, textureText));
+    }
+
+    private String extractTexturePath(JsonObject root) {
+        if (!root.has("particle_effect")) {
+            return null;
+        }
+        JsonObject effect = root.getAsJsonObject("particle_effect");
+        if (!effect.has("description")) {
+            return null;
+        }
+        JsonObject desc = effect.getAsJsonObject("description");
+        if (!desc.has("basic_render_parameters")) {
+            return null;
+        }
+        JsonObject params = desc.getAsJsonObject("basic_render_parameters");
+        if (!params.has("texture")) {
+            return null;
+        }
         try {
-            ParticleEffect effect = ParticleParser.parseFromJson(jsonContent, effectId, effectId);
-            particleCache.put(path, effect);
-            return effect;
-        } catch (ParticleParser.ParseException e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析粒子文件失败: {} - {}", path, e.getMessage());
+            return params.get("texture").getAsString();
+        } catch (Exception ex) {
             return null;
         }
     }

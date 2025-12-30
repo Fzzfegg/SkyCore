@@ -1,0 +1,19 @@
+// skycore-bedrockparticle 模块构建配置
+
+group = 'org.mybad'
+version = projectVersion
+
+description = 'Bedrock particle parser/runtime (ported, rendering handled by SkyCore)'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+
+dependencies {
+    implementation project(':skycore-core')
+    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation 'org.jetbrains:annotations:20.1.0'
+    implementation 'org.joml:joml:1.10.5'
+
+    // 仅编译期依赖，运行时由 Minecraft/Forge 提供
+    compileOnly 'com.google.guava:guava:21.0'
+    compileOnly 'org.apache.logging.log4j:log4j-api:2.8.1'
+}
