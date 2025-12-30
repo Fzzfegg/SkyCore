@@ -15,6 +15,7 @@ import org.mybad.core.data.Model;
 import org.mybad.core.data.ModelBone;
 import org.mybad.core.data.ModelCube;
 import org.mybad.core.data.ModelQuad;
+import org.mybad.core.data.ModelLocator;
 import org.mybad.core.render.MatrixStack;
 
 import java.util.List;
@@ -394,6 +395,35 @@ public class BedrockModelWrapper {
         return model;
     }
 
+    public float[] getLocatorPosition(String locatorName) {
+        if (locatorName == null || locatorName.isEmpty() || model == null) {
+            return null;
+        }
+        ModelLocator locator = model.getLocator(locatorName);
+        if (locator == null) {
+            return null;
+        }
+        applyConstraintsForGpu();
+        float[] raw = locator.getPosition();
+        float[] local = new float[]{
+            convertX(raw[0]),
+            convertY(raw[1]),
+            convertZ(raw[2])
+        };
+        String boneName = locator.getAttachedBone();
+        if (boneName == null || boneName.isEmpty()) {
+            return local;
+        }
+        ModelBone bone = model.getBone(boneName);
+        if (bone == null) {
+            return local;
+        }
+        MatrixStack stack = new MatrixStack();
+        applyBoneTransformRecursive(bone, stack);
+        stack.transform(local);
+        return local;
+    }
+
     private void renderEmissivePass(int lightX, int lightY) {
         if (emissiveStrength <= 0f) {
             return;
@@ -445,6 +475,10 @@ public class BedrockModelWrapper {
             return;
         }
         this.modelScale = scale;
+    }
+
+    public float getModelScale() {
+        return modelScale;
     }
 
     private void beginPrimaryTransition(AnimationPlayer next) {
@@ -740,6 +774,13 @@ public class BedrockModelWrapper {
         if (translateX != 0 || translateY != 0 || translateZ != 0) {
             stack.translate(translateX, translateY, translateZ);
         }
+    }
+
+    private static void applyBoneTransformRecursive(ModelBone bone, MatrixStack stack) {
+        if (bone.getParent() != null) {
+            applyBoneTransformRecursive(bone.getParent(), stack);
+        }
+        applyBoneTransform(bone, stack);
     }
 
     private static final float PIXEL_SCALE = 1.0f / 16.0f;

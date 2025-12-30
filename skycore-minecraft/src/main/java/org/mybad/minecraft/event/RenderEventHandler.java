@@ -5,17 +5,22 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvent;
+import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
+import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.particle.ParticleEngine;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.resource.ResourceLoader;
 
@@ -39,12 +44,16 @@ public class RenderEventHandler {
     private final Map<Integer, WrapperEntry> modelWrapperCache;
     private final List<DebugStack> debugStacks;
     private final Map<String, Animation> forcedAnimations;
+    private final ParticleEngine particleEngine;
+
+    private static final float EVENT_EPS = 1.0e-4f;
 
     public RenderEventHandler(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
         this.modelWrapperCache = new ConcurrentHashMap<>();
         this.debugStacks = new ArrayList<>();
         this.forcedAnimations = new ConcurrentHashMap<>();
+        this.particleEngine = new ParticleEngine(resourceLoader);
     }
 
 
@@ -90,6 +99,7 @@ public class RenderEventHandler {
             return;  // 加载失败，跳过渲染
         }
         Animation forced = getForcedAnimation(mappingName);
+        List<EntityAnimationController.OverlayState> overlayStates = java.util.Collections.emptyList();
         if (forced != null) {
             entry.wrapper.setAnimation(forced);
             entry.wrapper.clearOverlayStates();
@@ -106,6 +116,7 @@ public class RenderEventHandler {
                 }
                 if (!override) {
                     entry.wrapper.setOverlayStates(frame.overlays);
+                    overlayStates = frame.overlays != null ? frame.overlays : java.util.Collections.emptyList();
                 }
             } else {
                 entry.wrapper.clearOverlayStates();
@@ -113,9 +124,10 @@ public class RenderEventHandler {
         } else {
             entry.wrapper.clearOverlayStates();
         }
+        entry.overlayStates = overlayStates;
         
         // 使用 SkyCore 渲染
-        renderEntity(entity, entry.wrapper, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
+        renderEntity(entity, entry, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
     }
 
     /**
@@ -125,9 +137,6 @@ public class RenderEventHandler {
     public void onRenderWorldLast(RenderWorldLastEvent event) {
         org.mybad.minecraft.render.GLDeletionQueue.flush();
         cleanupEntityWrappers();
-        if (debugStacks.isEmpty()) {
-            return;
-        }
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.getRenderManager() == null) {
             return;
@@ -136,6 +145,11 @@ public class RenderEventHandler {
         double camY = mc.getRenderManager().viewerPosY;
         double camZ = mc.getRenderManager().viewerPosZ;
         float partialTicks = event.getPartialTicks();
+
+        particleEngine.updateAndRender(camX, camY, camZ);
+        if (debugStacks.isEmpty()) {
+            return;
+        }
 
         synchronized (debugStacks) {
             for (DebugStack stack : debugStacks) {
@@ -235,13 +249,17 @@ public class RenderEventHandler {
     /**
      * 使用 SkyCore 渲染实体
      */
-    private void renderEntity(EntityLivingBase entity, BedrockModelWrapper wrapper,
+    private void renderEntity(EntityLivingBase entity, WrapperEntry entry,
                               double x, double y, double z, float partialTicks) {
+        BedrockModelWrapper wrapper = entry.wrapper;
         // 计算实体朝向
         float entityYaw = interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
 
         // 渲染模型
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
+
+        // 触发动画事件（声音/粒子）
+        dispatchAnimationEvents(entity, entry, wrapper, entityYaw, partialTicks);
 
         // 渲染名字标签（如果需要）
         if (shouldRenderNameTag(entity)) {
@@ -286,6 +304,226 @@ public class RenderEventHandler {
         }
     }
 
+    private void dispatchAnimationEvents(EntityLivingBase entity, WrapperEntry entry, BedrockModelWrapper wrapper,
+                                         float entityYaw, float partialTicks) {
+        AnimationPlayer primaryPlayer = wrapper.getActiveAnimationPlayer();
+        if (primaryPlayer != null && primaryPlayer.getAnimation() != null) {
+            Animation animation = primaryPlayer.getAnimation();
+            float currentTime = primaryPlayer.getState().getCurrentTime();
+            int loopCount = primaryPlayer.getState().getLoopCount();
+            if (!entry.primaryValid || entry.lastPrimaryAnimation != animation) {
+                entry.lastPrimaryAnimation = animation;
+                entry.lastPrimaryTime = currentTime;
+                entry.lastPrimaryLoop = loopCount;
+                entry.primaryValid = true;
+            } else {
+                boolean looped = loopCount != entry.lastPrimaryLoop ||
+                    (animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < entry.lastPrimaryTime);
+                dispatchEventsForAnimation(entity, wrapper, animation, entry.lastPrimaryTime, currentTime, looped, entityYaw, partialTicks);
+                entry.lastPrimaryTime = currentTime;
+                entry.lastPrimaryLoop = loopCount;
+            }
+        } else {
+            entry.primaryValid = false;
+        }
+
+        if (entry.overlayStates == null || entry.overlayStates.isEmpty()) {
+            entry.overlayCursors.clear();
+            return;
+        }
+
+        java.util.Set<Animation> active = new java.util.HashSet<>();
+        for (EntityAnimationController.OverlayState state : entry.overlayStates) {
+            if (state == null || state.animation == null) {
+                continue;
+            }
+            Animation animation = state.animation;
+            active.add(animation);
+            EventCursor cursor = entry.overlayCursors.get(animation);
+            if (cursor == null) {
+                cursor = new EventCursor();
+                entry.overlayCursors.put(animation, cursor);
+            }
+            float currentTime = state.time;
+            if (!cursor.valid) {
+                cursor.lastTime = currentTime;
+                cursor.lastLoop = 0;
+                cursor.valid = true;
+                continue;
+            }
+            boolean looped = animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < cursor.lastTime;
+            dispatchEventsForAnimation(entity, wrapper, animation, cursor.lastTime, currentTime, looped, entityYaw, partialTicks);
+            cursor.lastTime = currentTime;
+        }
+
+        entry.overlayCursors.keySet().removeIf(anim -> !active.contains(anim));
+    }
+
+    private void dispatchEventsForAnimation(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
+                                            float prevTime, float currentTime, boolean looped,
+                                            float entityYaw, float partialTicks) {
+        if (animation == null) {
+            return;
+        }
+        if (animation.getParticleEvents().isEmpty() && animation.getSoundEvents().isEmpty()) {
+            return;
+        }
+
+        if (!looped && currentTime + EVENT_EPS < prevTime) {
+            return;
+        }
+
+        dispatchEventList(entity, wrapper, animation, animation.getParticleEvents(), prevTime, currentTime, looped, entityYaw, partialTicks);
+        dispatchEventList(entity, wrapper, animation, animation.getSoundEvents(), prevTime, currentTime, looped, entityYaw, partialTicks);
+    }
+
+    private void dispatchEventList(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
+                                   List<Animation.Event> events,
+                                   float prevTime, float currentTime, boolean looped,
+                                   float entityYaw, float partialTicks) {
+        if (events == null || events.isEmpty()) {
+            return;
+        }
+        if (!looped) {
+            for (Animation.Event event : events) {
+                if (event == null) {
+                    continue;
+                }
+                float t = event.getTimestamp();
+                if (t > prevTime + EVENT_EPS && t <= currentTime + EVENT_EPS) {
+                    fireEvent(entity, wrapper, event, entityYaw, partialTicks);
+                }
+            }
+            return;
+        }
+
+        float length = animation.getLength();
+        for (Animation.Event event : events) {
+            if (event == null) {
+                continue;
+            }
+            float t = event.getTimestamp();
+            if (t > prevTime + EVENT_EPS && t <= length + EVENT_EPS) {
+                fireEvent(entity, wrapper, event, entityYaw, partialTicks);
+            } else if (t >= -EVENT_EPS && t <= currentTime + EVENT_EPS) {
+                fireEvent(entity, wrapper, event, entityYaw, partialTicks);
+            }
+        }
+    }
+
+    private void fireEvent(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation.Event event,
+                           float entityYaw, float partialTicks) {
+        double[] pos = resolveEventPosition(entity, wrapper, event.getLocator(), entityYaw, partialTicks);
+        if (event.getType() == Animation.Event.Type.PARTICLE) {
+            particleEngine.playEffect(event.getEffect(), pos[0], pos[1], pos[2]);
+        } else if (event.getType() == Animation.Event.Type.SOUND) {
+            playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
+        }
+    }
+
+    private double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
+                                          float entityYaw, float partialTicks) {
+        double baseX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
+        double baseY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
+        double baseZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
+        if (locatorName == null || locatorName.isEmpty()) {
+            return new double[]{baseX, baseY, baseZ};
+        }
+        float[] local = wrapper.getLocatorPosition(locatorName);
+        if (local == null) {
+            return new double[]{baseX, baseY, baseZ};
+        }
+        float scale = wrapper.getModelScale();
+        float lx = local[0] * scale;
+        float ly = local[1] * scale;
+        float lz = local[2] * scale;
+
+        float yawRad = (float) Math.toRadians(180.0F - entityYaw);
+        float cos = MathHelper.cos(yawRad);
+        float sin = MathHelper.sin(yawRad);
+        float rx = lx * cos - lz * sin;
+        float rz = lx * sin + lz * cos;
+        return new double[]{baseX + rx, baseY + ly, baseZ + rz};
+    }
+
+    private void playSoundEffect(String effect, double x, double y, double z) {
+        if (effect == null || effect.isEmpty()) {
+            return;
+        }
+        SoundParams params = parseSoundParams(effect);
+        if (params == null || params.soundEvent == null) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null) {
+            return;
+        }
+        mc.world.playSound(x, y, z, params.soundEvent, SoundCategory.NEUTRAL, params.volume, params.pitch, false);
+    }
+
+    private SoundParams parseSoundParams(String effect) {
+        String soundId = null;
+        float pitch = 1.0f;
+        float volume = 1.0f;
+        String[] parts = effect.split(";");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int eq = trimmed.indexOf('=');
+            if (eq < 0) {
+                if (soundId == null) {
+                    soundId = trimmed;
+                }
+                continue;
+            }
+            String key = trimmed.substring(0, eq).trim().toLowerCase();
+            String value = trimmed.substring(eq + 1).trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            if ("sound".equals(key)) {
+                soundId = value;
+            } else if ("pitch".equals(key)) {
+                try {
+                    pitch = Float.parseFloat(value);
+                } catch (NumberFormatException ignored) {}
+            } else if ("volume".equals(key)) {
+                try {
+                    volume = Float.parseFloat(value);
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (soundId == null || soundId.isEmpty()) {
+            soundId = effect;
+        }
+        soundId = soundId.trim();
+        if (soundId.endsWith(".ogg")) {
+            soundId = soundId.substring(0, soundId.length() - 4);
+        }
+        ResourceLocation soundLocation = parseSoundLocation(soundId);
+        SoundEvent soundEvent = SoundEvent.REGISTRY.getObject(soundLocation);
+        if (soundEvent == null) {
+            soundEvent = new SoundEvent(soundLocation);
+        }
+        if (volume > 1.0f) {
+            volume = volume / 100.0f;
+        }
+        SoundParams params = new SoundParams();
+        params.soundEvent = soundEvent;
+        params.volume = Math.max(0f, volume);
+        params.pitch = Math.max(0f, pitch);
+        return params;
+    }
+
+    private ResourceLocation parseSoundLocation(String soundId) {
+        if (soundId.contains(":")) {
+            return new ResourceLocation(soundId);
+        }
+        return new ResourceLocation(SkyCoreMod.MOD_ID, soundId);
+    }
+
     /**
      * 清空模型包装器缓存
      * 用于配置 reload 时
@@ -297,6 +535,7 @@ public class RenderEventHandler {
         modelWrapperCache.clear();
         clearDebugStacks();
         clearAllForcedAnimations();
+        particleEngine.clear();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
     }
 
@@ -428,12 +667,30 @@ public class RenderEventHandler {
         }
     }
 
+    private static final class EventCursor {
+        private float lastTime;
+        private int lastLoop;
+        private boolean valid;
+    }
+
+    private static final class SoundParams {
+        private SoundEvent soundEvent;
+        private float volume;
+        private float pitch;
+    }
+
     private static final class WrapperEntry {
         private final BedrockModelWrapper wrapper;
         private final EntityAnimationController controller;
         private final java.util.UUID entityUuid;
         private final String mappingName;
         private long lastSeenTick;
+        private List<EntityAnimationController.OverlayState> overlayStates = java.util.Collections.emptyList();
+        private final Map<Animation, EventCursor> overlayCursors = new java.util.HashMap<>();
+        private Animation lastPrimaryAnimation;
+        private float lastPrimaryTime;
+        private int lastPrimaryLoop;
+        private boolean primaryValid;
 
         private WrapperEntry(BedrockModelWrapper wrapper, EntityAnimationController controller, java.util.UUID entityUuid, String mappingName, long lastSeenTick) {
             this.wrapper = wrapper;

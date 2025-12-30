@@ -2,7 +2,6 @@ package org.mybad.core;
 
 import org.mybad.core.animation.*;
 import org.mybad.core.data.*;
-import org.mybad.core.event.*;
 import org.mybad.core.parsing.*;
 import org.mybad.core.resource.*;
 import org.mybad.core.utils.*;
@@ -17,7 +16,6 @@ public class SkyCoreFacade {
 
     private ResourceCache modelCache;
     private ResourceCache animationCache;
-    private EventBus eventBus;
     private ModelParser modelParser;
     private AnimationParser animationParser;
 
@@ -26,7 +24,6 @@ public class SkyCoreFacade {
     private SkyCoreFacade() {
         this.modelCache = new ResourceCache(DEFAULT_CACHE_SIZE);
         this.animationCache = new ResourceCache(DEFAULT_CACHE_SIZE);
-        this.eventBus = new EventBus();
         this.modelParser = new ModelParser();
         this.animationParser = new AnimationParser();
     }
@@ -52,9 +49,6 @@ public class SkyCoreFacade {
         modelCache.put(modelId, resource);
         Model model = resource.getModel();
 
-        // 发布事件
-        eventBus.publish(new ModelEvents.ModelLoadedEvent(model));
-
         return model;
     }
 
@@ -74,7 +68,6 @@ public class SkyCoreFacade {
      */
     public void unloadModel(String modelId) {
         modelCache.remove(modelId);
-        eventBus.publish(new ModelEvents.ModelUnloadedEvent(modelId));
     }
 
     // ===== 动画操作 =====
@@ -95,9 +88,7 @@ public class SkyCoreFacade {
      * 创建动画播放器
      */
     public AnimationPlayer createAnimationPlayer(Animation animation) {
-        AnimationPlayer player = new AnimationPlayer(animation);
-        eventBus.publish(new AnimationEvents.AnimationStartedEvent(player));
-        return player;
+        return new AnimationPlayer(animation);
     }
 
     /**
@@ -105,43 +96,6 @@ public class SkyCoreFacade {
      */
     public AnimationBlender createAnimationBlender(Model model) {
         return new AnimationBlender(model);
-    }
-
-    // ===== 事件系统 =====
-
-    /**
-     * 订阅事件
-     */
-    public void subscribe(String eventType, EventListener listener) {
-        eventBus.subscribe(eventType, listener);
-    }
-
-    /**
-     * 取消订阅
-     */
-    public void unsubscribe(String eventType, EventListener listener) {
-        eventBus.unsubscribe(eventType, listener);
-    }
-
-    /**
-     * 发布事件
-     */
-    public void publishEvent(Event event) {
-        eventBus.publish(event);
-    }
-
-    /**
-     * 异步发布事件
-     */
-    public void publishEventAsync(Event event) {
-        eventBus.publish(event, true);
-    }
-
-    /**
-     * 获取事件总线
-     */
-    public EventBus getEventBus() {
-        return eventBus;
     }
 
     // ===== 工具方法 =====
@@ -189,7 +143,6 @@ public class SkyCoreFacade {
      */
     public void shutdown() {
         clearAllCaches();
-        eventBus.shutdown();
     }
 
     // ===== 内部类 =====

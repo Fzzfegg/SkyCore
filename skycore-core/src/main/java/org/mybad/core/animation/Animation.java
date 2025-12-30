@@ -19,6 +19,8 @@ public class Animation {
     private boolean overridePreviousAnimation; // 是否覆盖之前动画
     private Map<String, BoneAnimation> boneAnimations;
     private float speed = 1.0f;     // 播放速度倍数
+    private final List<Event> particleEvents = new ArrayList<>();
+    private final List<Event> soundEvents = new ArrayList<>();
 
     public Animation(String name) {
         this.name = name;
@@ -66,6 +68,8 @@ public class Animation {
     public boolean isOverridePreviousAnimation() { return overridePreviousAnimation; }
     public Map<String, BoneAnimation> getBoneAnimations() { return boneAnimations; }
     public float getSpeed() { return speed; }
+    public List<Event> getParticleEvents() { return particleEvents; }
+    public List<Event> getSoundEvents() { return soundEvents; }
 
     public void setLength(float length) { this.length = length; }
     public void setLoop(boolean loop) { this.loopMode = loop ? LoopMode.LOOP : LoopMode.ONCE; }
@@ -76,6 +80,22 @@ public class Animation {
         this.overridePreviousAnimation = overridePreviousAnimation;
     }
     public void setSpeed(float speed) { this.speed = Math.max(0, speed); }
+
+    public void addParticleEvent(float timestamp, String effect, String locator) {
+        if (effect == null || effect.isEmpty()) {
+            return;
+        }
+        particleEvents.add(new Event(Event.Type.PARTICLE, timestamp, effect, locator));
+        particleEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
+    }
+
+    public void addSoundEvent(float timestamp, String effect, String locator) {
+        if (effect == null || effect.isEmpty()) {
+            return;
+        }
+        soundEvents.add(new Event(Event.Type.SOUND, timestamp, effect, locator));
+        soundEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
+    }
 
     /**
      * 骨骼动画数据
@@ -115,5 +135,32 @@ public class Animation {
             this.value = value;
             this.interpolation = InterpolationImpl.getInstance(interpolationMode);
         }
+    }
+
+    /**
+     * 动画事件（声音/粒子）
+     */
+    public static final class Event {
+        public enum Type {
+            PARTICLE,
+            SOUND
+        }
+
+        private final Type type;
+        private final float timestamp;
+        private final String effect;
+        private final String locator;
+
+        public Event(Type type, float timestamp, String effect, String locator) {
+            this.type = type;
+            this.timestamp = timestamp;
+            this.effect = effect;
+            this.locator = locator;
+        }
+
+        public Type getType() { return type; }
+        public float getTimestamp() { return timestamp; }
+        public String getEffect() { return effect; }
+        public String getLocator() { return locator; }
     }
 }

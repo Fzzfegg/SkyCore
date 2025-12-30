@@ -9,6 +9,8 @@ import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
 import org.mybad.core.parsing.AnimationParser;
 import org.mybad.core.parsing.ModelParser;
+import org.mybad.core.particle.ParticleEffect;
+import org.mybad.core.particle.ParticleParser;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.GeometryCache;
 
@@ -35,6 +37,8 @@ public class ResourceLoader {
     private final Map<String, Animation> animationCache;
     /** 动画集合缓存: 路径 -> (name -> Animation) */
     private final Map<String, Map<String, Animation>> animationSetCache;
+    /** 粒子缓存: 路径 -> ParticleEffect */
+    private final Map<String, ParticleEffect> particleCache;
 
     /** 模型解析器 */
     private final ModelParser modelParser;
@@ -48,6 +52,7 @@ public class ResourceLoader {
         this.modelCache = new ConcurrentHashMap<>();
         this.animationCache = new ConcurrentHashMap<>();
         this.animationSetCache = new ConcurrentHashMap<>();
+        this.particleCache = new ConcurrentHashMap<>();
         this.modelParser = new ModelParser();
         this.animationParser = new AnimationParser();
         this.geometryCache = new GeometryCache();
@@ -123,6 +128,10 @@ public class ResourceLoader {
         return parseResourceLocation(path);
     }
 
+    public ResourceLocation getResourceLocation(String path) {
+        return parseResourceLocation(path);
+    }
+
     /**
      * 解析资源路径为 ResourceLocation
      *
@@ -175,6 +184,7 @@ public class ResourceLoader {
         modelCache.clear();
         animationCache.clear();
         animationSetCache.clear();
+        particleCache.clear();
         geometryCache.clear();
         SkyCoreMod.LOGGER.info("[SkyCore] 资源缓存已清空");
     }
@@ -196,6 +206,10 @@ public class ResourceLoader {
     public void invalidateAnimation(String path) {
         animationCache.remove(path);
         animationSetCache.remove(path);
+    }
+
+    public void invalidateParticle(String path) {
+        particleCache.remove(path);
     }
 
     /**
@@ -228,6 +242,43 @@ public class ResourceLoader {
             return animations;
         } catch (Exception e) {
             SkyCoreMod.LOGGER.error("[SkyCore] 解析动画文件失败: {} - {}", path, e.getMessage());
+            return null;
+        }
+    }
+
+    public ParticleEffect loadParticleEffect(String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+        ParticleEffect cached = particleCache.get(path);
+        if (cached != null) {
+            return cached;
+        }
+        String jsonContent = null;
+        String resolvedPath = path;
+        boolean hasExt = path.endsWith(".json");
+        String withExt = hasExt ? path : path + ".json";
+        String[] candidates = new String[] {
+            "particles/" + withExt,
+        };
+        for (String candidate : candidates) {
+            jsonContent = loadResourceAsString(candidate);
+            if (jsonContent != null) {
+                resolvedPath = candidate;
+                break;
+            }
+        }
+        if (jsonContent == null) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载粒子文件: {}", path);
+            return null;
+        }
+        String effectId = resolvedPath;
+        try {
+            ParticleEffect effect = ParticleParser.parseFromJson(jsonContent, effectId, effectId);
+            particleCache.put(path, effect);
+            return effect;
+        } catch (ParticleParser.ParseException e) {
+            SkyCoreMod.LOGGER.error("[SkyCore] 解析粒子文件失败: {} - {}", path, e.getMessage());
             return null;
         }
     }

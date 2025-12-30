@@ -1,5 +1,10 @@
 package org.mybad.core.particle;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+import java.io.StringReader;
 import java.util.*;
 import java.util.regex.*;
 
@@ -18,6 +23,10 @@ public class ParticleParser {
         }
 
         try {
+            ParticleEffect bedrock = parseBedrockParticleEffect(jsonContent, effectId, effectName);
+            if (bedrock != null && bedrock.validate()) {
+                return bedrock;
+            }
             ParticleEffect effect = new ParticleEffect(effectId, effectName);
 
             // 解析顶级描述
@@ -41,6 +50,222 @@ public class ParticleParser {
         } catch (Exception e) {
             throw new ParseException("Failed to parse particle effect: " + e.getMessage(), e);
         }
+    }
+
+    private static ParticleEffect parseBedrockParticleEffect(String jsonContent, String effectId, String effectName) throws ParseException {
+        JsonObject root;
+        try {
+            JsonReader reader = new JsonReader(new StringReader(jsonContent));
+            reader.setLenient(true);
+            JsonElement parsed = JsonParser.parseReader(reader);
+            root = parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+        } catch (Exception e) {
+            return null;
+        }
+        if (root == null) {
+            return null;
+        }
+        JsonObject effectObj = root.has("particle_effect") ? root.getAsJsonObject("particle_effect") : null;
+        if (effectObj == null && root.has("minecraft:particle_effect")) {
+            effectObj = root.getAsJsonObject("minecraft:particle_effect");
+        }
+        if (effectObj == null) {
+            return null;
+        }
+        ParticleEffect effect = new ParticleEffect(effectId, effectName);
+
+        JsonObject desc = getObject(effectObj, "description");
+        if (desc != null) {
+            String identifier = getString(desc, "identifier");
+            if (identifier != null && !identifier.isEmpty()) {
+                effect.setMetadata("identifier", identifier);
+            }
+            JsonObject basicRender = getObject(desc, "basic_render_parameters");
+            if (basicRender != null) {
+                String texture = getString(basicRender, "texture");
+                if (texture != null && !texture.isEmpty()) {
+                    effect.setTextureFile(texture);
+                }
+                String material = getString(basicRender, "material");
+                if (material != null && !material.isEmpty()) {
+                    effect.setMetadata("material", material);
+                }
+            }
+            Number maxParticles = getNumber(desc, "max_particles");
+            if (maxParticles != null) {
+                effect.setMaxParticles(Math.max(1, maxParticles.intValue()));
+            }
+        }
+
+        JsonObject components = getObject(effectObj, "components");
+        Emitter emitter = new Emitter("emitter_0", "default");
+        float activeTime = -1f;
+        boolean hasEmitterConfig = false;
+        if (components != null) {
+            for (Map.Entry<String, JsonElement> entry : components.entrySet()) {
+                String key = entry.getKey();
+                JsonElement val = entry.getValue();
+                if (key == null) {
+                    continue;
+                }
+                if (key.contains("emitter_rate_instant")) {
+                    Number num = getNumber(val, "num_particles");
+                    if (num == null && val != null && val.isJsonPrimitive()) {
+                        num = val.getAsNumber();
+                    }
+                    int count = num != null ? Math.max(1, num.intValue()) : 1;
+                    emitter.setBurstSize(count);
+                    hasEmitterConfig = true;
+                } else if (key.contains("emitter_rate_steady")) {
+                    Number rate = getNumber(val, "spawn_rate");
+                    if (rate != null) {
+                        emitter.setEmissionRate(Math.max(0f, rate.floatValue()));
+                        hasEmitterConfig = true;
+                    }
+                } else if (key.contains("emitter_lifetime_once")) {
+                    Number time = getNumber(val, "active_time");
+                    if (time != null) {
+                        activeTime = Math.max(0f, time.floatValue());
+                        emitter.setLifetime(activeTime);
+                    }
+                } else if (key.contains("emitter_lifetime_looping")) {
+                    Number time = getNumber(val, "active_time");
+                    if (time != null) {
+                        activeTime = Math.max(0f, time.floatValue());
+                        emitter.setLifetime(activeTime);
+                        emitter.setLooping(true);
+                    }
+                } else if (key.contains("particle_lifetime_expression")) {
+                    Number life = getNumber(val, "max_lifetime");
+                    if (life != null) {
+                        float lf = Math.max(0f, life.floatValue());
+                        emitter.setLifetimeRange(lf, lf);
+                    }
+                } else if (key.contains("particle_initial_speed")) {
+                    Float speed = getFloatValue(val);
+                    if (speed != null) {
+                        emitter.setSpeedRange(speed, speed, speed, speed, speed, speed);
+                    }
+                } else if (key.contains("particle_appearance_billboard")) {
+                    float[] size = getFloatArray(val, "size");
+                    if (size != null && size.length >= 2) {
+                        float base = Math.max(size[0], size[1]);
+                        float scale = base > 2f ? base / 16f : base;
+                        if (scale > 0f) {
+                            emitter.setScaleRange(scale, scale);
+                        }
+                    }
+                    JsonObject uv = getObject(val, "uv");
+                    if (uv != null) {
+                        Number texW = getNumber(uv, "texture_width");
+                        Number texH = getNumber(uv, "texture_height");
+                        if (texW != null && texH != null) {
+                            effect.setMetadata("uv_texture_width", String.valueOf(texW));
+                            effect.setMetadata("uv_texture_height", String.valueOf(texH));
+                        }
+                    }
+                } else if (key.contains("emitter_shape_point")) {
+                    emitter.setShape(Emitter.EmitterShape.POINT);
+                } else if (key.contains("emitter_shape_sphere")) {
+                    emitter.setShape(Emitter.EmitterShape.SPHERE);
+                } else if (key.contains("emitter_shape_box")) {
+                    emitter.setShape(Emitter.EmitterShape.BOX);
+                } else if (key.contains("emitter_shape_disc") || key.contains("emitter_shape_circle")) {
+                    emitter.setShape(Emitter.EmitterShape.DISC);
+                } else if (key.contains("emitter_shape_cylinder")) {
+                    emitter.setShape(Emitter.EmitterShape.CYLINDER);
+                }
+            }
+        }
+
+        if (emitter.getBurstSize() > 0 && activeTime > 0f) {
+            emitter.setBurstInterval(activeTime);
+            hasEmitterConfig = true;
+        }
+
+        if (!hasEmitterConfig) {
+            emitter.setBurstSize(1);
+            emitter.setBurstInterval(9999f);
+        }
+
+        effect.addEmitter(emitter);
+        if (!effect.validate()) {
+            throw new ParseException("Invalid particle effect configuration");
+        }
+        return effect;
+    }
+
+    private static JsonObject getObject(JsonObject obj, String key) {
+        if (obj == null || key == null || !obj.has(key)) {
+            return null;
+        }
+        JsonElement element = obj.get(key);
+        return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
+    }
+
+    private static JsonObject getObject(JsonElement element, String key) {
+        if (element == null || key == null || !element.isJsonObject()) {
+            return null;
+        }
+        return getObject(element.getAsJsonObject(), key);
+    }
+
+    private static String getString(JsonObject obj, String key) {
+        if (obj == null || key == null || !obj.has(key)) {
+            return null;
+        }
+        JsonElement element = obj.get(key);
+        return element != null && element.isJsonPrimitive() ? element.getAsString() : null;
+    }
+
+    private static Number getNumber(JsonObject obj, String key) {
+        if (obj == null || key == null || !obj.has(key)) {
+            return null;
+        }
+        JsonElement element = obj.get(key);
+        return element != null && element.isJsonPrimitive() ? element.getAsNumber() : null;
+    }
+
+    private static Number getNumber(JsonElement element, String key) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        return getNumber(element.getAsJsonObject(), key);
+    }
+
+    private static Float getFloatValue(JsonElement element) {
+        if (element == null) {
+            return null;
+        }
+        if (element.isJsonPrimitive()) {
+            try {
+                return element.getAsFloat();
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static float[] getFloatArray(JsonElement element, String key) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonElement arr = element.getAsJsonObject().get(key);
+        if (arr == null || !arr.isJsonArray()) {
+            return null;
+        }
+        List<Float> values = new ArrayList<>();
+        for (JsonElement e : arr.getAsJsonArray()) {
+            if (e != null && e.isJsonPrimitive()) {
+                values.add(e.getAsFloat());
+            }
+        }
+        float[] out = new float[values.size()];
+        for (int i = 0; i < values.size(); i++) {
+            out[i] = values.get(i);
+        }
+        return out;
     }
 
     /**

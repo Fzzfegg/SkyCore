@@ -86,6 +86,8 @@ public class AnimationParser {
         public Animation.LoopMode loopMode;
         public boolean overridePreviousAnimation;
         public Map<String, BoneAnimation> boneAnimations;
+        public List<AnimationEvent> particleEvents;
+        public List<AnimationEvent> soundEvents;
 
         public AnimationData(String name) {
             this.name = name;
@@ -93,6 +95,23 @@ public class AnimationParser {
             this.loopMode = Animation.LoopMode.ONCE;
             this.overridePreviousAnimation = false;
             this.boneAnimations = new HashMap<>();
+            this.particleEvents = new ArrayList<>();
+            this.soundEvents = new ArrayList<>();
+        }
+    }
+
+    /**
+     * 动画事件数据
+     */
+    public static class AnimationEvent {
+        public float timestamp;
+        public String effect;
+        public String locator;
+
+        public AnimationEvent(float timestamp, String effect, String locator) {
+            this.timestamp = timestamp;
+            this.effect = effect;
+            this.locator = locator;
         }
     }
 
@@ -226,6 +245,14 @@ public class AnimationParser {
             float boneMaxTime = getMaxKeyframeTime(boneAnim);
             animation.length = Math.max(animation.length, boneMaxTime);
         }
+
+        // 解析动画事件
+        parseEventMap(animation.particleEvents, animJson, "particle_effects");
+        parseEventMap(animation.soundEvents, animJson, "sound_effects");
+
+        // 事件可能延长动画长度
+        float eventMax = getMaxEventTime(animation);
+        animation.length = Math.max(animation.length, eventMax);
 
         return animation;
     }
@@ -363,6 +390,50 @@ public class AnimationParser {
         return max;
     }
 
+    private void parseEventMap(List<AnimationEvent> target, JsonObject animJson, String key) {
+        if (animJson == null || !animJson.has(key)) {
+            return;
+        }
+        JsonElement element = animJson.get(key);
+        if (!element.isJsonObject()) {
+            return;
+        }
+        JsonObject obj = element.getAsJsonObject();
+        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+            float time = parseTime(entry.getKey());
+            JsonElement value = entry.getValue();
+            String effect = null;
+            String locator = null;
+            if (value.isJsonObject()) {
+                JsonObject data = value.getAsJsonObject();
+                effect = ParseUtils.getString(data, "effect", null);
+                locator = ParseUtils.getString(data, "locator", null);
+            } else if (value.isJsonPrimitive()) {
+                effect = value.getAsString();
+            }
+            if (effect == null || effect.trim().isEmpty()) {
+                continue;
+            }
+            target.add(new AnimationEvent(time, effect.trim(), locator));
+        }
+        target.sort(Comparator.comparingDouble(e -> e.timestamp));
+    }
+
+    private float getMaxEventTime(AnimationData animation) {
+        float max = 0f;
+        for (AnimationEvent evt : animation.particleEvents) {
+            if (evt != null) {
+                max = Math.max(max, evt.timestamp);
+            }
+        }
+        for (AnimationEvent evt : animation.soundEvents) {
+            if (evt != null) {
+                max = Math.max(max, evt.timestamp);
+            }
+        }
+        return max;
+    }
+
     /**
      * 将 AnimationData 转换为 Animation
      * 用于将解析后的数据转换为运行时动画对象
@@ -397,6 +468,17 @@ public class AnimationParser {
             }
 
             animation.addBoneAnimation(boneName, dstBoneAnim);
+        }
+
+        for (AnimationEvent evt : data.particleEvents) {
+            if (evt != null) {
+                animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator);
+            }
+        }
+        for (AnimationEvent evt : data.soundEvents) {
+            if (evt != null) {
+                animation.addSoundEvent(evt.timestamp, evt.effect, evt.locator);
+            }
         }
 
         return animation;

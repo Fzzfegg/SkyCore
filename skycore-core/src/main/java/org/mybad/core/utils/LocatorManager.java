@@ -68,10 +68,11 @@ public class LocatorManager {
         MatrixStack matrixStack = new MatrixStack();
         calculateBoneWorldTransform(attachedBone, matrixStack);
 
-        // 应用定位器本地位置
+        // 应用定位器本地位置（复制数组，避免修改原始数据）
         float[] position = locator.getPosition();
-        matrixStack.transform(position);
-        result.position = position;
+        float[] transformed = new float[]{position[0], position[1], position[2]};
+        matrixStack.transform(transformed);
+        result.position = transformed;
 
         // 应用旋转
         float[] rotation = locator.getRotation();

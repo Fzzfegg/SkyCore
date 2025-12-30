@@ -4,9 +4,6 @@ import org.mybad.core.constraint.Constraint;
 import org.mybad.core.data.Model;
 import org.mybad.core.data.ModelBone;
 import org.mybad.core.data.ModelCube;
-import org.mybad.core.event.EventBus;
-import org.mybad.core.event.ModelEvents;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -16,7 +13,6 @@ import java.util.Objects;
  * <ul>
  *     <li>使用矩阵堆栈推导骨骼层级变换（Chameleon 的方式）；</li>
  *     <li>允许通过 {@link ModelProcessor} 在关键节点插入自定义逻辑（HammerAnimations 的可扩展事件理念）；</li>
- *     <li>提供事件总线钩子以便在需要时拦截骨骼/立方体渲染。</li>
  * </ul>
  */
 public final class ModelRenderer {
@@ -79,11 +75,6 @@ public final class ModelRenderer {
         stack.push();
         applyBoneTransform(bone, stack);
 
-        if (!publishBoneEvent(options.eventBus, bone, stack)) {
-            stack.pop();
-            return;
-        }
-
         boolean traverseChildren = processor.beforeBone(model, bone, stack);
 
         if (!bone.isNeverRender()) {
@@ -91,9 +82,7 @@ public final class ModelRenderer {
                 stack.push();
                 applyCubeTransform(cube, stack);
 
-                if (publishCubeEvent(options.eventBus, bone, cube, stack)) {
-                    processor.renderCube(model, bone, cube, textureWidth, textureHeight, stack);
-                }
+                processor.renderCube(model, bone, cube, textureWidth, textureHeight, stack);
 
                 stack.pop();
             }
@@ -166,24 +155,6 @@ public final class ModelRenderer {
         }
     }
 
-    private static boolean publishBoneEvent(EventBus eventBus, ModelBone bone, MatrixStack stack) {
-        if (eventBus == null) {
-            return true;
-        }
-        ModelEvents.RenderBoneEvent event = new ModelEvents.RenderBoneEvent(bone, stack.getCurrentMatrix());
-        eventBus.publish(event);
-        return !event.isCancelled();
-    }
-
-    private static boolean publishCubeEvent(EventBus eventBus, ModelBone bone, ModelCube cube, MatrixStack stack) {
-        if (eventBus == null) {
-            return true;
-        }
-        ModelEvents.RenderCubeEvent event = new ModelEvents.RenderCubeEvent(bone, cube, stack.getCurrentMatrix());
-        eventBus.publish(event);
-        return !event.isCancelled();
-    }
-
     private static void applyConstraints(Model model) {
         for (Constraint constraint : model.getConstraints()) {
             ModelBone target = model.getBone(constraint.getTargetBone());
@@ -229,14 +200,12 @@ public final class ModelRenderer {
         private final boolean applyConstraints;
         private final float textureWidth;
         private final float textureHeight;
-        private final EventBus eventBus;
 
         private RenderOptions(Builder builder) {
             this.matrixStack = builder.matrixStack;
             this.applyConstraints = builder.applyConstraints;
             this.textureWidth = builder.textureWidth;
             this.textureHeight = builder.textureHeight;
-            this.eventBus = builder.eventBus;
         }
 
         public static Builder builder() {
@@ -248,7 +217,6 @@ public final class ModelRenderer {
             private boolean applyConstraints;
             private float textureWidth;
             private float textureHeight;
-            private EventBus eventBus;
 
             public Builder matrixStack(MatrixStack matrixStack) {
                 this.matrixStack = matrixStack;
@@ -267,11 +235,6 @@ public final class ModelRenderer {
 
             public Builder textureHeight(float textureHeight) {
                 this.textureHeight = textureHeight;
-                return this;
-            }
-
-            public Builder eventBus(EventBus eventBus) {
-                this.eventBus = eventBus;
                 return this;
             }
 

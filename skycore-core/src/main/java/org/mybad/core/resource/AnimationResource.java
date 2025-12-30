@@ -86,6 +86,17 @@ public class AnimationResource implements Resource {
                 animation.addBoneAnimation(boneName, boneAnim);
             }
 
+            for (AnimationParser.AnimationEvent evt : animData.particleEvents) {
+                if (evt != null) {
+                    animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator);
+                }
+            }
+            for (AnimationParser.AnimationEvent evt : animData.soundEvents) {
+                if (evt != null) {
+                    animation.addSoundEvent(evt.timestamp, evt.effect, evt.locator);
+                }
+            }
+
             loaded = true;
         } catch (org.mybad.core.exception.ParseException e) {
             throw new Exception("动画解析失败: " + e.getMessage(), e);

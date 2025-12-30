@@ -91,6 +91,7 @@ public class ModelParser {
             ModelBone bone = parseBone(boneJson);
             boneMap.put(bone.getName(), bone);
             model.addBone(bone);
+            parseBoneLocators(boneJson, bone.getName(), model);
         }
 
         // 第二遍扫描：链接父子关系
@@ -119,6 +120,68 @@ public class ModelParser {
         }
 
         return model;
+    }
+
+    private void parseBoneLocators(JsonObject boneJson, String boneName, Model model) {
+        if (boneJson == null || model == null) {
+            return;
+        }
+        if (!boneJson.has("locators")) {
+            return;
+        }
+        JsonElement locatorsElement = boneJson.get("locators");
+        if (!locatorsElement.isJsonObject()) {
+            return;
+        }
+        JsonObject locators = locatorsElement.getAsJsonObject();
+        for (Map.Entry<String, JsonElement> entry : locators.entrySet()) {
+            String locatorName = entry.getKey();
+            JsonElement locatorData = entry.getValue();
+            if (locatorName == null || locatorName.isEmpty()) {
+                continue;
+            }
+            float[] pos = null;
+            float[] rot = null;
+            boolean visible = true;
+
+            if (locatorData.isJsonArray()) {
+                pos = ParseUtils.parseFloatArray(locatorData);
+            } else if (locatorData.isJsonObject()) {
+                JsonObject obj = locatorData.getAsJsonObject();
+                JsonElement posElem = obj.get("position");
+                if (posElem == null) {
+                    posElem = obj.get("offset");
+                }
+                if (posElem == null) {
+                    posElem = obj.get("pivot");
+                }
+                if (posElem != null && posElem.isJsonArray()) {
+                    pos = ParseUtils.parseFloatArray(posElem);
+                }
+                JsonElement rotElem = obj.get("rotation");
+                if (rotElem != null && rotElem.isJsonArray()) {
+                    rot = ParseUtils.parseFloatArray(rotElem);
+                }
+                if (obj.has("visible")) {
+                    visible = ParseUtils.getBoolean(obj, "visible", true);
+                } else if (obj.has("is_visible")) {
+                    visible = ParseUtils.getBoolean(obj, "is_visible", true);
+                }
+            }
+
+            ModelLocator locator;
+            if (pos != null && pos.length >= 3) {
+                locator = new ModelLocator(locatorName, pos[0], pos[1], pos[2]);
+            } else {
+                locator = new ModelLocator(locatorName);
+            }
+            locator.setAttachedBone(boneName);
+            if (rot != null && rot.length >= 3) {
+                locator.setRotation(rot[0], rot[1], rot[2]);
+            }
+            locator.setVisible(visible);
+            model.addLocator(locatorName, locator);
+        }
     }
 
     /**
