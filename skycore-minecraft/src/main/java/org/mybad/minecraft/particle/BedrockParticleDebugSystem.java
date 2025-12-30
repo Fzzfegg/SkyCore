@@ -11,10 +11,14 @@ import gg.moonflower.pinwheel.particle.component.EmitterLocalSpaceComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeOnceComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeLoopingComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeExpressionComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleEmitterShape;
 import gg.moonflower.pinwheel.particle.component.ParticleAppearanceBillboardComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleAppearanceTintingComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleInitialSpinComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleInitialSpeedComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleLifetimeExpressionComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleMotionDynamicComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleMotionParametricComponent;
 import gg.moonflower.pollen.particle.render.QuadRenderProperties;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
@@ -193,6 +197,9 @@ public class BedrockParticleDebugSystem {
         private final ParticleAppearanceBillboardComponent billboard;
         private final ParticleAppearanceTintingComponent tint;
         private final ParticleInitialSpeedComponent speed;
+        private final ParticleInitialSpinComponent initialSpin;
+        private final ParticleMotionDynamicComponent motionDynamic;
+        private final ParticleMotionParametricComponent motionParametric;
         private final ResourceLocation texture;
         private final float lifetime;
         private final ParticleMolangContext molangContext;
@@ -211,7 +218,17 @@ public class BedrockParticleDebugSystem {
         private double vx;
         private double vy;
         private double vz;
+        private double dirX;
+        private double dirY;
+        private double dirZ;
+        private double ax;
+        private double ay;
+        private double az;
         private float age;
+        private float roll;
+        private float prevRoll;
+        private float rollVelocity;
+        private float rollAcceleration;
 
         private ActiveParticle(ParticleData data,
                                ActiveEmitter emitter,
@@ -232,6 +249,9 @@ public class BedrockParticleDebugSystem {
             this.billboard = billboard;
             this.tint = tint;
             this.speed = speed;
+            this.initialSpin = getComponent(data, "particle_initial_spin");
+            this.motionDynamic = getComponent(data, "particle_motion_dynamic");
+            this.motionParametric = getComponent(data, "particle_motion_parametric");
             this.texture = texture;
             this.renderProps = new QuadRenderProperties();
             this.age = 0.0f;
@@ -253,9 +273,14 @@ public class BedrockParticleDebugSystem {
             this.environment = new ParticleMolangEnvironment(molangContext, bindings);
             this.lifetime = resolveLifetime(lifetimeComponent);
             this.molangContext.particleLifetime = this.lifetime;
+            updateContext(0.0f);
+            if (initialSpin != null) {
+                this.roll = environment.safeResolve(initialSpin.rotation());
+                this.rollVelocity = environment.safeResolve(initialSpin.rotationRate()) / 20.0f;
+            }
         }
 
-        private void randomizeVelocity(Random random) {
+        private void applyInitialSpeed() {
             if (speed == null) {
                 return;
             }
@@ -264,15 +289,13 @@ public class BedrockParticleDebugSystem {
                 return;
             }
             updateContext(this.age);
-            this.vx = environment.safeResolve(speeds[0]);
-            this.vy = environment.safeResolve(speeds[1]);
-            this.vz = environment.safeResolve(speeds[2]);
-            if (Math.abs(vx) + Math.abs(vy) + Math.abs(vz) > 0.0) {
-                return;
-            }
-            this.vx = (random.nextDouble() - 0.5) * 0.02;
-            this.vy = random.nextDouble() * 0.02;
-            this.vz = (random.nextDouble() - 0.5) * 0.02;
+            double sx = environment.safeResolve(speeds[0]) / 20.0;
+            double sy = environment.safeResolve(speeds[1]) / 20.0;
+            double sz = environment.safeResolve(speeds[2]) / 20.0;
+            double vx = this.dirX * sx;
+            double vy = this.dirY * sy;
+            double vz = this.dirZ * sz;
+            setVelocity(vx, vy, vz);
         }
 
         private float resolveLifetime(ParticleLifetimeExpressionComponent lifetimeComponent) {
@@ -284,6 +307,10 @@ public class BedrockParticleDebugSystem {
         }
 
         private boolean tick() {
+            this.prevX = this.x;
+            this.prevY = this.y;
+            this.prevZ = this.z;
+            this.prevRoll = this.roll;
             if (emitter != null) {
                 if (localPosition) {
                     this.x += emitter.getDeltaX();
@@ -297,9 +324,14 @@ public class BedrockParticleDebugSystem {
                     rotateVelocity(emitter.getDeltaYawRad());
                 }
             }
-            this.prevX = this.x;
-            this.prevY = this.y;
-            this.prevZ = this.z;
+            updateContext(this.age);
+            applyParametricMotion();
+            applyDynamicMotion();
+            this.vx += this.ax;
+            this.vy += this.ay;
+            this.vz += this.az;
+            this.rollVelocity += this.rollAcceleration;
+            this.roll += this.rollVelocity;
             this.x += this.vx;
             this.y += this.vy;
             this.z += this.vz;
@@ -344,8 +376,32 @@ public class BedrockParticleDebugSystem {
             GlStateManager.translate(px - camX, py - camY, pz - camZ);
             float yaw = mc.getRenderManager().playerViewY;
             float pitch = mc.getRenderManager().playerViewX;
-            GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
-            GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+            if (billboard != null && billboard.cameraMode() != null) {
+                switch (billboard.cameraMode()) {
+                    case ROTATE_Y:
+                        GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
+                        break;
+                    case EMITTER_TRANSFORM_XZ:
+                    case EMITTER_TRANSFORM_XY:
+                    case EMITTER_TRANSFORM_YZ:
+                        float emitterYaw = emitter != null ? emitter.getYaw() : yaw;
+                        GlStateManager.rotate(-emitterYaw, 0.0F, 1.0F, 0.0F);
+                        GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+                        break;
+                    case ROTATE_XYZ:
+                    default:
+                        GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
+                        GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+                        break;
+                }
+            } else {
+                GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
+                GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+            }
+            float renderRoll = this.prevRoll + (this.roll - this.prevRoll) * partialTicks;
+            if (renderRoll != 0.0f) {
+                GlStateManager.rotate(renderRoll, 0.0F, 0.0F, 1.0F);
+            }
             mc.getTextureManager().bindTexture(texture);
 
             float halfW = renderProps.getWidth() * 0.5f;
@@ -430,6 +486,48 @@ public class BedrockParticleDebugSystem {
             }
         }
 
+        private void applyDynamicMotion() {
+            if (motionDynamic == null) {
+                this.ax = 0.0;
+                this.ay = 0.0;
+                this.az = 0.0;
+                this.rollAcceleration = 0.0f;
+                return;
+            }
+            MolangExpression[] accel = motionDynamic.linearAcceleration();
+            double ax = environment.safeResolve(accel[0]) / 400.0;
+            double ay = environment.safeResolve(accel[1]) / 400.0;
+            double az = environment.safeResolve(accel[2]) / 400.0;
+            double drag = environment.safeResolve(motionDynamic.linearDragCoefficient()) / 400.0;
+            this.ax = ax - drag * this.vx;
+            this.ay = ay - drag * this.vy;
+            this.az = az - drag * this.vz;
+            float rotAcc = (float) (environment.safeResolve(motionDynamic.rotationAcceleration()) / 400.0);
+            float rotDrag = (float) (environment.safeResolve(motionDynamic.rotationDragCoefficient()) / 400.0);
+            this.rollAcceleration = rotAcc - rotDrag * this.rollVelocity;
+        }
+
+        private void applyParametricMotion() {
+            if (motionParametric == null) {
+                return;
+            }
+            MolangExpression[] relative = motionParametric.relativePosition();
+            if (relative != null && emitter != null) {
+                double rx = environment.safeResolve(relative[0]);
+                double ry = environment.safeResolve(relative[1]);
+                double rz = environment.safeResolve(relative[2]);
+                setPosition(emitter.getX() + rx, emitter.getY() + ry, emitter.getZ() + rz);
+            }
+            MolangExpression[] dir = motionParametric.direction();
+            if (dir != null) {
+                double dx = environment.safeResolve(dir[0]);
+                double dy = environment.safeResolve(dir[1]);
+                double dz = environment.safeResolve(dir[2]);
+                setDirection(dx, dy, dz);
+            }
+            this.roll = environment.safeResolve(motionParametric.rotation());
+        }
+
         private void rotateAroundEmitter(double emitterX, double emitterZ, float yawDeltaRad) {
             if (yawDeltaRad == 0.0f) {
                 return;
@@ -461,6 +559,43 @@ public class BedrockParticleDebugSystem {
                 emitter.onParticleExpired();
             }
         }
+
+        private void syncPrev() {
+            this.prevX = this.x;
+            this.prevY = this.y;
+            this.prevZ = this.z;
+            this.prevRoll = this.roll;
+        }
+
+        private void setPosition(double x, double y, double z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        private void setVelocity(double vx, double vy, double vz) {
+            this.vx = vx;
+            this.vy = vy;
+            this.vz = vz;
+            setDirection(vx, vy, vz);
+        }
+
+        private void setDirection(double dx, double dy, double dz) {
+            double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (length > 0.0) {
+                this.dirX = dx / length;
+                this.dirY = dy / length;
+                this.dirZ = dz / length;
+            } else {
+                this.dirX = 0.0;
+                this.dirY = 0.0;
+                this.dirZ = 0.0;
+            }
+            double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
+            this.vx = this.dirX * speed;
+            this.vy = this.dirY * speed;
+            this.vz = this.dirZ * speed;
+        }
     }
 
     private final class ActiveEmitter {
@@ -472,6 +607,7 @@ public class BedrockParticleDebugSystem {
         private final ParticleAppearanceBillboardComponent billboard;
         private final ParticleAppearanceTintingComponent tint;
         private final ParticleInitialSpeedComponent speed;
+        private final ParticleEmitterShape emitterShape;
         private final ParticleLifetimeExpressionComponent particleLifetimeComponent;
         private final EmitterLocalSpaceComponent localSpace;
         private final EmitterRateInstantComponent rateInstant;
@@ -483,6 +619,7 @@ public class BedrockParticleDebugSystem {
         private final int overrideCount;
         private final EmitterTransformProvider transformProvider;
         private final EmitterTransform currentTransform;
+        private final EmitterShapeSpawner spawner;
 
         private double x;
         private double y;
@@ -545,6 +682,7 @@ public class BedrockParticleDebugSystem {
             this.billboard = getComponent(data, "particle_appearance_billboard");
             this.tint = getComponent(data, "particle_appearance_tinting");
             this.speed = getComponent(data, "particle_initial_speed");
+            this.emitterShape = resolveEmitterShape();
             this.particleLifetimeComponent = getComponent(data, "particle_lifetime_expression");
             this.localSpace = getComponent(data, "emitter_local_space");
             this.rateInstant = getComponent(data, "emitter_rate_instant");
@@ -559,6 +697,7 @@ public class BedrockParticleDebugSystem {
             this.expired = false;
             this.activeParticles = 0;
             this.spawnedAny = false;
+            this.spawner = new EmitterShapeSpawner();
 
             evaluateLifetimeOnCreate();
             updateContext(0.0f);
@@ -654,21 +793,16 @@ public class BedrockParticleDebugSystem {
                 return;
             }
             int actual = Math.min(count, room);
-            for (int i = 0; i < actual; i++) {
-                ActiveParticle particle = new ActiveParticle(
-                    data,
-                    this,
-                    x, y, z,
-                    billboard,
-                    tint,
-                    speed,
-                    texture,
-                    particleLifetimeComponent
-                );
-                particle.randomizeVelocity(random);
-                particles.add(particle);
-                activeParticles++;
-                spawnedAny = true;
+            if (emitterShape != null && emitterShape != ParticleEmitterShape.EMPTY) {
+                emitterShape.emitParticles(spawner, actual);
+            } else {
+                for (int i = 0; i < actual; i++) {
+                    ActiveParticle particle = createParticle(x, y, z);
+                    particle.applyInitialSpeed();
+                    particles.add(particle);
+                    activeParticles++;
+                    spawnedAny = true;
+                }
             }
         }
 
@@ -848,6 +982,114 @@ public class BedrockParticleDebugSystem {
 
         private double getZ() {
             return z;
+        }
+
+        private float getYaw() {
+            return yaw;
+        }
+
+        private ActiveParticle createParticle(double px, double py, double pz) {
+            return new ActiveParticle(
+                data,
+                this,
+                px, py, pz,
+                billboard,
+                tint,
+                speed,
+                texture,
+                particleLifetimeComponent
+            );
+        }
+
+        private ParticleEmitterShape resolveEmitterShape() {
+            ParticleEmitterShape shape = getComponent(data, "emitter_shape_disc");
+            if (shape != null) {
+                return shape;
+            }
+            shape = getComponent(data, "emitter_shape_box");
+            if (shape != null) {
+                return shape;
+            }
+            shape = getComponent(data, "emitter_shape_sphere");
+            if (shape != null) {
+                return shape;
+            }
+            shape = getComponent(data, "emitter_shape_point");
+            if (shape != null) {
+                return shape;
+            }
+            shape = getComponent(data, "emitter_shape_entity_aabb");
+            if (shape != null) {
+                return shape;
+            }
+            shape = getComponent(data, "emitter_shape_custom");
+            if (shape != null) {
+                return shape;
+            }
+            if (data != null && data.components() != null) {
+                for (gg.moonflower.pinwheel.particle.component.ParticleComponent component : data.components().values()) {
+                    if (component instanceof ParticleEmitterShape) {
+                        return (ParticleEmitterShape) component;
+                    }
+                }
+            }
+            return ParticleEmitterShape.EMPTY;
+        }
+
+        private final class EmitterShapeSpawner implements ParticleEmitterShape.Spawner {
+            @Override
+            public ParticleInstance createParticle() {
+                return createParticle(x, y, z);
+            }
+
+            @Override
+            public void spawnParticle(ParticleInstance instance) {
+                if (!(instance instanceof ActiveParticle)) {
+                    return;
+                }
+                ActiveParticle particle = (ActiveParticle) instance;
+                particle.applyInitialSpeed();
+                particle.syncPrev();
+                particles.add(particle);
+                activeParticles++;
+                spawnedAny = true;
+            }
+
+            @Override
+            public gg.moonflower.pinwheel.particle.ParticleSourceObject getEntity() {
+                return null;
+            }
+
+            @Override
+            public MolangEnvironment getEnvironment() {
+                return environment;
+            }
+
+            @Override
+            public Random getRandom() {
+                return random;
+            }
+
+            @Override
+            public void setPosition(ParticleInstance instance, double x, double y, double z) {
+                if (!(instance instanceof ActiveParticle)) {
+                    return;
+                }
+                ActiveParticle particle = (ActiveParticle) instance;
+                particle.setPosition(ActiveEmitter.this.x + x, ActiveEmitter.this.y + y, ActiveEmitter.this.z + z);
+            }
+
+            @Override
+            public void setVelocity(ParticleInstance instance, double dx, double dy, double dz) {
+                if (!(instance instanceof ActiveParticle)) {
+                    return;
+                }
+                double vx = dx + ActiveEmitter.this.deltaX;
+                double vy = dy + ActiveEmitter.this.deltaY;
+                double vz = dz + ActiveEmitter.this.deltaZ;
+                ActiveParticle particle = (ActiveParticle) instance;
+                particle.setVelocity(vx, vy, vz);
+            }
         }
     }
 
