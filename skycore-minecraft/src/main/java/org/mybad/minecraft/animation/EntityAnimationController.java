@@ -45,6 +45,12 @@ public class EntityAnimationController {
     private static final float ATTACK_FADE_OUT = 0.10f;
     private static final float SPAWN_FADE_IN = 0.12f;
     private static final float SPAWN_FADE_OUT = 0.15f;
+    private static final float SPEED_SMOOTH_BASE = 0.05f;
+    private static final float WALK_ENTER = 0.06f;
+    private static final float WALK_EXIT = 0.035f;
+    private static final float MIN_WALK_TIME = 0.15f;
+    private static final float STOP_SPEED_EPS = 0.004f;
+    private static final float STOP_HOLD_TIME = 0.04f;
 
     private final Map<String, Animation> actions;
     private String currentAction;
@@ -55,6 +61,11 @@ public class EntityAnimationController {
     private boolean spawnPlayed = false;
     private long lastUpdateTime = 0L;
     private int lastTick = -1;
+    private long lastLogicTime = 0L;
+    private float smoothedSpeed = 0f;
+    private boolean wasMoving = false;
+    private float movingStateTime = 0f;
+    private float lowSpeedTime = 0f;
 
     private final List<OverlayAction> overlays = new ArrayList<>();
 
@@ -92,12 +103,14 @@ public class EntityAnimationController {
             return null;
         }
 
-        float deltaTime = computeDeltaTime();
+        long now = System.currentTimeMillis();
+        float deltaTime = computeDeltaTime(now);
         int tick = entity.ticksExisted;
         boolean newTick = tick != lastTick;
         Animation primaryAnim = null;
         if (newTick) {
-            String nextPrimary = selectAction(entity);
+            float logicDelta = computeLogicDelta(now);
+            String nextPrimary = selectAction(entity, logicDelta);
             if (nextPrimary != null && !nextPrimary.equals(currentAction)) {
                 currentAction = nextPrimary;
                 primaryAnim = actions.get(nextPrimary);
@@ -117,8 +130,7 @@ public class EntityAnimationController {
         return currentAction;
     }
 
-    private float computeDeltaTime() {
-        long now = System.currentTimeMillis();
+    private float computeDeltaTime(long now) {
         float delta;
         if (lastUpdateTime == 0L) {
             delta = 0f;
@@ -131,6 +143,22 @@ public class EntityAnimationController {
             }
         }
         lastUpdateTime = now;
+        return delta;
+    }
+
+    private float computeLogicDelta(long now) {
+        float delta;
+        if (lastLogicTime == 0L) {
+            delta = 0.05f;
+        } else {
+            delta = (now - lastLogicTime) / 1000.0f;
+            if (delta > 0.1f) {
+                delta = 0.1f;
+            } else if (delta < 0f) {
+                delta = 0f;
+            }
+        }
+        lastLogicTime = now;
         return delta;
     }
 
@@ -147,7 +175,7 @@ public class EntityAnimationController {
         }
 
         if (entity.hurtTime == entity.maxHurtTime - 1) {
-            startOverlay("hurt", DEFAULT_FADE_IN, DEFAULT_FADE_OUT);
+            startOverlayFirst(DEFAULT_FADE_IN, DEFAULT_FADE_OUT, "hurt", "hit");
         }
 
         if (!entity.onGround && wasOnGround && Math.abs(entity.motionY) > 0.2F) {
@@ -216,20 +244,54 @@ public class EntityAnimationController {
         overlays.add(new OverlayAction(key, anim, fadeIn, fadeOut));
     }
 
-    private String selectAction(EntityLivingBase entity) {
+    private void startOverlayFirst(float fadeIn, float fadeOut, String... names) {
+        if (names == null || names.length == 0) {
+            return;
+        }
+        for (String name : names) {
+            String key = normalize(name);
+            if (actions.containsKey(key)) {
+                startOverlay(name, fadeIn, fadeOut);
+                return;
+            }
+        }
+    }
+
+    private String selectAction(EntityLivingBase entity, float deltaTime) {
         if (Double.isNaN(prevX)) {
             prevX = entity.posX;
             prevZ = entity.posZ;
             prevMY = entity.motionY;
             wasOnGround = entity.onGround;
+            smoothedSpeed = 0f;
+            wasMoving = false;
+            movingStateTime = 0f;
+            lowSpeedTime = 0f;
         }
 
-        double dx = entity.posX - prevX;
-        double dz = entity.posZ - prevZ;
         boolean creativeFlying = entity instanceof EntityPlayer && ((EntityPlayer) entity).capabilities.isFlying;
         boolean wet = entity.isInWater();
-        float threshold = creativeFlying ? 0.1F : (wet ? 0.025F : 0.01F);
-        boolean moves = Math.abs(dx) > threshold || Math.abs(dz) > threshold;
+        Entity riding = entity.getRidingEntity();
+        boolean isRiding = entity.isRiding() && riding != null;
+
+        double refX = isRiding ? riding.posX : entity.posX;
+        double refZ = isRiding ? riding.posZ : entity.posZ;
+        double dx = refX - prevX;
+        double dz = refZ - prevZ;
+        float rawSpeed = (float) Math.sqrt(dx * dx + dz * dz);
+
+        if (rawSpeed <= STOP_SPEED_EPS) {
+            lowSpeedTime += deltaTime;
+        } else {
+            lowSpeedTime = 0f;
+        }
+
+        float alpha = computeSmoothingAlpha(deltaTime);
+        smoothedSpeed = smoothedSpeed * (1f - alpha) + rawSpeed * alpha;
+        if (lowSpeedTime >= STOP_HOLD_TIME) {
+            smoothedSpeed = 0f;
+        }
+        boolean moves = computeMoveState(deltaTime);
 
         String action;
 
@@ -240,12 +302,6 @@ public class EntityAnimationController {
         } else if (wet) {
             action = moves ? pick("swimming", "swim", "running", "walking", "walk") : pick("swimming_idle", "swim_idle", "idle");
         } else if (entity.isRiding()) {
-            Entity riding = entity.getRidingEntity();
-            if (riding != null) {
-                moves = Math.abs(riding.posX - prevX) > threshold || Math.abs(riding.posZ - prevZ) > threshold;
-                prevX = riding.posX;
-                prevZ = riding.posZ;
-            }
             action = moves ? pick("riding", "ride", "running", "walking", "walk") : pick("riding_idle", "ride_idle", "idle");
         } else if (creativeFlying || entity.isElytraFlying()) {
             action = moves ? pick("flying", "fly", "running", "walking", "walk") : pick("flying_idle", "fly_idle", "idle");
@@ -261,8 +317,8 @@ public class EntityAnimationController {
             }
         }
 
-        prevX = entity.posX;
-        prevZ = entity.posZ;
+        prevX = refX;
+        prevZ = refZ;
         prevMY = entity.motionY;
         wasOnGround = entity.onGround;
 
@@ -270,6 +326,41 @@ public class EntityAnimationController {
             action = pick("idle", "running", "walking", "walk");
         }
         return action;
+    }
+
+    private float computeSmoothingAlpha(float deltaTime) {
+        if (deltaTime <= 0f) {
+            return 0f;
+        }
+        float alpha = 1.0f - (float) Math.pow(SPEED_SMOOTH_BASE, deltaTime);
+        if (alpha < 0f) {
+            return 0f;
+        }
+        if (alpha > 1f) {
+            return 1f;
+        }
+        return alpha;
+    }
+
+    private boolean computeMoveState(float deltaTime) {
+        boolean moving;
+        if (wasMoving) {
+            if (movingStateTime < MIN_WALK_TIME) {
+                moving = true;
+            } else {
+                moving = smoothedSpeed > WALK_EXIT;
+            }
+        } else {
+            moving = smoothedSpeed > WALK_ENTER;
+        }
+
+        if (moving != wasMoving) {
+            movingStateTime = 0f;
+        } else {
+            movingStateTime += deltaTime;
+        }
+        wasMoving = moving;
+        return moving;
     }
 
     private String pick(String... keys) {
