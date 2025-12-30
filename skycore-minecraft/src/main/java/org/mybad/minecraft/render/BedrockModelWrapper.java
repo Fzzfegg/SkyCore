@@ -1,27 +1,20 @@
 package org.mybad.minecraft.render;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import org.lwjgl.opengl.GL11;
-import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
-import org.mybad.core.animation.AnimationState;
-import org.mybad.core.animation.AnimationStateMachine;
-import org.mybad.core.animation.StateController;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.core.data.Model;
 import org.mybad.core.data.ModelBone;
 import org.mybad.core.data.ModelCube;
 import org.mybad.core.data.ModelQuad;
-import org.mybad.core.render.CubeRenderer;
-import org.mybad.core.render.ModelRenderer;
 import org.mybad.core.render.MatrixStack;
 
 import java.util.List;
@@ -36,16 +29,12 @@ import org.lwjgl.BufferUtils;
  * 参考 Chameleon 的 ChameleonRenderer 和 HammerAnimations 的 BedrockModelWrapper
  *
  * 特性：
- * - 静态 MatrixStack 和 CubeRenderer 实例，减少对象创建
  * - Chameleon 风格的骨骼变换顺序
  * - 预计算顶点（模型加载时生成四边形）
  * - 批量渲染
  */
 @SideOnly(Side.CLIENT)
 public class BedrockModelWrapper {
-
-    private final CubeRenderer cubeRenderer;
-    private final BufferingQuadConsumer quadConsumer;
 
     /** 模型数据 */
     private final Model model;
@@ -56,8 +45,6 @@ public class BedrockModelWrapper {
     private AnimationPlayer previousPlayer;
     private float primaryFadeTime;
     private float primaryFadeDuration = 0.12f;
-    private AnimationStateMachine stateMachine;
-    private final Map<Animation, AnimationPlayer> statePlayers = new HashMap<>();
     private final Map<Animation, AnimationPlayer> overlayPlayers = new HashMap<>();
     private List<EntityAnimationController.OverlayState> overlayStates = java.util.Collections.emptyList();
 
@@ -75,9 +62,6 @@ public class BedrockModelWrapper {
 
     /** 四边形是否已生成 */
     private boolean quadsGenerated;
-    private boolean autoYOffset = false;
-    private float modelYOffset;
-    private boolean modelYOffsetReady;
     private float modelScale = 1.0f;
     private static final GeometryCache FALLBACK_GEOMETRY_CACHE = new GeometryCache();
     private final Map<ModelBone, Integer> boneIndexMap;
@@ -90,7 +74,6 @@ public class BedrockModelWrapper {
     private FloatBuffer boneMatrixBuffer;
     private float[] boneMatrices;
     private final MatrixStack boneMatrixStack = new MatrixStack();
-    private final MatrixStack renderMatrixStack = new MatrixStack();
     private boolean gpuSkinningReady;
 
     /** 是否启用背面剔除 */
@@ -143,8 +126,6 @@ public class BedrockModelWrapper {
 
         this.lastUpdateTime = System.currentTimeMillis();
         this.quadsGenerated = false;
-        this.quadConsumer = new BufferingQuadConsumer();
-        this.cubeRenderer = new CubeRenderer(quadConsumer);
 
         this.boneIndexMap = buildBoneIndexMap(this.model);
         this.rootBones = collectRootBones(this.model.getBones());
@@ -258,8 +239,7 @@ public class BedrockModelWrapper {
         GlStateManager.enableColorMaterial();
 
         GlStateManager.pushMatrix();
-        float yOffset = modelYOffsetReady ? modelYOffset * modelScale : 0.0f;
-        GlStateManager.translate((float) x, (float) y + yOffset, (float) z);
+        GlStateManager.translate((float) x, (float) y, (float) z);
         if (modelScale != 1.0f) {
             GlStateManager.scale(modelScale, modelScale, modelScale);
         }
@@ -276,17 +256,22 @@ public class BedrockModelWrapper {
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
 
         boolean gpu = ensureGpuSkinningReady();
-        if (gpu) {
-            updateBoneMatrices();
-            skinnedMesh.updateJointMatrices(boneMatrixBuffer);
-            skinnedMesh.runSkinningPass();
-            skinnedMesh.draw();
-        } else {
-            renderCpuModel(lightX, lightY);
+        if (!gpu) {
+            GlStateManager.popMatrix();
+            GlStateManager.disableBlend();
+            GlStateManager.disableRescaleNormal();
+            GlStateManager.enableDepth();
+            GlStateManager.enableCull();
+            return;
         }
 
+        updateBoneMatrices();
+        skinnedMesh.updateJointMatrices(boneMatrixBuffer);
+        skinnedMesh.runSkinningPass();
+        skinnedMesh.draw();
+
         if (emissiveTexture != null) {
-            renderEmissivePass(gpu, lightX, lightY);
+            renderEmissivePass(lightX, lightY);
         }
 
         GlStateManager.popMatrix();
@@ -302,7 +287,7 @@ public class BedrockModelWrapper {
      * 更新动画
      */
     private void updateAnimation() {
-        if (animationPlayer == null && stateMachine == null && activePlayer == null && previousPlayer == null) {
+        if (animationPlayer == null && activePlayer == null && previousPlayer == null) {
             return;
         }
 
@@ -316,15 +301,7 @@ public class BedrockModelWrapper {
         }
 
         AnimationPlayer desiredPlayer = null;
-        if (stateMachine != null) {
-            stateMachine.update(deltaTime);
-            AnimationPlayer statePlayer = syncStateMachinePlayer();
-            if (statePlayer != null) {
-                desiredPlayer = statePlayer;
-            }
-        }
-
-        if (desiredPlayer == null && animationPlayer != null) {
+        if (animationPlayer != null) {
             animationPlayer.update(deltaTime);
             desiredPlayer = animationPlayer;
         }
@@ -365,8 +342,6 @@ public class BedrockModelWrapper {
      * 设置动画
      */
     public void setAnimation(Animation animation) {
-        this.stateMachine = null;
-        this.statePlayers.clear();
         this.overlayPlayers.clear();
         this.overlayStates = java.util.Collections.emptyList();
         if (animation != null) {
@@ -400,18 +375,6 @@ public class BedrockModelWrapper {
         return activePlayer != null ? activePlayer : animationPlayer;
     }
 
-    public void setStateMachine(AnimationStateMachine machine) {
-        this.stateMachine = machine;
-        this.activePlayer = null;
-        if (machine == null && animationPlayer != null) {
-            this.activePlayer = animationPlayer;
-        }
-    }
-
-    public AnimationStateMachine getStateMachine() {
-        return stateMachine;
-    }
-
     public void setOverlayStates(List<EntityAnimationController.OverlayState> states) {
         if (states == null || states.isEmpty()) {
             overlayStates = java.util.Collections.emptyList();
@@ -431,26 +394,7 @@ public class BedrockModelWrapper {
         return model;
     }
 
-    private void renderCpuModel(int lightX, int lightY) {
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-        beginBatch(buffer);
-        quadConsumer.begin(buffer, lightX, lightY);
-
-        ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
-            .matrixStack(renderMatrixStack)
-            .textureWidth(textureWidth)
-            .textureHeight(textureHeight)
-            .applyConstraints(true)
-            .build();
-
-        renderMatrixStack.loadIdentity();
-        ModelRenderer.render(model, cubeRenderer, options);
-
-        quadConsumer.end();
-        Tessellator.getInstance().draw();
-    }
-
-    private void renderEmissivePass(boolean gpu, int lightX, int lightY) {
+    private void renderEmissivePass(int lightX, int lightY) {
         if (emissiveStrength <= 0f) {
             return;
         }
@@ -467,11 +411,7 @@ public class BedrockModelWrapper {
         int fullBright = 240;
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
 
-        if (gpu) {
-            skinnedMesh.draw();
-        } else {
-            renderCpuModel(fullBright, fullBright);
-        }
+        skinnedMesh.draw();
 
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
         GlStateManager.depthMask(true);
@@ -511,13 +451,12 @@ public class BedrockModelWrapper {
         if (next == activePlayer) {
             return;
         }
-        boolean override = next != null && next.getAnimation() != null && next.getAnimation().isOverridePreviousAnimation();
-        if (override) {
-            previousPlayer = null;
-            primaryFadeTime = primaryFadeDuration;
-        } else {
+        if (primaryFadeDuration > 0f) {
             previousPlayer = activePlayer;
             primaryFadeTime = 0f;
+        } else {
+            previousPlayer = null;
+            primaryFadeTime = primaryFadeDuration;
         }
         activePlayer = next;
     }
@@ -544,7 +483,6 @@ public class BedrockModelWrapper {
             shaderAcquired = false;
         }
         gpuSkinningReady = false;
-        statePlayers.clear();
         overlayPlayers.clear();
         overlayStates = java.util.Collections.emptyList();
         activePlayer = null;
@@ -571,26 +509,6 @@ public class BedrockModelWrapper {
 
         quadsGenerated = false;
         generateAllQuads();
-    }
-
-    private void computeStaticYOffset() {
-        if (!autoYOffset) {
-            return;
-        }
-        BoundsConsumer bounds = new BoundsConsumer();
-        CubeRenderer boundsRenderer = new CubeRenderer(bounds);
-        ModelRenderer.RenderOptions options = ModelRenderer.RenderOptions.builder()
-            .matrixStack(new MatrixStack())
-            .textureWidth(textureWidth)
-            .textureHeight(textureHeight)
-            .applyConstraints(true)
-            .build();
-        ModelRenderer.render(model, boundsRenderer, options);
-        Float minY = bounds.getMinY();
-        if (minY != null) {
-            modelYOffset = -minY;
-            modelYOffsetReady = true;
-        }
     }
 
     private static Map<ModelBone, Integer> buildBoneIndexMap(Model model) {
@@ -720,40 +638,6 @@ public class BedrockModelWrapper {
 
         buffer.flip();
         return new SharedGeometry(buffer, vertexIndex);
-    }
-
-    private AnimationPlayer syncStateMachinePlayer() {
-        if (stateMachine == null) {
-            return null;
-        }
-        StateController controller = stateMachine.getCurrentStateController();
-        if (controller == null) {
-            return null;
-        }
-        AnimationState animState = controller.getAnimationState();
-        if (animState == null || animState.getAnimation() == null) {
-            return null;
-        }
-        Animation animation = animState.getAnimation();
-        AnimationPlayer player = statePlayers.get(animation);
-        if (player == null) {
-            player = new AnimationPlayer(animation);
-            player.play();
-            statePlayers.put(animation, player);
-        }
-        syncPlayerState(player, animState);
-        return player;
-    }
-
-    private void syncPlayerState(AnimationPlayer player, AnimationState state) {
-        if (state.isPlaying()) {
-            player.play();
-        } else if (state.isPaused()) {
-            player.pause();
-        } else {
-            player.stop();
-        }
-        player.getState().setCurrentTime(state.getCurrentTime());
     }
 
     private void updateBoneMatrices() {
@@ -888,117 +772,4 @@ public class BedrockModelWrapper {
         }
     }
     
-    private static void beginBatch(BufferBuilder buffer) {
-        buffer.begin(org.lwjgl.opengl.GL11.GL_QUADS, VertexFormatCompat.getFormat(true, true, true, true));
-    }
-
-    /**
-     * 将 core 渲染输出写入 Minecraft BufferBuilder。
-     */
-    private static class BufferingQuadConsumer implements CubeRenderer.QuadConsumer {
-        private BufferBuilder buffer;
-        private int lightX;
-        private int lightY;
-        private float r = 1.0f;
-        private float g = 1.0f;
-        private float b = 1.0f;
-        private float a = 1.0f;
-        private float minX;
-        private float minY;
-        private float minZ;
-        private float maxX;
-        private float maxY;
-        private float maxZ;
-        private int vertexCount;
-        private boolean hasBounds;
-
-        void begin(BufferBuilder buffer, int lightX, int lightY) {
-            this.buffer = buffer;
-            this.lightX = lightX;
-            this.lightY = lightY;
-            this.vertexCount = 0;
-            this.hasBounds = false;
-        }
-
-        void end() {
-            this.buffer = null;
-        }
-
-
-        Float getMinY() {
-            return hasBounds ? minY : null;
-        }
-
-        @Override
-        public void consume(Model model, ModelBone bone, ModelCube cube, CubeRenderer.RenderedQuad quad) {
-            if (buffer == null) {
-                return;
-            }
-            float[][] positions = quad.getPositions();
-            float[][] uvs = quad.getUvs();
-            float[][] normals = quad.getNormals();
-            float[] cubeSize = cube.getSize();
-
-            for (int i = 0; i < positions.length; i++) {
-                float[] pos = positions[i];
-                float[] uv = uvs[i];
-                float[] normal = normals[i];
-
-                if (!hasBounds) {
-                    minX = maxX = pos[0];
-                    minY = maxY = pos[1];
-                    minZ = maxZ = pos[2];
-                    hasBounds = true;
-                } else {
-                    if (pos[0] < minX) minX = pos[0];
-                    if (pos[1] < minY) minY = pos[1];
-                    if (pos[2] < minZ) minZ = pos[2];
-                    if (pos[0] > maxX) maxX = pos[0];
-                    if (pos[1] > maxY) maxY = pos[1];
-                    if (pos[2] > maxZ) maxZ = pos[2];
-                }
-                vertexCount++;
-
-                // Chameleon 风格：0 尺寸面法线修正，避免全黑
-                if (normal[0] < 0 && (cubeSize[1] == 0 || cubeSize[2] == 0)) normal[0] *= -1;
-                if (normal[1] < 0 && (cubeSize[0] == 0 || cubeSize[2] == 0)) normal[1] *= -1;
-                if (normal[2] < 0 && (cubeSize[0] == 0 || cubeSize[1] == 0)) normal[2] *= -1;
-
-                float nx = normal[0];
-                float ny = normal[1];
-                float nz = normal[2];
-
-                // VertexFormatCompat: pos -> color -> tex -> lightmap -> normal
-                buffer.pos(pos[0], pos[1], pos[2])
-                    .color(r, g, b, a)
-                    .tex(uv[0], uv[1]);
-          
-                buffer.lightmap(lightX, lightY);
-                buffer.normal(nx, ny, nz)
-                    .endVertex();
-            }
-        }
-    }
-
-    private static class BoundsConsumer implements CubeRenderer.QuadConsumer {
-        private boolean hasBounds;
-        private float minY;
-
-        @Override
-        public void consume(Model model, ModelBone bone, ModelCube cube, CubeRenderer.RenderedQuad quad) {
-            float[][] positions = quad.getPositions();
-            for (float[] pos : positions) {
-                if (!hasBounds) {
-                    minY = pos[1];
-                    hasBounds = true;
-                } else if (pos[1] < minY) {
-                    minY = pos[1];
-                }
-            }
-        }
-
-        Float getMinY() {
-            return hasBounds ? minY : null;
-        }
-    }
 }
