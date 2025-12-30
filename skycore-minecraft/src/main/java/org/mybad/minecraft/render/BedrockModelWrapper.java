@@ -11,6 +11,10 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
+import org.mybad.core.animation.AnimationState;
+import org.mybad.core.animation.AnimationStateMachine;
+import org.mybad.core.animation.StateController;
+import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.core.data.Model;
 import org.mybad.core.data.ModelBone;
 import org.mybad.core.data.ModelCube;
@@ -47,6 +51,14 @@ public class BedrockModelWrapper {
 
     /** 动画播放器 */
     private AnimationPlayer animationPlayer;
+    private AnimationPlayer activePlayer;
+    private AnimationPlayer previousPlayer;
+    private float primaryFadeTime;
+    private float primaryFadeDuration = 0.12f;
+    private AnimationStateMachine stateMachine;
+    private final Map<Animation, AnimationPlayer> statePlayers = new HashMap<>();
+    private final Map<Animation, AnimationPlayer> overlayPlayers = new HashMap<>();
+    private List<EntityAnimationController.OverlayState> overlayStates = java.util.Collections.emptyList();
 
     /** 纹理位置 */
     private final ResourceLocation texture;
@@ -63,6 +75,7 @@ public class BedrockModelWrapper {
     private boolean autoYOffset = false;
     private float modelYOffset;
     private boolean modelYOffsetReady;
+    private float modelScale = 1.0f;
     private static final GeometryCache FALLBACK_GEOMETRY_CACHE = new GeometryCache();
     private final Map<ModelBone, Integer> boneIndexMap;
     private final List<ModelBone> rootBones;
@@ -121,6 +134,7 @@ public class BedrockModelWrapper {
         if (animation != null) {
             this.animationPlayer = new AnimationPlayer(animation);
             this.animationPlayer.play();
+            this.activePlayer = this.animationPlayer;
         }
 
         this.lastUpdateTime = System.currentTimeMillis();
@@ -210,9 +224,17 @@ public class BedrockModelWrapper {
         updateAnimation();
 
         // 应用动画到模型
-        if (animationPlayer != null) {
+        AnimationPlayer player = activePlayer;
+        if (player != null || previousPlayer != null || !overlayStates.isEmpty()) {
             model.resetToBindPose();
-            animationPlayer.apply(model);
+            if (player != null) {
+                player.apply(model);
+            }
+            float previousWeight = getPrimaryFadeWeight();
+            if (previousPlayer != null && previousWeight > 0f) {
+                previousPlayer.apply(model, previousWeight);
+            }
+            applyOverlays();
         }
 
         // 绑定纹理
@@ -232,8 +254,11 @@ public class BedrockModelWrapper {
         GlStateManager.enableColorMaterial();
 
         GlStateManager.pushMatrix();
-        float yOffset = modelYOffsetReady ? modelYOffset : 0.0f;
+        float yOffset = modelYOffsetReady ? modelYOffset * modelScale : 0.0f;
         GlStateManager.translate((float) x, (float) y + yOffset, (float) z);
+        if (modelScale != 1.0f) {
+            GlStateManager.scale(modelScale, modelScale, modelScale);
+        }
 
 
         if (entity != null) {
@@ -283,7 +308,7 @@ public class BedrockModelWrapper {
      * 更新动画
      */
     private void updateAnimation() {
-        if (animationPlayer == null) {
+        if (animationPlayer == null && stateMachine == null && activePlayer == null && previousPlayer == null) {
             return;
         }
 
@@ -296,19 +321,69 @@ public class BedrockModelWrapper {
             deltaTime = 0.1F;
         }
 
-        animationPlayer.update(deltaTime);
+        AnimationPlayer desiredPlayer = null;
+        if (stateMachine != null) {
+            stateMachine.update(deltaTime);
+            AnimationPlayer statePlayer = syncStateMachinePlayer();
+            if (statePlayer != null) {
+                desiredPlayer = statePlayer;
+            }
+        }
+
+        if (desiredPlayer == null && animationPlayer != null) {
+            animationPlayer.update(deltaTime);
+            desiredPlayer = animationPlayer;
+        }
+
+        if (desiredPlayer != activePlayer) {
+            beginPrimaryTransition(desiredPlayer);
+        }
+
+        if (previousPlayer != null) {
+            previousPlayer.update(deltaTime);
+            primaryFadeTime += deltaTime;
+            if (primaryFadeTime >= primaryFadeDuration) {
+                previousPlayer = null;
+            }
+        }
+    }
+
+    private void applyOverlays() {
+        if (overlayStates.isEmpty()) {
+            return;
+        }
+        for (EntityAnimationController.OverlayState state : overlayStates) {
+            if (state == null || state.weight <= 0f || state.animation == null) {
+                continue;
+            }
+            AnimationPlayer player = overlayPlayers.get(state.animation);
+            if (player == null) {
+                player = new AnimationPlayer(state.animation);
+                player.play();
+                overlayPlayers.put(state.animation, player);
+            }
+            player.setCurrentTime(state.time);
+            player.apply(model, state.weight);
+        }
     }
 
     /**
      * 设置动画
      */
     public void setAnimation(Animation animation) {
+        this.stateMachine = null;
+        this.statePlayers.clear();
+        this.overlayPlayers.clear();
+        this.overlayStates = java.util.Collections.emptyList();
         if (animation != null) {
-            this.animationPlayer = new AnimationPlayer(animation);
-            this.animationPlayer.play();
+            if (this.animationPlayer == null || this.animationPlayer.getAnimation() != animation) {
+                this.animationPlayer = new AnimationPlayer(animation);
+                this.animationPlayer.play();
+            }
         } else {
             this.animationPlayer = null;
         }
+        beginPrimaryTransition(this.animationPlayer);
     }
 
     /**
@@ -327,11 +402,79 @@ public class BedrockModelWrapper {
         return animationPlayer;
     }
 
+    public AnimationPlayer getActiveAnimationPlayer() {
+        return activePlayer != null ? activePlayer : animationPlayer;
+    }
+
+    public void setStateMachine(AnimationStateMachine machine) {
+        this.stateMachine = machine;
+        this.activePlayer = null;
+        if (machine == null && animationPlayer != null) {
+            this.activePlayer = animationPlayer;
+        }
+    }
+
+    public AnimationStateMachine getStateMachine() {
+        return stateMachine;
+    }
+
+    public void setOverlayStates(List<EntityAnimationController.OverlayState> states) {
+        if (states == null || states.isEmpty()) {
+            overlayStates = java.util.Collections.emptyList();
+            return;
+        }
+        overlayStates = new ArrayList<>(states);
+    }
+
+    public void clearOverlayStates() {
+        overlayStates = java.util.Collections.emptyList();
+    }
+
     /**
      * 获取模型
      */
     public Model getModel() {
         return model;
+    }
+
+    public void setPrimaryFadeDuration(float seconds) {
+        if (Float.isNaN(seconds) || seconds < 0f) {
+            return;
+        }
+        this.primaryFadeDuration = seconds;
+    }
+
+    public void setModelScale(float scale) {
+        if (Float.isNaN(scale) || scale <= 0f) {
+            return;
+        }
+        this.modelScale = scale;
+    }
+
+    private void beginPrimaryTransition(AnimationPlayer next) {
+        if (next == activePlayer) {
+            return;
+        }
+        boolean override = next != null && next.getAnimation() != null && next.getAnimation().isOverridePreviousAnimation();
+        if (override) {
+            previousPlayer = null;
+            primaryFadeTime = primaryFadeDuration;
+        } else {
+            previousPlayer = activePlayer;
+            primaryFadeTime = 0f;
+        }
+        activePlayer = next;
+    }
+
+    private float getPrimaryFadeWeight() {
+        if (previousPlayer == null || primaryFadeDuration <= 0f) {
+            return 0f;
+        }
+        float t = primaryFadeTime / primaryFadeDuration;
+        if (t >= 1f) {
+            return 0f;
+        }
+        return 1f - t;
     }
 
     public void dispose() {
@@ -345,6 +488,10 @@ public class BedrockModelWrapper {
             shaderAcquired = false;
         }
         gpuSkinningReady = false;
+        statePlayers.clear();
+        overlayPlayers.clear();
+        overlayStates = java.util.Collections.emptyList();
+        activePlayer = null;
     }
 
     public static void clearSharedResources() {
@@ -517,6 +664,40 @@ public class BedrockModelWrapper {
 
         buffer.flip();
         return new SharedGeometry(buffer, vertexIndex);
+    }
+
+    private AnimationPlayer syncStateMachinePlayer() {
+        if (stateMachine == null) {
+            return null;
+        }
+        StateController controller = stateMachine.getCurrentStateController();
+        if (controller == null) {
+            return null;
+        }
+        AnimationState animState = controller.getAnimationState();
+        if (animState == null || animState.getAnimation() == null) {
+            return null;
+        }
+        Animation animation = animState.getAnimation();
+        AnimationPlayer player = statePlayers.get(animation);
+        if (player == null) {
+            player = new AnimationPlayer(animation);
+            player.play();
+            statePlayers.put(animation, player);
+        }
+        syncPlayerState(player, animState);
+        return player;
+    }
+
+    private void syncPlayerState(AnimationPlayer player, AnimationState state) {
+        if (state.isPlaying()) {
+            player.play();
+        } else if (state.isPaused()) {
+            player.pause();
+        } else {
+            player.stop();
+        }
+        player.getState().setCurrentTime(state.getCurrentTime());
     }
 
     private void updateBoneMatrices() {

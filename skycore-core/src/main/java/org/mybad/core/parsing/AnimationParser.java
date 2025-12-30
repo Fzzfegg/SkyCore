@@ -83,13 +83,15 @@ public class AnimationParser {
     public static class AnimationData {
         public String name;
         public float length;
-        public boolean loop;
+        public Animation.LoopMode loopMode;
+        public boolean overridePreviousAnimation;
         public Map<String, BoneAnimation> boneAnimations;
 
         public AnimationData(String name) {
             this.name = name;
             this.length = 0;
-            this.loop = false;
+            this.loopMode = Animation.LoopMode.ONCE;
+            this.overridePreviousAnimation = false;
             this.boneAnimations = new HashMap<>();
         }
     }
@@ -144,6 +146,21 @@ public class AnimationParser {
     }
 
     /**
+     * 从JSON字符串解析所有动画
+     */
+    public Map<String, AnimationData> parseAll(String jsonContent) throws ParseException {
+        try {
+            JsonElement element = new JsonParser().parse(jsonContent);
+            if (!element.isJsonObject()) {
+                throw new ParseException("JSON必须是对象格式");
+            }
+            return parseAllJsonObject(element.getAsJsonObject());
+        } catch (JsonSyntaxException e) {
+            throw new ParseException("动画JSON语法错误: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * 从JsonObject解析动画
      */
     public AnimationData parseJsonObject(JsonObject root) throws ParseException {
@@ -162,6 +179,24 @@ public class AnimationParser {
         return parseAnimation(animationName, animationJson);
     }
 
+    public Map<String, AnimationData> parseAllJsonObject(JsonObject root) throws ParseException {
+        JsonObject animationsObj = ParseUtils.getObject(root, "animations");
+        if (animationsObj.entrySet().isEmpty()) {
+            throw new ParseException("未找到动画数据");
+        }
+        Map<String, AnimationData> results = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : animationsObj.entrySet()) {
+            if (!entry.getValue().isJsonObject()) {
+                continue;
+            }
+            String animationName = entry.getKey();
+            JsonObject animationJson = entry.getValue().getAsJsonObject();
+            AnimationData data = parseAnimation(animationName, animationJson);
+            results.put(animationName, data);
+        }
+        return results;
+    }
+
     /**
      * 解析单个动画
      */
@@ -175,8 +210,9 @@ public class AnimationParser {
             animation.length = ParseUtils.getFloat(animJson, "length", 1.0f);
         }
 
-        // 解析循环设置
-        animation.loop = ParseUtils.getBoolean(animJson, "loop", false);
+        // 解析循环设置与覆盖设置
+        animation.loopMode = parseLoopMode(animJson);
+        animation.overridePreviousAnimation = ParseUtils.getBoolean(animJson, "override_previous_animation", false);
 
         // 解析骨骼动画
         JsonObject bonesObj = ParseUtils.getObject(animJson, "bones");
@@ -333,7 +369,8 @@ public class AnimationParser {
      */
     public Animation toAnimation(AnimationData data) {
         Animation animation = new Animation(data.name, data.length);
-        animation.setLoop(data.loop);
+        animation.setLoopMode(data.loopMode);
+        animation.setOverridePreviousAnimation(data.overridePreviousAnimation);
 
         for (Map.Entry<String, BoneAnimation> entry : data.boneAnimations.entrySet()) {
             String boneName = entry.getKey();
@@ -365,6 +402,14 @@ public class AnimationParser {
         return animation;
     }
 
+    public Map<String, Animation> toAnimations(Map<String, AnimationData> dataMap) {
+        Map<String, Animation> animations = new LinkedHashMap<>();
+        for (Map.Entry<String, AnimationData> entry : dataMap.entrySet()) {
+            animations.put(entry.getKey(), toAnimation(entry.getValue()));
+        }
+        return animations;
+    }
+
     /**
      * 转换单个关键帧
      */
@@ -376,11 +421,42 @@ public class AnimationParser {
         return dst;
     }
 
+    private Animation.LoopMode parseLoopMode(JsonObject animJson) {
+        if (!animJson.has("loop")) {
+            return Animation.LoopMode.ONCE;
+        }
+        JsonElement elem = animJson.get("loop");
+        if (elem != null && elem.isJsonPrimitive()) {
+            JsonPrimitive primitive = elem.getAsJsonPrimitive();
+            if (primitive.isBoolean()) {
+                return primitive.getAsBoolean() ? Animation.LoopMode.LOOP : Animation.LoopMode.ONCE;
+            }
+            if (primitive.isString()) {
+                String mode = primitive.getAsString().trim();
+                if ("hold_on_last_frame".equalsIgnoreCase(mode)) {
+                    return Animation.LoopMode.HOLD_ON_LAST_FRAME;
+                }
+                if ("loop".equalsIgnoreCase(mode) || "true".equalsIgnoreCase(mode)) {
+                    return Animation.LoopMode.LOOP;
+                }
+                if ("once".equalsIgnoreCase(mode) || "false".equalsIgnoreCase(mode)) {
+                    return Animation.LoopMode.ONCE;
+                }
+            }
+        }
+        return Animation.LoopMode.ONCE;
+    }
+
     /**
      * 便捷方法：解析并直接返回 Animation 对象
      */
     public Animation parseToAnimation(String jsonContent) throws ParseException {
         AnimationData data = parse(jsonContent);
         return toAnimation(data);
+    }
+
+    public Map<String, Animation> parseAllToAnimations(String jsonContent) throws ParseException {
+        Map<String, AnimationData> data = parseAll(jsonContent);
+        return toAnimations(data);
     }
 }

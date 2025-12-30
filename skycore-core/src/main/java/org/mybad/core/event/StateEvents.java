@@ -1,7 +1,7 @@
 package org.mybad.core.event;
 
-import org.mybad.core.animationsystem.AnimationStateMachine;
-import org.mybad.core.animationsystem.StateController;
+import org.mybad.core.animation.AnimationStateMachine;
+import org.mybad.core.animation.StateController;
 
 /**
  * 动画状态机事件集合

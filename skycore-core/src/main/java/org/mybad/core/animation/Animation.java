@@ -7,23 +7,32 @@ import java.util.*;
  * 包含完整的骨骼动画关键帧信息
  */
 public class Animation {
+    public enum LoopMode {
+        ONCE,
+        LOOP,
+        HOLD_ON_LAST_FRAME
+    }
+
     private String name;
     private float length;           // 动画长度（秒）
-    private boolean loop;           // 是否循环
+    private LoopMode loopMode;      // 循环模式
+    private boolean overridePreviousAnimation; // 是否覆盖之前动画
     private Map<String, BoneAnimation> boneAnimations;
     private float speed = 1.0f;     // 播放速度倍数
 
     public Animation(String name) {
         this.name = name;
         this.length = 0;
-        this.loop = false;
+        this.loopMode = LoopMode.ONCE;
+        this.overridePreviousAnimation = false;
         this.boneAnimations = new HashMap<>();
     }
 
     public Animation(String name, float length) {
         this.name = name;
         this.length = length;
-        this.loop = false;
+        this.loopMode = LoopMode.ONCE;
+        this.overridePreviousAnimation = false;
         this.boneAnimations = new HashMap<>();
     }
 
@@ -51,12 +60,21 @@ public class Animation {
     // Getters & Setters
     public String getName() { return name; }
     public float getLength() { return length; }
-    public boolean isLoop() { return loop; }
+    public boolean isLoop() { return loopMode == LoopMode.LOOP; }
+    public boolean isHoldOnLastFrame() { return loopMode == LoopMode.HOLD_ON_LAST_FRAME; }
+    public LoopMode getLoopMode() { return loopMode; }
+    public boolean isOverridePreviousAnimation() { return overridePreviousAnimation; }
     public Map<String, BoneAnimation> getBoneAnimations() { return boneAnimations; }
     public float getSpeed() { return speed; }
 
     public void setLength(float length) { this.length = length; }
-    public void setLoop(boolean loop) { this.loop = loop; }
+    public void setLoop(boolean loop) { this.loopMode = loop ? LoopMode.LOOP : LoopMode.ONCE; }
+    public void setLoopMode(LoopMode loopMode) {
+        this.loopMode = loopMode != null ? loopMode : LoopMode.ONCE;
+    }
+    public void setOverridePreviousAnimation(boolean overridePreviousAnimation) {
+        this.overridePreviousAnimation = overridePreviousAnimation;
+    }
     public void setSpeed(float speed) { this.speed = Math.max(0, speed); }
 
     /**

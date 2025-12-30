@@ -3,6 +3,7 @@ package org.mybad.minecraft.event;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -12,6 +13,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelWrapper;
@@ -55,14 +57,24 @@ public class RenderEventHandler {
     public void onRenderLivingPre(RenderLivingEvent.Pre<EntityLivingBase> event) {
         EntityLivingBase entity = event.getEntity();
 
-        // 获取实体自定义名字
-        String entityName = getEntityCustomName(entity);
-        if (entityName == null || entityName.isEmpty()) {
-            return;  // 没有自定义名字，使用原版渲染
+        // 获取实体映射名
+        String mappingName = getEntityCustomName(entity);
+        EntityModelMapping mapping = null;
+        if (mappingName != null && !mappingName.isEmpty()) {
+            mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
         }
-        
-        // 检查配置中是否有该名字的映射
-        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(entityName);
+        if (mapping == null && entity instanceof EntityPlayer) {
+            String playerName = entity.getName();
+            mapping = SkyCoreConfig.getInstance().getMapping(playerName);
+            if (mapping != null) {
+                mappingName = playerName;
+            } else {
+                mapping = SkyCoreConfig.getInstance().getMapping("player");
+                if (mapping != null) {
+                    mappingName = "player";
+                }
+            }
+        }
         if (mapping == null) {
             return;  // 没有配置，使用原版渲染
         }
@@ -71,13 +83,33 @@ public class RenderEventHandler {
         event.setCanceled(true);
 
         // 获取或创建模型包装器
-        BedrockModelWrapper wrapper = getOrCreateWrapper(entity, entityName, mapping);
-        if (wrapper == null) {
+        WrapperEntry entry = getOrCreateEntry(entity, mappingName, mapping);
+        if (entry == null || entry.wrapper == null) {
             return;  // 加载失败，跳过渲染
+        }
+        if (entry.controller != null) {
+            EntityAnimationController.Frame frame = entry.controller.update(entity);
+            if (frame != null) {
+                boolean override = false;
+                if (frame.primary != null) {
+                    entry.wrapper.setAnimation(frame.primary);
+                    override = frame.primary.isOverridePreviousAnimation();
+                    if (override) {
+                        entry.wrapper.clearOverlayStates();
+                    }
+                }
+                if (!override) {
+                    entry.wrapper.setOverlayStates(frame.overlays);
+                }
+            } else {
+                entry.wrapper.clearOverlayStates();
+            }
+        } else {
+            entry.wrapper.clearOverlayStates();
         }
         
         // 使用 SkyCore 渲染
-        renderEntity(entity, wrapper, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
+        renderEntity(entity, entry.wrapper, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
     }
 
     /**
@@ -128,7 +160,7 @@ public class RenderEventHandler {
     /**
      * 获取或创建模型包装器
      */
-    private BedrockModelWrapper getOrCreateWrapper(EntityLivingBase entity, String entityName, EntityModelMapping mapping) {
+    private WrapperEntry getOrCreateEntry(EntityLivingBase entity, String entityName, EntityModelMapping mapping) {
         int entityId = entity.getEntityId();
         long tick = entity.world != null ? entity.world.getTotalWorldTime() : 0L;
         WrapperEntry entry = modelWrapperCache.get(entityId);
@@ -138,7 +170,7 @@ public class RenderEventHandler {
                 modelWrapperCache.remove(entityId);
             } else {
                 entry.lastSeenTick = tick;
-                return entry.wrapper;
+                return entry;
             }
         }
 
@@ -167,10 +199,25 @@ public class RenderEventHandler {
             mapping.getModel(),
             resourceLoader.getGeometryCache()
         );
-        modelWrapperCache.put(entityId, new WrapperEntry(wrapper, entity.getUniqueID(), entityName, tick));
+        wrapper.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
+        wrapper.setModelScale(mapping.getModelScale());
+        EntityAnimationController controller = buildController(mapping);
+        modelWrapperCache.put(entityId, new WrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick));
 
         SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);
-        return wrapper;
+        return modelWrapperCache.get(entityId);
+    }
+
+    private EntityAnimationController buildController(EntityModelMapping mapping) {
+        String basePath = mapping.getAnimation();
+        if (basePath == null || basePath.isEmpty()) {
+            return null;
+        }
+        Map<String, Animation> actions = resourceLoader.loadAnimationSet(basePath);
+        if (actions == null || actions.isEmpty()) {
+            return null;
+        }
+        return new EntityAnimationController(actions);
     }
 
     /**
@@ -332,12 +379,14 @@ public class RenderEventHandler {
 
     private static final class WrapperEntry {
         private final BedrockModelWrapper wrapper;
+        private final EntityAnimationController controller;
         private final java.util.UUID entityUuid;
         private final String mappingName;
         private long lastSeenTick;
 
-        private WrapperEntry(BedrockModelWrapper wrapper, java.util.UUID entityUuid, String mappingName, long lastSeenTick) {
+        private WrapperEntry(BedrockModelWrapper wrapper, EntityAnimationController controller, java.util.UUID entityUuid, String mappingName, long lastSeenTick) {
             this.wrapper = wrapper;
+            this.controller = controller;
             this.entityUuid = entityUuid;
             this.mappingName = mappingName;
             this.lastSeenTick = lastSeenTick;

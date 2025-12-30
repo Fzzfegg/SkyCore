@@ -39,14 +39,24 @@ public class AnimationState {
         currentTime += actualDelta;
 
         // 处理动画长度
-        if (currentTime >= animation.getLength()) {
-            if (animation.isLoop()) {
+        float length = animation.getLength();
+        if (length <= 0f) {
+            currentTime = 0f;
+            if (!animation.isLoop()) {
+                state = PlayState.STOPPED;
+                finished = true;
+            }
+            return;
+        }
+
+        if (currentTime >= length) {
+            if (animation.getLoopMode() == Animation.LoopMode.LOOP) {
                 // 循环
                 loopCount++;
-                currentTime = currentTime % animation.getLength();
+                currentTime = currentTime % length;
             } else {
-                // 停止
-                currentTime = animation.getLength();
+                // 停止（包含 HOLD_ON_LAST_FRAME）
+                currentTime = length;
                 state = PlayState.STOPPED;
                 finished = true;
             }
@@ -133,4 +143,11 @@ public class AnimationState {
     public boolean isPlaying() { return state == PlayState.PLAYING; }
     public boolean isPaused() { return state == PlayState.PAUSED; }
     public boolean isStopped() { return state == PlayState.STOPPED; }
+
+    public boolean shouldApply() {
+        if (state == PlayState.PLAYING) {
+            return true;
+        }
+        return finished && animation != null && animation.isHoldOnLastFrame();
+    }
 }

@@ -58,7 +58,8 @@ public class AnimationResource implements Resource {
 
             animation = new Animation(animData.name);
             animation.setLength(animData.length);
-            animation.setLoop(animData.loop);
+            animation.setLoopMode(animData.loopMode);
+            animation.setOverridePreviousAnimation(animData.overridePreviousAnimation);
 
             for (String boneName : animData.boneAnimations.keySet()) {
                 AnimationParser.BoneAnimation boneAnimData = animData.boneAnimations.get(boneName);

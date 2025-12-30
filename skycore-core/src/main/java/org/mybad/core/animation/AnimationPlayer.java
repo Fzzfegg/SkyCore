@@ -55,7 +55,7 @@ public class AnimationPlayer {
      * @param weight 权重（用于混合）[0, 1]
      */
     public void apply(Model model, float weight) {
-        if (!state.isPlaying() || animation == null) {
+        if (animation == null || !state.shouldApply()) {
             return;
         }
 

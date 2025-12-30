@@ -33,6 +33,8 @@ public class ResourceLoader {
 
     /** 动画缓存: 路径 -> Animation */
     private final Map<String, Animation> animationCache;
+    /** 动画集合缓存: 路径 -> (name -> Animation) */
+    private final Map<String, Map<String, Animation>> animationSetCache;
 
     /** 模型解析器 */
     private final ModelParser modelParser;
@@ -45,6 +47,7 @@ public class ResourceLoader {
     public ResourceLoader() {
         this.modelCache = new ConcurrentHashMap<>();
         this.animationCache = new ConcurrentHashMap<>();
+        this.animationSetCache = new ConcurrentHashMap<>();
         this.modelParser = new ModelParser();
         this.animationParser = new AnimationParser();
         this.geometryCache = new GeometryCache();
@@ -89,21 +92,26 @@ public class ResourceLoader {
             return animationCache.get(path);
         }
 
-        try {
-            String jsonContent = loadResourceAsString(path);
-            if (jsonContent == null) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载动画文件: {}", path);
-                return null;
-            }
-
-            Animation animation = animationParser.parseToAnimation(jsonContent);
+        Animation animation = loadAnimation(path, null);
+        if (animation != null) {
             animationCache.put(path, animation);
-            return animation;
+        }
+        return animation;
+    }
 
-        } catch (Exception e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析动画文件失败: {} - {}", path, e.getMessage());
+    public Animation loadAnimation(String path, String clipName) {
+        Map<String, Animation> set = loadAnimationSet(path);
+        if (set == null || set.isEmpty()) {
             return null;
         }
+        if (clipName == null || clipName.trim().isEmpty()) {
+            return set.values().iterator().next();
+        }
+        Animation animation = set.get(clipName);
+        if (animation == null) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 动画片段不存在: {} in {}", clipName, path);
+        }
+        return animation;
     }
 
     /**
@@ -166,6 +174,7 @@ public class ResourceLoader {
     public void clearCache() {
         modelCache.clear();
         animationCache.clear();
+        animationSetCache.clear();
         geometryCache.clear();
         SkyCoreMod.LOGGER.info("[SkyCore] 资源缓存已清空");
     }
@@ -186,6 +195,7 @@ public class ResourceLoader {
      */
     public void invalidateAnimation(String path) {
         animationCache.remove(path);
+        animationSetCache.remove(path);
     }
 
     /**
@@ -200,5 +210,25 @@ public class ResourceLoader {
      */
     public int getCachedAnimationCount() {
         return animationCache.size();
+    }
+
+    public Map<String, Animation> loadAnimationSet(String path) {
+        Map<String, Animation> cached = animationSetCache.get(path);
+        if (cached != null) {
+            return cached;
+        }
+        try {
+            String jsonContent = loadResourceAsString(path);
+            if (jsonContent == null) {
+                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载动画文件: {}", path);
+                return null;
+            }
+            Map<String, Animation> animations = animationParser.parseAllToAnimations(jsonContent);
+            animationSetCache.put(path, animations);
+            return animations;
+        } catch (Exception e) {
+            SkyCoreMod.LOGGER.error("[SkyCore] 解析动画文件失败: {} - {}", path, e.getMessage());
+            return null;
+        }
     }
 }
