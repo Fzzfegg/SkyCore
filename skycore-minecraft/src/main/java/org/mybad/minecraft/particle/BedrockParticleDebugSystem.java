@@ -34,6 +34,7 @@ import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
@@ -49,6 +50,8 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.resource.ResourceLoader;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.BufferUtils;
 
@@ -209,6 +212,12 @@ public class BedrockParticleDebugSystem {
         double camZ = mc.getRenderManager().viewerPosZ;
         float partialTicks = event.getPartialTicks();
 
+        if (!emitters.isEmpty()) {
+            for (ActiveEmitter emitter : emitters) {
+                emitter.render(partialTicks);
+            }
+        }
+
         GlStateManager.disableLighting();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
@@ -273,6 +282,7 @@ public class BedrockParticleDebugSystem {
         private final ParticleExpireInBlocksComponent expireInBlocks;
         private final ParticleExpireNotInBlocksComponent expireNotInBlocks;
         private final EmitterInitializationComponent particleInitialization;
+        private final MolangExpression lifetimeExpiration;
         private final ResourceLocation texture;
         private final float lifetime;
         private final ParticleMolangContext molangContext;
@@ -316,6 +326,12 @@ public class BedrockParticleDebugSystem {
         private final float[] tempAxisX;
         private final float[] tempAxisY;
         private final float[] tempAxisZ;
+        private final Quaternionf tempQuat;
+        private final Vector3f tempVecX;
+        private final Vector3f tempVecY;
+        private final Vector3f tempVecZ;
+        private final Vector3f tempVecA;
+        private final Vector3f tempVecB;
 
         private ActiveParticle(ParticleData data,
                                ActiveEmitter emitter,
@@ -377,11 +393,18 @@ public class BedrockParticleDebugSystem {
                 bindCurves(builder, this.molangContext, this.curves);
             }
             this.lifetime = resolveLifetime(lifetimeComponent);
+            this.lifetimeExpiration = lifetimeComponent != null ? lifetimeComponent.expirationExpression() : null;
             this.molangContext.particleLifetime = this.lifetime;
             this.tempDir = new float[3];
             this.tempAxisX = new float[3];
             this.tempAxisY = new float[3];
             this.tempAxisZ = new float[3];
+            this.tempQuat = new Quaternionf();
+            this.tempVecX = new Vector3f();
+            this.tempVecY = new Vector3f();
+            this.tempVecZ = new Vector3f();
+            this.tempVecA = new Vector3f();
+            this.tempVecB = new Vector3f();
             updateContext(0.0f);
             if (particleInitialization != null && particleInitialization.creationExpression() != null) {
                 environment.safeResolve(particleInitialization.creationExpression());
@@ -454,6 +477,9 @@ public class BedrockParticleDebugSystem {
             if (particleInitialization != null && particleInitialization.tickExpression() != null) {
                 environment.safeResolve(particleInitialization.tickExpression());
             }
+            if (lifetimeExpiration != null && environment.safeResolve(lifetimeExpiration) != 0.0f) {
+                return false;
+            }
             tickLifetimeEvents();
             applyParametricMotion();
             applyDynamicMotion();
@@ -469,26 +495,28 @@ public class BedrockParticleDebugSystem {
             if (motionCollision != null && isCollisionEnabled()) {
                 boolean collideX = isColliding(nextX, this.y, this.z, collisionRadius);
                 if (collideX) {
-                    this.vx = -this.vx * collisionRestitution;
                     nextX = this.x;
                 }
                 boolean collideY = isColliding(this.x, nextY, this.z, collisionRadius);
                 if (collideY) {
-                    this.vy = -this.vy * collisionRestitution;
                     nextY = this.y;
                 }
                 boolean collideZ = isColliding(this.x, this.y, nextZ, collisionRadius);
                 if (collideZ) {
-                    this.vz = -this.vz * collisionRestitution;
                     nextZ = this.z;
                 }
                 collided = collideX || collideY || collideZ;
                 if (collided) {
-                    if (collisionDrag > 0.0f) {
-                        float drag = Math.max(0.0f, 1.0f - collisionDrag);
-                        this.vx *= drag;
-                        this.vy *= drag;
-                        this.vz *= drag;
+                    double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
+                    if (speed > 0.0) {
+                        double newSpeed = Math.max(0.0, speed - collisionDrag);
+                        double scale = newSpeed / speed;
+                        this.vx *= scale;
+                        this.vy *= scale;
+                        this.vz *= scale;
+                    }
+                    if (collideY) {
+                        this.vy = -this.vy * collisionRestitution;
                     }
                     fireCollisionEvents();
                     if (expireOnContact) {
@@ -551,10 +579,6 @@ public class BedrockParticleDebugSystem {
                 b = clamp01(tint.blue().get(this, environment));
                 a = clamp01(tint.alpha().get(this, environment));
             }
-            float lightFactor = resolveLightFactor(px, py, pz);
-            r = clamp01(r * lightFactor);
-            g = clamp01(g * lightFactor);
-            b = clamp01(b * lightFactor);
             renderProps.setColor(r, g, b, a);
 
             applyBlendMode();
@@ -563,6 +587,7 @@ public class BedrockParticleDebugSystem {
             float yaw = mc.getRenderManager().playerViewY;
             float pitch = mc.getRenderManager().playerViewX;
             boolean oriented = false;
+            boolean directionMode = false;
             if (billboard != null && billboard.cameraMode() != null) {
                 switch (billboard.cameraMode()) {
                     case ROTATE_Y:
@@ -589,16 +614,37 @@ public class BedrockParticleDebugSystem {
                     case DIRECTION_X:
                     case DIRECTION_Y:
                     case DIRECTION_Z:
-                        oriented = applyDirectionFacing(billboard.cameraMode());
+                        directionMode = true;
+                        oriented = applyDirectionFacing(billboard.cameraMode(), camX, camY, camZ, px, py, pz);
                         break;
                     default:
                         break;
                 }
             }
             if (!oriented) {
+                if (directionMode) {
+                    GlStateManager.popMatrix();
+                    resetBlendMode();
+                    return;
+                }
                 GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
                 GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
             }
+            int prevLightX = (int) OpenGlHelper.lastBrightnessX;
+            int prevLightY = (int) OpenGlHelper.lastBrightnessY;
+            int lightX;
+            int lightY;
+            if (lighting != null) {
+                int packed = resolvePackedLight(px, py, pz);
+                lightX = packed & 0xFFFF;
+                lightY = (packed >> 16) & 0xFFFF;
+                renderProps.setPackedLight(packed);
+            } else {
+                lightX = 240;
+                lightY = 240;
+                renderProps.setPackedLight((lightY << 16) | lightX);
+            }
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
             float renderRoll = this.prevRoll + (this.roll - this.prevRoll) * partialTicks;
             if (renderRoll != 0.0f) {
                 GlStateManager.rotate(renderRoll, 0.0F, 0.0F, 1.0F);
@@ -624,6 +670,7 @@ public class BedrockParticleDebugSystem {
             buffer.pos(halfW, halfH, 0.0).tex(u1, v0).color(cr, cg, cb, ca).endVertex();
             buffer.pos(-halfW, halfH, 0.0).tex(u0, v0).color(cr, cg, cb, ca).endVertex();
             Tessellator.getInstance().draw();
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
 
             GlStateManager.popMatrix();
             resetBlendMode();
@@ -645,20 +692,108 @@ public class BedrockParticleDebugSystem {
             return applyDirectionAsNormal(tempDir);
         }
 
-        private boolean applyDirectionFacing(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
+        private boolean applyDirectionFacing(ParticleAppearanceBillboardComponent.FaceCameraMode mode,
+                                             double camX, double camY, double camZ,
+                                             double px, double py, double pz) {
             if (!resolveFacingDirection(tempDir)) {
+                return false;
+            }
+            float dx = tempDir[0];
+            float dy = tempDir[1];
+            float dz = tempDir[2];
+            float lenSq = dx * dx + dy * dy + dz * dz;
+            if (lenSq <= 1.0e-6f) {
                 return false;
             }
             switch (mode) {
                 case DIRECTION_X:
-                    return applyDirectionAsAxis(tempDir, 0);
+                    return applyDirectionX(dx, dy, dz);
                 case DIRECTION_Y:
-                    return applyDirectionAsAxis(tempDir, 1);
+                    return applyDirectionY(dx, dy, dz);
                 case DIRECTION_Z:
+                    return applyDirectionZ(dx, dy, dz);
                 case LOOKAT_DIRECTION:
                 default:
-                    return applyDirectionAsNormal(tempDir);
+                    return applyLookAtDirection(dx, dy, dz, camX, camY, camZ, px, py, pz);
             }
+        }
+
+        private boolean applyDirectionX(float dx, float dy, float dz) {
+            float yRot = (float) Math.atan2(dz, dx);
+            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            tempQuat.identity().rotateZYX(0.0f, -yRot, xRot);
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyDirectionY(float dx, float dy, float dz) {
+            float yRot = (float) Math.atan2(dz, dx);
+            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            float halfPi = (float) (Math.PI * 0.5f);
+            tempQuat.identity().rotateZYX(0.0f, -(yRot - halfPi), -(xRot - halfPi));
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyDirectionZ(float dx, float dy, float dz) {
+            float yRot = (float) Math.atan2(dz, dx);
+            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            float halfPi = (float) (Math.PI * 0.5f);
+            tempQuat.identity().rotateZYX(0.0f, -(halfPi + yRot), xRot);
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyLookAtDirection(float dx, float dy, float dz,
+                                             double camX, double camY, double camZ,
+                                             double px, double py, double pz) {
+            float yRot = (float) Math.atan2(dz, dx);
+            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            tempQuat.identity();
+            tempQuat.rotateY(-yRot);
+            tempQuat.rotateX(xRot + (float) (Math.PI * 0.5f));
+
+            // rotated normal
+            tempVecZ.set(0.0f, 0.0f, 1.0f);
+            tempQuat.transform(tempVecZ);
+
+            // camera direction projected onto plane
+            tempVecA.set((float) (camX - px), (float) (camY - py), (float) (camZ - pz));
+            tempVecB.set(dx, dy, dz).normalize();
+            float dot = tempVecA.dot(tempVecB);
+            tempVecA.sub(tempVecB.x * dot, tempVecB.y * dot, tempVecB.z * dot);
+            if (tempVecA.lengthSquared() <= 1.0e-6f) {
+                return false;
+            }
+            tempVecA.normalize();
+
+            tempVecX.set(tempVecA).cross(tempVecZ);
+            float angle = tempVecA.angle(tempVecZ);
+            float sign = tempVecX.dot(tempVecB);
+            float finalRot = (float) -Math.copySign(angle, sign);
+            tempQuat.rotateY(finalRot);
+
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyRotationFromQuaternion() {
+            tempVecX.set(1.0f, 0.0f, 0.0f);
+            tempVecY.set(0.0f, 1.0f, 0.0f);
+            tempVecZ.set(0.0f, 0.0f, 1.0f);
+            tempQuat.transform(tempVecX);
+            tempQuat.transform(tempVecY);
+            tempQuat.transform(tempVecZ);
+            tempAxisX[0] = tempVecX.x;
+            tempAxisX[1] = tempVecX.y;
+            tempAxisX[2] = tempVecX.z;
+            tempAxisY[0] = tempVecY.x;
+            tempAxisY[1] = tempVecY.y;
+            tempAxisY[2] = tempVecY.z;
+            tempAxisZ[0] = tempVecZ.x;
+            tempAxisZ[1] = tempVecZ.y;
+            tempAxisZ[2] = tempVecZ.z;
+            normalize(tempAxisX);
+            normalize(tempAxisY);
+            normalize(tempAxisZ);
+            multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
         }
 
         private boolean applyEmitterTransform(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
@@ -924,20 +1059,17 @@ public class BedrockParticleDebugSystem {
             return mc.world.getBlockState(blockPos).getBlock();
         }
 
-        private float resolveLightFactor(double px, double py, double pz) {
+        private int resolvePackedLight(double px, double py, double pz) {
             if (lighting == null) {
-                return 1.0f;
+                return 0;
             }
             Minecraft mc = Minecraft.getMinecraft();
             if (mc == null || mc.world == null) {
-                return 1.0f;
+                return 0;
             }
             blockPos.setPos((int) Math.floor(px), (int) Math.floor(py), (int) Math.floor(pz));
             int packed = mc.world.getCombinedLight(blockPos, 0);
-            renderProps.setPackedLight(packed);
-            int sky = (packed >> 20) & 0xF;
-            int block = (packed >> 4) & 0xF;
-            return Math.max(sky, block) / 15.0f;
+            return packed;
         }
 
         private void applyBlendMode() {
@@ -1222,6 +1354,7 @@ public class BedrockParticleDebugSystem {
         private float sleepTimeEval;
         private float sleepRemaining;
         private int maxParticlesEval;
+        private float steadyRemainder;
         private boolean instantEmitted;
         private boolean expired;
         private int activeParticles;
@@ -1290,6 +1423,7 @@ public class BedrockParticleDebugSystem {
             this.eventRandom = new Random();
             this.lifetimeEventIndex = 0;
             this.expirationEventsFired = false;
+            this.steadyRemainder = 0.0f;
 
             evaluateLifetimeOnCreate();
             updateContext(0.0f);
@@ -1350,19 +1484,40 @@ public class BedrockParticleDebugSystem {
             return !expired || activeParticles > 0;
         }
 
+        private void render(float partialTicks) {
+            if (emitterInitialization == null || emitterInitialization.renderExpression() == null) {
+                return;
+            }
+            float renderAge = this.age + partialTicks * TICK_SECONDS;
+            updateContext(renderAge);
+            environment.safeResolve(emitterInitialization.renderExpression());
+        }
+
         private void emitSteady() {
             int maxCount = getMaxParticles() - activeParticles;
             if (maxCount <= 0) {
                 return;
             }
             float spawnRate = environment.safeResolve(rateSteady.spawnRate());
-            int perTick = (int) (spawnRate / 20.0f);
-            if (perTick <= 0) {
+            if (spawnRate <= 0.0f) {
                 return;
             }
             int room = getRemainingParticleRoom();
-            int count = Math.min(Math.min(perTick, maxCount), room);
-            emitParticles(count, room);
+            if (room <= 0) {
+                return;
+            }
+            steadyRemainder += spawnRate / 20.0f;
+            int count = (int) steadyRemainder;
+            if (count <= 0) {
+                return;
+            }
+            int actual = Math.min(Math.min(count, maxCount), room);
+            if (actual <= 0) {
+                steadyRemainder -= count;
+                return;
+            }
+            emitParticles(actual, room);
+            steadyRemainder -= count;
         }
 
         private int resolveInstantCount() {
@@ -1370,7 +1525,7 @@ public class BedrockParticleDebugSystem {
                 return overrideCount;
             }
             float count = environment.safeResolve(rateInstant.particleCount());
-            return Math.max(1, Math.round(count));
+            return Math.max(0, (int) count);
         }
 
         private int getMaxParticles() {
@@ -1379,7 +1534,7 @@ public class BedrockParticleDebugSystem {
             }
             if (maxParticlesEval <= 0) {
                 float max = environment.safeResolve(rateSteady.maxParticles());
-                maxParticlesEval = Math.max(1, Math.round(max));
+                maxParticlesEval = Math.max(1, (int) max);
             }
             if (overrideCount > 0) {
                 return Math.min(maxParticlesEval, overrideCount);
@@ -1456,6 +1611,7 @@ public class BedrockParticleDebugSystem {
             }
             instantEmitted = false;
             maxParticlesEval = 0;
+            steadyRemainder = 0.0f;
             updateContext(0.0f);
             if (emitterInitialization != null && emitterInitialization.creationExpression() != null) {
                 environment.safeResolve(emitterInitialization.creationExpression());
