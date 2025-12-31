@@ -98,6 +98,11 @@ public final class ParticleComponentParserImpl {
             try {
                 components.put(key, factory.create(entry.getValue()));
             } catch (Exception e) {
+                LOGGER.error("Failed to parse component: {} - Cause: {}", key, e.getMessage(), e);
+                String detail = e.getMessage();
+                if (detail != null && !detail.isEmpty()) {
+                    throw new JsonSyntaxException("Invalid particle component: " + key + " - " + detail, e);
+                }
                 throw new JsonSyntaxException("Invalid particle component: " + key, e);
             }
         }

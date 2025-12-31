@@ -9,6 +9,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.nio.file.Files;
@@ -61,6 +62,7 @@ public class BytecodeCompiler extends ClassLoader {
             classNode.interfaces.add(MolangExpression.class.getName().replaceAll("\\.", "/"));
 
             MethodNode init = new MethodNode();
+            ensureInstructions(init);
             init.access = Opcodes.ACC_PUBLIC;
             init.name = "<init>";
             init.desc = "()V";
@@ -70,6 +72,7 @@ public class BytecodeCompiler extends ClassLoader {
             classNode.methods.add(init);
 
             MethodNode method = new MethodNode();
+            ensureInstructions(method);
             method.access = Opcodes.ACC_PUBLIC;
             method.name = "get";
             method.desc = "(Lgg/moonflower/molangcompiler/api/MolangEnvironment;)F";
@@ -80,6 +83,7 @@ public class BytecodeCompiler extends ClassLoader {
             String compiledSource = node.toString();
 
             MethodNode equals = new MethodNode();
+            ensureInstructions(equals);
             Label equalsFail = new Label();
             Label equalsReturn = new Label();
             equals.access = Opcodes.ACC_PUBLIC;
@@ -108,6 +112,7 @@ public class BytecodeCompiler extends ClassLoader {
             classNode.methods.add(equals);
 
             MethodNode hashCode = new MethodNode();
+            ensureInstructions(hashCode);
             hashCode.access = Opcodes.ACC_PUBLIC;
             hashCode.name = "hashCode";
             hashCode.desc = "()I";
@@ -116,6 +121,7 @@ public class BytecodeCompiler extends ClassLoader {
             classNode.methods.add(hashCode);
 
             MethodNode toString = new MethodNode();
+            ensureInstructions(toString);
             toString.access = Opcodes.ACC_PUBLIC;
             toString.name = "toString";
             toString.desc = "()Ljava/lang/String;";
@@ -182,6 +188,15 @@ public class BytecodeCompiler extends ClassLoader {
                     method.visitLdcInsn(value);
                 }
             }
+        }
+    }
+
+    private static void ensureInstructions(MethodNode node) {
+        if (node.instructions == null) {
+            node.instructions = new InsnList();
+        }
+        if (node.exceptions == null) {
+            node.exceptions = new java.util.ArrayList<>();
         }
     }
 }

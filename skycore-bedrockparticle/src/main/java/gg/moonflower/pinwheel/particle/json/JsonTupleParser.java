@@ -157,7 +157,8 @@ public interface JsonTupleParser {
                     String expr = normalizeExpression(valuePrimitive.getAsString());
                     return PinwheelMolangCompiler.get().compile(expr);
                 } catch (MolangException e) {
-                    throw new JsonParseException("Failed to compile MoLang expression", e);
+                    String exprText = valuePrimitive.getAsString();
+                    throw new JsonParseException("Failed to compile MoLang expression: " + exprText, e);
                 }
             }
         }

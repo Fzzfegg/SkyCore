@@ -18,7 +18,7 @@ public class MolangCompilerImpl implements MolangCompiler {
     private final BytecodeCompiler compiler;
 
     public MolangCompilerImpl(int flags) {
-        this.compiler = new BytecodeCompiler(flags);
+        this.compiler = new BytecodeCompiler(flags, resolveClassLoader());
     }
 
     public MolangCompilerImpl(int flags, ClassLoader classLoader) {
@@ -29,5 +29,13 @@ public class MolangCompilerImpl implements MolangCompiler {
         MolangLexer.Token[] tokens = MolangLexer.createTokens(input);
         Node node = MolangParser.parseTokens(tokens);
         return this.compiler.build(node);
+    }
+
+    private static ClassLoader resolveClassLoader() {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (cl == null) {
+            cl = MolangExpression.class.getClassLoader();
+        }
+        return cl != null ? cl : ClassLoader.getSystemClassLoader();
     }
 }

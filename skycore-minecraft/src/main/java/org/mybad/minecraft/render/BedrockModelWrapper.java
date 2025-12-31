@@ -472,9 +472,9 @@ public class BedrockModelWrapper {
         if (locatorRot != null && (locatorRot[0] != 0 || locatorRot[1] != 0 || locatorRot[2] != 0)) {
             MatrixStack rotStack = new MatrixStack();
             rotStack.rotateEuler(
-                convertRotation(locatorRot[0], true),
+                convertRotation(locatorRot[0], false),
                 convertRotation(locatorRot[1], true),
-                convertRotation(locatorRot[2], false)
+                convertRotation(locatorRot[2], true)
             );
             applyRotationToBasis(rotStack.getModelMatrix(), out);
         }
@@ -853,9 +853,9 @@ public class BedrockModelWrapper {
         stack.translate(pivotX, pivotY, pivotZ);
         float[] rotation = cube.getRotation();
         stack.rotateEuler(
-            convertRotation(rotation[0], true),
+            convertRotation(rotation[0], false),
             convertRotation(rotation[1], true),
-            convertRotation(rotation[2], false)
+            convertRotation(rotation[2], true)
         );
         stack.translate(-pivotX, -pivotY, -pivotZ);
         return stack;
@@ -881,9 +881,9 @@ public class BedrockModelWrapper {
         float[] rotation = bone.getRotation();
         if (rotation[0] != 0 || rotation[1] != 0 || rotation[2] != 0) {
             stack.rotateEuler(
-                convertRotation(rotation[0], true),
+                convertRotation(rotation[0], false),
                 convertRotation(rotation[1], true),
-                convertRotation(rotation[2], false)
+                convertRotation(rotation[2], true)
             );
         }
 

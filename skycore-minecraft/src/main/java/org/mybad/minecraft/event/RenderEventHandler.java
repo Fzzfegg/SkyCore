@@ -569,9 +569,19 @@ public class RenderEventHandler {
                 float sin = MathHelper.sin(yawRad);
                 float rx = lx * cos - lz * sin;
                 float rz = lx * sin + lz * cos;
-                double baseX = usedInitial ? (entity != null ? entity.posX : initialX) : initialX;
-                double baseY = usedInitial ? (entity != null ? entity.posY : initialY) : initialY;
-                double baseZ = usedInitial ? (entity != null ? entity.posZ : initialZ) : initialZ;
+                double baseX;
+                double baseY;
+                double baseZ;
+                if (usedInitial) {
+                    baseX = entity != null ? entity.posX : initialX;
+                    baseY = entity != null ? entity.posY : initialY;
+                    baseZ = entity != null ? entity.posZ : initialZ;
+                } else {
+                    // initialX/Y/Z already include locator offset; subtract once to avoid double offset on first frame
+                    baseX = initialX - rx;
+                    baseY = initialY - ly;
+                    baseZ = initialZ - rz;
+                }
                 transform.x = baseX + rx;
                 transform.y = baseY + ly;
                 transform.z = baseZ + rz;
