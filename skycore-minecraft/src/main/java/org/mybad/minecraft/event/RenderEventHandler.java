@@ -412,7 +412,7 @@ public class RenderEventHandler {
         if (event.getType() == Animation.Event.Type.PARTICLE) {
             spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), partialTicks);
         } else {
-            float positionYaw = resolveBodyYaw(entity, partialTicks);
+            float positionYaw = resolveHeadYaw(entity, partialTicks);
             double[] pos = resolveEventPosition(entity, wrapper, event.getLocator(), positionYaw, partialTicks);
             playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
         }
@@ -434,7 +434,7 @@ public class RenderEventHandler {
         if (system == null) {
             return;
         }
-        float positionYaw = resolveBodyYaw(entity, partialTicks);
+        float positionYaw = resolveHeadYaw(entity, partialTicks);
         float emitterYaw = resolveEmitterYaw(entity, partialTicks, params);
         double[] initialPos = resolveEventPosition(entity, wrapper, locatorName, positionYaw, partialTicks);
         if (entity == null) {
@@ -588,7 +588,7 @@ public class RenderEventHandler {
 
         @Override
         public void fill(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform, float deltaSeconds) {
-            float positionYaw = resolveBodyYaw(entity);
+            float positionYaw = resolveHeadYaw(entity);
             float emitterYaw = resolveEmitterYaw(entity, mode, yawOffset, initialEmitterYaw);
             if (wrapper != null && locatorName != null && wrapper.getLocatorTransform(locatorName, locatorTransform)) {
                 float scale = wrapper.getModelScale();
@@ -716,6 +716,13 @@ public class RenderEventHandler {
             return 0.0f;
         }
         return entity.renderYawOffset;
+    }
+
+    private float resolveHeadYaw(EntityLivingBase entity) {
+        if (entity == null) {
+            return 0.0f;
+        }
+        return entity.rotationYawHead;
     }
 
     private float resolveHeadYaw(EntityLivingBase entity, float partialTicks) {

@@ -143,30 +143,73 @@ public class QuadRenderProperties {
 
     public void setUV(MolangEnvironment environment, int textureWidth, int textureHeight, Flipbook flipbook, float time, float maxLife) {
         int maxFrame = (int) environment.safeResolve(flipbook.maxFrame());
-        int frame;
-        if (flipbook.stretchToLifetime()) {
-            frame = Math.min((int) (time / maxLife * (maxFrame + 1)), maxFrame);
-        } else {
-            frame = (int) (time * flipbook.fps());
-            if (flipbook.loop()) {
-                int frameCount = Math.max(1, maxFrame + 1);
-                frame = frame % frameCount;
-            } else {
-                frame = Math.min(frame, maxFrame);
-            }
-        }
-
+        int frameCount = Math.max(1, maxFrame);
+        int lastFrame = frameCount - 1;
         float u = environment.safeResolve(flipbook.baseU());
         float v = environment.safeResolve(flipbook.baseV());
         float uSize = flipbook.sizeU();
         float vSize = flipbook.sizeV();
-        float uo = flipbook.stepU() * frame;
-        float vo = flipbook.stepV() * frame;
+        float stepU = flipbook.stepU();
+        float stepV = flipbook.stepV();
+        int minFrame = 0;
+        int maxFrameAllowed = lastFrame;
+        if (textureWidth > 0 && textureHeight > 0) {
+            int[] uBounds = computeFrameBounds(u, uSize, stepU, textureWidth);
+            if (uBounds != null) {
+                minFrame = Math.max(minFrame, uBounds[0]);
+                maxFrameAllowed = Math.min(maxFrameAllowed, uBounds[1]);
+            }
+            int[] vBounds = computeFrameBounds(v, vSize, stepV, textureHeight);
+            if (vBounds != null) {
+                minFrame = Math.max(minFrame, vBounds[0]);
+                maxFrameAllowed = Math.min(maxFrameAllowed, vBounds[1]);
+            }
+        }
+        int frame;
+        if (flipbook.stretchToLifetime()) {
+            if (maxLife <= 0.0f) {
+                frame = 0;
+            } else {
+                frame = (int) (time / maxLife * frameCount);
+                frame = Math.min(Math.max(frame, 0), lastFrame);
+            }
+        } else {
+            frame = (int) (time * flipbook.fps());
+            if (flipbook.loop()) {
+                frame = frame % frameCount;
+                if (frame < 0) {
+                    frame += frameCount;
+                }
+            } else {
+                frame = Math.min(frame, lastFrame);
+            }
+        }
+        if (maxFrameAllowed < minFrame) {
+            frame = 0;
+        } else {
+            frame = Math.min(Math.max(frame, minFrame), maxFrameAllowed);
+        }
+
+        float uo = stepU * frame;
+        float vo = stepV * frame;
 
         float uMin = (u + uo) / (float) textureWidth;
         float vMin = (v + vo) / (float) textureHeight;
         float uMax = (u + uo + uSize) / (float) textureWidth;
         float vMax = (v + vo + vSize) / (float) textureHeight;
         this.setUV(uMin, vMin, uMax, vMax);
+    }
+
+    private static int[] computeFrameBounds(float base, float size, float step, int textureSize) {
+        if (step == 0.0f) {
+            return null;
+        }
+        float boundA = (0.0f - base) / step;
+        float boundB = (textureSize - size - base) / step;
+        float minBound = Math.min(boundA, boundB);
+        float maxBound = Math.max(boundA, boundB);
+        int minFrame = (int) Math.ceil(minBound);
+        int maxFrame = (int) Math.floor(maxBound);
+        return new int[]{minFrame, maxFrame};
     }
 }
