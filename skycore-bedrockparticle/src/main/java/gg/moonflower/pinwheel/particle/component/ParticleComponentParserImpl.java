@@ -56,6 +56,7 @@ public final class ParticleComponentParserImpl {
         put(builder, "emitter_shape_sphere", EmitterShapeSphereComponent::deserialize);
 
         put(builder, "emitter_initialization", EmitterInitializationComponent::deserialize);
+        put(builder, "particle_initialization", EmitterInitializationComponent::deserialize);
         put(builder, "emitter_local_space", EmitterLocalSpaceComponent::deserialize);
 
         put(builder, "particle_appearance_billboard", ParticleAppearanceBillboardComponent::deserialize);

@@ -154,7 +154,8 @@ public interface JsonTupleParser {
                 return MolangExpression.of(valuePrimitive.getAsFloat());
             } else if (valuePrimitive.isString()) {
                 try {
-                    return PinwheelMolangCompiler.get().compile(valuePrimitive.getAsString());
+                    String expr = normalizeExpression(valuePrimitive.getAsString());
+                    return PinwheelMolangCompiler.get().compile(expr);
                 } catch (MolangException e) {
                     throw new JsonParseException("Failed to compile MoLang expression", e);
                 }
@@ -162,5 +163,13 @@ public interface JsonTupleParser {
         }
 
         throw new JsonSyntaxException("Expected " + name + " to be a Float or JsonPrimitive, was " + PinwheelGsonHelper.getType(json));
+    }
+
+    static String normalizeExpression(String expression) {
+        if (expression == null) {
+            return null;
+        }
+        // Be lenient with common namespace casing from editors (e.g. Math.floor -> math.floor).
+        return expression.replaceAll("(?i)math\\.", "math.");
     }
 }

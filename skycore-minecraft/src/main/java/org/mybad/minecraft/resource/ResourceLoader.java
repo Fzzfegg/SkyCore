@@ -164,7 +164,7 @@ public class ResourceLoader {
 
         try {
             IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
-            try (InputStream is = resource.getInputStream();
+            try (InputStream is = resource.getInputStream(); 
                  BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
 
                 StringBuilder sb = new StringBuilder();

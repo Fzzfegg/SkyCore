@@ -12,6 +12,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.8.9'
     implementation 'org.jetbrains:annotations:20.1.0'
     implementation 'org.joml:joml:1.10.5'
+    implementation 'org.ow2.asm:asm-tree:5.2'
 
     // 仅编译期依赖，运行时由 Minecraft/Forge 提供
     compileOnly 'com.google.guava:guava:21.0'

@@ -2,25 +2,34 @@ package org.mybad.minecraft.particle;
 
 import gg.moonflower.molangcompiler.api.MolangEnvironment;
 import gg.moonflower.molangcompiler.api.MolangExpression;
-import gg.moonflower.molangcompiler.api.BindingMolangEnvironment;
+import gg.moonflower.molangcompiler.api.MolangRuntime;
 import gg.moonflower.pinwheel.particle.ParticleData;
 import gg.moonflower.pinwheel.particle.ParticleInstance;
+import gg.moonflower.pinwheel.particle.ParticleContext;
 import gg.moonflower.pinwheel.particle.component.EmitterRateInstantComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterRateSteadyComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLocalSpaceComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeOnceComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeLoopingComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeExpressionComponent;
+import gg.moonflower.pinwheel.particle.component.EmitterInitializationComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleEmitterShape;
 import gg.moonflower.pinwheel.particle.component.ParticleAppearanceBillboardComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleAppearanceTintingComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleAppearanceLightingComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleInitialSpinComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleInitialSpeedComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleLifetimeExpressionComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleLifetimeEventComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleKillPlaneComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleExpireInBlocksComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleExpireNotInBlocksComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleMotionDynamicComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleMotionParametricComponent;
 import gg.moonflower.pinwheel.particle.component.ParticleMotionCollisionComponent;
+import gg.moonflower.pinwheel.particle.event.ParticleEvent;
 import gg.moonflower.pollen.particle.render.QuadRenderProperties;
+import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -28,6 +37,10 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.SoundEvent;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -35,8 +48,6 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.resource.ResourceLoader;
-import org.mybad.core.legacy.expression.molang.reference.ExpressionBindingContext;
-import org.mybad.core.legacy.expression.molang.reference.ReferenceType;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.BufferUtils;
 
@@ -44,7 +55,6 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -61,13 +71,19 @@ public class BedrockParticleDebugSystem {
     private final ResourceLoader resourceLoader;
     private final List<ActiveParticle> particles;
     private final List<ActiveEmitter> emitters;
+    private final List<ActiveParticle> pendingParticles;
+    private final List<ActiveEmitter> pendingEmitters;
     private final Random random;
+    private boolean ticking;
 
     public BedrockParticleDebugSystem(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
         this.particles = new ArrayList<>();
         this.emitters = new ArrayList<>();
+        this.pendingParticles = new ArrayList<>();
+        this.pendingEmitters = new ArrayList<>();
         this.random = new Random();
+        this.ticking = false;
     }
 
     public boolean spawn(String particlePath, double x, double y, double z, int overrideCount) {
@@ -83,25 +99,65 @@ public class BedrockParticleDebugSystem {
         if (data == null) {
             return false;
         }
-        int room = MAX_DEBUG_PARTICLES - particles.size();
+        int room = getRemainingParticleRoom();
         if (room <= 0) {
             return false;
         }
         ActiveEmitter emitter = new ActiveEmitter(data, provider, overrideCount);
         emitter.emitInitialParticles(room);
         if (emitter.isAlive()) {
-            emitters.add(emitter);
+            addEmitter(emitter);
         }
         return emitter.hasSpawnedParticles() || emitter.isAlive();
+    }
+
+    private void addEmitter(ActiveEmitter emitter) {
+        if (emitter == null) {
+            return;
+        }
+        if (ticking) {
+            pendingEmitters.add(emitter);
+        } else {
+            emitters.add(emitter);
+        }
+    }
+
+    private void addParticle(ActiveParticle particle) {
+        if (particle == null) {
+            return;
+        }
+        if (ticking) {
+            pendingParticles.add(particle);
+        } else {
+            particles.add(particle);
+        }
+    }
+
+    private void flushPending() {
+        if (!pendingEmitters.isEmpty()) {
+            emitters.addAll(pendingEmitters);
+            pendingEmitters.clear();
+        }
+        if (!pendingParticles.isEmpty()) {
+            particles.addAll(pendingParticles);
+            pendingParticles.clear();
+        }
+    }
+
+    private int getRemainingParticleRoom() {
+        int used = particles.size() + pendingParticles.size();
+        return MAX_DEBUG_PARTICLES - used;
     }
 
     public void clear() {
         particles.clear();
         emitters.clear();
+        pendingParticles.clear();
+        pendingEmitters.clear();
     }
 
     public int getActiveCount() {
-        return particles.size();
+        return particles.size() + pendingParticles.size();
     }
 
     @SubscribeEvent
@@ -111,11 +167,12 @@ public class BedrockParticleDebugSystem {
         }
         if (Minecraft.getMinecraft().world == null) {
             particles.clear();
+            emitters.clear();
+            pendingParticles.clear();
+            pendingEmitters.clear();
             return;
         }
-        if (particles.isEmpty()) {
-            // continue to tick emitters even if no particles yet
-        }
+        ticking = true;
         if (!emitters.isEmpty()) {
             Iterator<ActiveEmitter> emitterIterator = emitters.iterator();
             while (emitterIterator.hasNext()) {
@@ -133,6 +190,8 @@ public class BedrockParticleDebugSystem {
                 iterator.remove();
             }
         }
+        ticking = false;
+        flushPending();
     }
 
     @SubscribeEvent
@@ -195,25 +254,38 @@ public class BedrockParticleDebugSystem {
         }
     }
 
-    private static final class ActiveParticle implements ParticleInstance {
+    private final class ActiveParticle implements ParticleInstance, ParticleContext {
+        private final ParticleData data;
         private final Map<String, ParticleData.Curve> curves;
         private final Map<String, Float> curveValues;
         private final QuadRenderProperties renderProps;
         private final ParticleAppearanceBillboardComponent billboard;
         private final ParticleAppearanceTintingComponent tint;
+        private final ParticleAppearanceLightingComponent lighting;
         private final ParticleInitialSpeedComponent speed;
         private final ParticleInitialSpinComponent initialSpin;
         private final ParticleMotionDynamicComponent motionDynamic;
         private final ParticleMotionParametricComponent motionParametric;
         private final ParticleMotionCollisionComponent motionCollision;
+        private final ParticleLifetimeEventComponent lifetimeEvents;
+        private final ParticleKillPlaneComponent killPlane;
+        private final ParticleExpireInBlocksComponent expireInBlocks;
+        private final ParticleExpireNotInBlocksComponent expireNotInBlocks;
+        private final EmitterInitializationComponent particleInitialization;
         private final ResourceLocation texture;
         private final float lifetime;
         private final ParticleMolangContext molangContext;
-        private final ParticleMolangEnvironment environment;
+        private final MolangEnvironment environment;
         private final ActiveEmitter emitter;
         private final boolean localPosition;
         private final boolean localRotation;
         private final boolean localVelocity;
+        private final BlendMode blendMode;
+        private final Block[] expireInBlockIds;
+        private final Block[] expireNotInBlockIds;
+        private final BlockPos.MutableBlockPos blockPos;
+        private final Random eventRandom;
+        private int lifetimeEventIndex;
 
         private double x;
         private double y;
@@ -254,6 +326,7 @@ public class BedrockParticleDebugSystem {
                                ParticleInitialSpeedComponent speed,
                                ResourceLocation texture,
                                ParticleLifetimeExpressionComponent lifetimeComponent) {
+            this.data = data;
             this.x = x;
             this.y = y;
             this.z = z;
@@ -262,11 +335,17 @@ public class BedrockParticleDebugSystem {
             this.prevZ = z;
             this.billboard = billboard;
             this.tint = tint;
+            this.lighting = getComponent(data, "particle_appearance_lighting");
             this.speed = speed;
             this.initialSpin = getComponent(data, "particle_initial_spin");
             this.motionDynamic = getComponent(data, "particle_motion_dynamic");
             this.motionParametric = getComponent(data, "particle_motion_parametric");
             this.motionCollision = getComponent(data, "particle_motion_collision");
+            this.lifetimeEvents = getComponent(data, "particle_lifetime_events");
+            this.killPlane = getComponent(data, "particle_kill_plane");
+            this.expireInBlocks = getComponent(data, "particle_expire_if_in_blocks");
+            this.expireNotInBlocks = getComponent(data, "particle_expire_if_not_in_blocks");
+            this.particleInitialization = getComponent(data, "particle_initialization");
             this.texture = texture;
             this.renderProps = new QuadRenderProperties();
             this.age = 0.0f;
@@ -274,6 +353,12 @@ public class BedrockParticleDebugSystem {
             this.localPosition = emitter != null && emitter.isLocalPosition();
             this.localRotation = emitter != null && emitter.isLocalRotation();
             this.localVelocity = emitter != null && emitter.isLocalVelocity();
+            this.blendMode = resolveBlendMode(data);
+            this.expireInBlockIds = resolveBlocks(expireInBlocks);
+            this.expireNotInBlockIds = resolveBlocks(expireNotInBlocks);
+            this.blockPos = new BlockPos.MutableBlockPos();
+            this.eventRandom = new Random();
+            this.lifetimeEventIndex = 0;
             this.molangContext = new ParticleMolangContext();
             this.curves = buildCurveDefinitions(data);
             this.curveValues = this.curves.isEmpty() ? Collections.emptyMap() : new HashMap<>(this.curves.size());
@@ -284,8 +369,7 @@ public class BedrockParticleDebugSystem {
             this.molangContext.random3 = (float) Math.random();
             this.molangContext.random4 = (float) Math.random();
             this.molangContext.entityScale = 1.0f;
-            ExpressionBindingContext bindings = createBindingContext(this.curves);
-            this.environment = new ParticleMolangEnvironment(molangContext, bindings);
+            this.environment = createRuntime(this.molangContext, this.curves);
             this.lifetime = resolveLifetime(lifetimeComponent);
             this.molangContext.particleLifetime = this.lifetime;
             this.tempDir = new float[3];
@@ -293,6 +377,12 @@ public class BedrockParticleDebugSystem {
             this.tempAxisY = new float[3];
             this.tempAxisZ = new float[3];
             updateContext(0.0f);
+            if (particleInitialization != null && particleInitialization.creationExpression() != null) {
+                environment.safeResolve(particleInitialization.creationExpression());
+            }
+            if (lifetimeEvents != null) {
+                fireEvents(lifetimeEvents.creationEvent());
+            }
             if (initialSpin != null) {
                 this.roll = environment.safeResolve(initialSpin.rotation());
                 this.rollVelocity = environment.safeResolve(initialSpin.rotationRate()) / 20.0f;
@@ -355,6 +445,10 @@ public class BedrockParticleDebugSystem {
                 }
             }
             updateContext(this.age);
+            if (particleInitialization != null && particleInitialization.tickExpression() != null) {
+                environment.safeResolve(particleInitialization.tickExpression());
+            }
+            tickLifetimeEvents();
             applyParametricMotion();
             applyDynamicMotion();
             this.vx += this.ax;
@@ -365,6 +459,7 @@ public class BedrockParticleDebugSystem {
             double nextX = this.x + this.vx;
             double nextY = this.y + this.vy;
             double nextZ = this.z + this.vz;
+            boolean collided = false;
             if (motionCollision != null && isCollisionEnabled()) {
                 boolean collideX = isColliding(nextX, this.y, this.z, collisionRadius);
                 if (collideX) {
@@ -381,21 +476,29 @@ public class BedrockParticleDebugSystem {
                     this.vz = -this.vz * collisionRestitution;
                     nextZ = this.z;
                 }
-                if (collideX || collideY || collideZ) {
+                collided = collideX || collideY || collideZ;
+                if (collided) {
                     if (collisionDrag > 0.0f) {
                         float drag = Math.max(0.0f, 1.0f - collisionDrag);
                         this.vx *= drag;
                         this.vy *= drag;
                         this.vz *= drag;
                     }
+                    fireCollisionEvents();
                     if (expireOnContact) {
                         return false;
                     }
                 }
             }
+            if (killPlane != null && isKillPlaneCrossed(this.prevX, this.prevY, this.prevZ, nextX, nextY, nextZ)) {
+                return false;
+            }
             this.x = nextX;
             this.y = nextY;
             this.z = nextZ;
+            if (shouldExpireInBlocks() || shouldExpireNotInBlocks()) {
+                return false;
+            }
             this.age += TICK_SECONDS;
             updateContext(this.age);
             return this.age < this.lifetime;
@@ -419,20 +522,26 @@ public class BedrockParticleDebugSystem {
             if (billboard != null) {
                 billboard.textureSetter().setUV(this, environment, renderProps);
             }
-            if (tint != null) {
-                float r = clamp01(tint.red().get(this, environment));
-                float g = clamp01(tint.green().get(this, environment));
-                float b = clamp01(tint.blue().get(this, environment));
-                float a = clamp01(tint.alpha().get(this, environment));
-                renderProps.setColor(r, g, b, a);
-            } else {
-                renderProps.setColor(1.0f, 1.0f, 1.0f, 1.0f);
-            }
-
             double px = this.prevX + (this.x - this.prevX) * partialTicks;
             double py = this.prevY + (this.y - this.prevY) * partialTicks;
             double pz = this.prevZ + (this.z - this.prevZ) * partialTicks;
+            float r = 1.0f;
+            float g = 1.0f;
+            float b = 1.0f;
+            float a = 1.0f;
+            if (tint != null) {
+                r = clamp01(tint.red().get(this, environment));
+                g = clamp01(tint.green().get(this, environment));
+                b = clamp01(tint.blue().get(this, environment));
+                a = clamp01(tint.alpha().get(this, environment));
+            }
+            float lightFactor = resolveLightFactor(px, py, pz);
+            r = clamp01(r * lightFactor);
+            g = clamp01(g * lightFactor);
+            b = clamp01(b * lightFactor);
+            renderProps.setColor(r, g, b, a);
 
+            applyBlendMode();
             GlStateManager.pushMatrix();
             GlStateManager.translate(px - camX, py - camY, pz - camZ);
             float yaw = mc.getRenderManager().playerViewY;
@@ -501,6 +610,7 @@ public class BedrockParticleDebugSystem {
             Tessellator.getInstance().draw();
 
             GlStateManager.popMatrix();
+            resetBlendMode();
         }
 
         private boolean applyLookAt(double camX, double camY, double camZ, double px, double py, double pz, boolean yOnly) {
@@ -655,11 +765,11 @@ public class BedrockParticleDebugSystem {
             return true;
         }
 
-        private static int toColor(float value) {
+        private int toColor(float value) {
             return Math.min(255, Math.max(0, (int) (value * 255.0f)));
         }
 
-        private static float clamp01(float value) {
+        private float clamp01(float value) {
             if (value < 0.0f) {
                 return 0.0f;
             }
@@ -682,6 +792,178 @@ public class BedrockParticleDebugSystem {
         @Override
         public MolangEnvironment getEnvironment() {
             return environment;
+        }
+
+        private void runEvent(String name) {
+            if (name == null || name.isEmpty()) {
+                return;
+            }
+            Map<String, ParticleEvent> events = data.events();
+            if (events == null || events.isEmpty()) {
+                return;
+            }
+            ParticleEvent event = events.get(name);
+            if (event == null) {
+                return;
+            }
+            event.execute(this);
+        }
+
+        private void fireEvents(String[] events) {
+            if (events == null || events.length == 0) {
+                return;
+            }
+            for (String event : events) {
+                runEvent(event);
+            }
+        }
+
+        private void tickLifetimeEvents() {
+            if (lifetimeEvents == null) {
+                return;
+            }
+            ParticleLifetimeEventComponent.TimelineEvent[] timeline = lifetimeEvents.timelineEvents();
+            if (timeline == null || lifetimeEventIndex >= timeline.length) {
+                return;
+            }
+            float time = this.age;
+            while (lifetimeEventIndex < timeline.length && time >= timeline[lifetimeEventIndex].time()) {
+                ParticleLifetimeEventComponent.TimelineEvent evt = timeline[lifetimeEventIndex];
+                fireEvents(evt.events());
+                lifetimeEventIndex++;
+            }
+        }
+
+        private void fireCollisionEvents() {
+            if (motionCollision == null) {
+                return;
+            }
+            fireEvents(motionCollision.events());
+        }
+
+        private boolean isKillPlaneCrossed(double oldX, double oldY, double oldZ,
+                                            double newX, double newY, double newZ) {
+            if (killPlane == null) {
+                return false;
+            }
+            double baseX = emitter != null ? emitter.getX() : 0.0;
+            double baseY = emitter != null ? emitter.getY() : 0.0;
+            double baseZ = emitter != null ? emitter.getZ() : 0.0;
+            return killPlane.solve(oldX - baseX, oldY - baseY, oldZ - baseZ,
+                newX - baseX, newY - baseY, newZ - baseZ);
+        }
+
+        private boolean shouldExpireInBlocks() {
+            if (expireInBlockIds == null || expireInBlockIds.length == 0) {
+                return false;
+            }
+            Block block = getCurrentBlock();
+            if (block == null) {
+                return false;
+            }
+            for (Block test : expireInBlockIds) {
+                if (block == test) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean shouldExpireNotInBlocks() {
+            if (expireNotInBlockIds == null || expireNotInBlockIds.length == 0) {
+                return false;
+            }
+            Block block = getCurrentBlock();
+            if (block == null) {
+                return false;
+            }
+            for (Block test : expireNotInBlockIds) {
+                if (block == test) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private Block getCurrentBlock() {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc == null || mc.world == null) {
+                return null;
+            }
+            blockPos.setPos((int) Math.floor(this.x), (int) Math.floor(this.y), (int) Math.floor(this.z));
+            return mc.world.getBlockState(blockPos).getBlock();
+        }
+
+        private float resolveLightFactor(double px, double py, double pz) {
+            if (lighting == null) {
+                return 1.0f;
+            }
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc == null || mc.world == null) {
+                return 1.0f;
+            }
+            blockPos.setPos((int) Math.floor(px), (int) Math.floor(py), (int) Math.floor(pz));
+            int packed = mc.world.getCombinedLight(blockPos, 0);
+            renderProps.setPackedLight(packed);
+            int sky = (packed >> 20) & 0xF;
+            int block = (packed >> 4) & 0xF;
+            return Math.max(sky, block) / 15.0f;
+        }
+
+        private void applyBlendMode() {
+            if (blendMode == BlendMode.OPAQUE) {
+                GlStateManager.disableBlend();
+                return;
+            }
+            GlStateManager.enableBlend();
+            if (blendMode == BlendMode.ADD) {
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            } else {
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            }
+        }
+
+        private void resetBlendMode() {
+            GlStateManager.enableBlend();
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        }
+
+        @Override
+        public void particleEffect(String effect, ParticleEvent.ParticleSpawnType type) {
+            if (effect == null || effect.isEmpty()) {
+                return;
+            }
+            if (type == ParticleEvent.ParticleSpawnType.EMITTER || type == ParticleEvent.ParticleSpawnType.EMITTER_BOUND) {
+                if (emitter != null) {
+                    emitter.particleEffect(effect, ParticleEvent.ParticleSpawnType.PARTICLE);
+                } else {
+                    spawnEffectAt(effect, this.x, this.y, this.z, false);
+                }
+                return;
+            }
+            spawnEffectAt(effect, this.x, this.y, this.z, false);
+        }
+
+        @Override
+        public void soundEffect(String sound) {
+            playSoundAt(sound, this.x, this.y, this.z);
+        }
+
+        @Override
+        public void expression(MolangExpression expression) {
+            if (expression != null) {
+                environment.safeResolve(expression);
+            }
+        }
+
+        @Override
+        public void log(String message) {
+            logMessage(message);
+        }
+
+        @Override
+        public Random getRandom() {
+            return eventRandom;
         }
 
         private void updateContext(float ageSeconds) {
@@ -811,6 +1093,9 @@ public class BedrockParticleDebugSystem {
         }
 
         private void onExpired() {
+            if (lifetimeEvents != null) {
+                fireEvents(lifetimeEvents.expirationEvent());
+            }
             if (emitter != null) {
                 emitter.onParticleExpired();
             }
@@ -854,12 +1139,12 @@ public class BedrockParticleDebugSystem {
         }
     }
 
-    private final class ActiveEmitter {
+    private final class ActiveEmitter implements ParticleContext {
         private final ParticleData data;
         private final Map<String, ParticleData.Curve> curves;
         private final Map<String, Float> curveValues;
         private final ParticleMolangContext molangContext;
-        private final ParticleMolangEnvironment environment;
+        private final MolangEnvironment environment;
         private final ParticleAppearanceBillboardComponent billboard;
         private final ParticleAppearanceTintingComponent tint;
         private final ParticleInitialSpeedComponent speed;
@@ -871,6 +1156,8 @@ public class BedrockParticleDebugSystem {
         private final EmitterLifetimeOnceComponent lifetimeOnce;
         private final EmitterLifetimeLoopingComponent lifetimeLooping;
         private final EmitterLifetimeExpressionComponent lifetimeExpression;
+        private final ParticleLifetimeEventComponent lifetimeEvents;
+        private final EmitterInitializationComponent emitterInitialization;
         private final ResourceLocation texture;
         private final int overrideCount;
         private final EmitterTransformProvider transformProvider;
@@ -882,6 +1169,9 @@ public class BedrockParticleDebugSystem {
         private final float[] lastBasisX;
         private final float[] lastBasisY;
         private final float[] lastBasisZ;
+        private final Random eventRandom;
+        private int lifetimeEventIndex;
+        private boolean expirationEventsFired;
 
         private double x;
         private double y;
@@ -944,8 +1234,7 @@ public class BedrockParticleDebugSystem {
             this.molangContext.emitterRandom3 = this.molangContext.random3;
             this.molangContext.emitterRandom4 = this.molangContext.random4;
             this.molangContext.entityScale = 1.0f;
-            ExpressionBindingContext bindings = createBindingContext(this.curves);
-            this.environment = new ParticleMolangEnvironment(molangContext, bindings);
+            this.environment = createRuntime(this.molangContext, this.curves);
 
             this.billboard = getComponent(data, "particle_appearance_billboard");
             this.tint = getComponent(data, "particle_appearance_tinting");
@@ -958,6 +1247,8 @@ public class BedrockParticleDebugSystem {
             this.lifetimeOnce = getComponent(data, "emitter_lifetime_once");
             this.lifetimeLooping = getComponent(data, "emitter_lifetime_looping");
             this.lifetimeExpression = getComponent(data, "emitter_lifetime_expression");
+            this.lifetimeEvents = getComponent(data, "emitter_lifetime_events");
+            this.emitterInitialization = getComponent(data, "emitter_initialization");
             this.texture = toMinecraft(data);
             this.age = 0.0f;
             this.lifetime = Float.MAX_VALUE;
@@ -966,9 +1257,18 @@ public class BedrockParticleDebugSystem {
             this.activeParticles = 0;
             this.spawnedAny = false;
             this.spawner = new EmitterShapeSpawner();
+            this.eventRandom = new Random();
+            this.lifetimeEventIndex = 0;
+            this.expirationEventsFired = false;
 
             evaluateLifetimeOnCreate();
             updateContext(0.0f);
+            if (emitterInitialization != null && emitterInitialization.creationExpression() != null) {
+                environment.safeResolve(emitterInitialization.creationExpression());
+            }
+            if (lifetimeEvents != null) {
+                fireEvents(lifetimeEvents.creationEvent());
+            }
         }
 
         private void emitInitialParticles(int room) {
@@ -989,7 +1289,7 @@ public class BedrockParticleDebugSystem {
                 int count = overrideCount > 0 ? overrideCount : 1;
                 emitParticles(count, room);
                 instantEmitted = true;
-                expired = true;
+                expire();
             }
         }
 
@@ -999,12 +1299,16 @@ public class BedrockParticleDebugSystem {
             }
             updateTransform(TICK_SECONDS);
             updateContext(age);
+            if (emitterInitialization != null && emitterInitialization.tickExpression() != null) {
+                environment.safeResolve(emitterInitialization.tickExpression());
+            }
+            tickLifetimeEvents();
             applyLifetimeLogic();
             updateContext(age);
             if (!expired && isActive()) {
                 if (rateInstant != null) {
                     if (!instantEmitted) {
-                        emitParticles(resolveInstantCount(), MAX_DEBUG_PARTICLES - particles.size());
+                        emitParticles(resolveInstantCount(), getRemainingParticleRoom());
                         instantEmitted = true;
                     }
                 } else if (rateSteady != null) {
@@ -1026,7 +1330,7 @@ public class BedrockParticleDebugSystem {
             if (perTick <= 0) {
                 return;
             }
-            int room = MAX_DEBUG_PARTICLES - particles.size();
+            int room = getRemainingParticleRoom();
             int count = Math.min(Math.min(perTick, maxCount), room);
             emitParticles(count, room);
         }
@@ -1067,7 +1371,7 @@ public class BedrockParticleDebugSystem {
                 for (int i = 0; i < actual; i++) {
                     ActiveParticle particle = createParticle(x, y, z);
                     particle.applyInitialSpeed();
-                    particles.add(particle);
+                    addParticle(particle);
                     activeParticles++;
                     spawnedAny = true;
                 }
@@ -1079,7 +1383,7 @@ public class BedrockParticleDebugSystem {
                 boolean active = environment.safeResolve(lifetimeExpression.activation()) != 0;
                 lifetime = active ? Float.MAX_VALUE : 0.0f;
                 if (environment.safeResolve(lifetimeExpression.expiration()) != 0) {
-                    expired = true;
+                    expire();
                 }
                 return;
             }
@@ -1102,7 +1406,7 @@ public class BedrockParticleDebugSystem {
                 }
                 lifetime = activeTimeEval;
                 if (!isActive()) {
-                    expired = true;
+                    expire();
                 }
                 return;
             }
@@ -1125,6 +1429,9 @@ public class BedrockParticleDebugSystem {
             instantEmitted = false;
             maxParticlesEval = 0;
             updateContext(0.0f);
+            if (emitterInitialization != null && emitterInitialization.creationExpression() != null) {
+                environment.safeResolve(emitterInitialization.creationExpression());
+            }
         }
 
         private void evaluateLifetimeOnCreate() {
@@ -1145,6 +1452,57 @@ public class BedrockParticleDebugSystem {
             molangContext.particleAge = ageSeconds;
             molangContext.particleLifetime = lifetime;
             updateCurves();
+        }
+
+        private void runEvent(String name) {
+            if (name == null || name.isEmpty()) {
+                return;
+            }
+            Map<String, ParticleEvent> events = data.events();
+            if (events == null || events.isEmpty()) {
+                return;
+            }
+            ParticleEvent event = events.get(name);
+            if (event == null) {
+                return;
+            }
+            event.execute(this);
+        }
+
+        private void fireEvents(String[] events) {
+            if (events == null || events.length == 0) {
+                return;
+            }
+            for (String event : events) {
+                runEvent(event);
+            }
+        }
+
+        private void tickLifetimeEvents() {
+            if (lifetimeEvents == null) {
+                return;
+            }
+            ParticleLifetimeEventComponent.TimelineEvent[] timeline = lifetimeEvents.timelineEvents();
+            if (timeline == null || lifetimeEventIndex >= timeline.length) {
+                return;
+            }
+            float time = this.age;
+            while (lifetimeEventIndex < timeline.length && time >= timeline[lifetimeEventIndex].time()) {
+                ParticleLifetimeEventComponent.TimelineEvent evt = timeline[lifetimeEventIndex];
+                fireEvents(evt.events());
+                lifetimeEventIndex++;
+            }
+        }
+
+        private void expire() {
+            if (expired) {
+                return;
+            }
+            expired = true;
+            if (!expirationEventsFired && lifetimeEvents != null) {
+                expirationEventsFired = true;
+                fireEvents(lifetimeEvents.expirationEvent());
+            }
         }
 
         private void updateCurves() {
@@ -1226,6 +1584,40 @@ public class BedrockParticleDebugSystem {
 
         private float getEmitterRandom4() {
             return molangContext.emitterRandom4;
+        }
+
+        @Override
+        public void particleEffect(String effect, ParticleEvent.ParticleSpawnType type) {
+            if (effect == null || effect.isEmpty()) {
+                return;
+            }
+            if (type == ParticleEvent.ParticleSpawnType.EMITTER_BOUND) {
+                spawnEffectFromEmitter(effect, this, true);
+                return;
+            }
+            spawnEffectFromEmitter(effect, this, false);
+        }
+
+        @Override
+        public void soundEffect(String sound) {
+            playSoundAt(sound, this.x, this.y, this.z);
+        }
+
+        @Override
+        public void expression(MolangExpression expression) {
+            if (expression != null) {
+                environment.safeResolve(expression);
+            }
+        }
+
+        @Override
+        public void log(String message) {
+            logMessage(message);
+        }
+
+        @Override
+        public Random getRandom() {
+            return eventRandom;
         }
 
         private boolean isLocalPosition() {
@@ -1395,7 +1787,7 @@ public class BedrockParticleDebugSystem {
                 ActiveParticle particle = (ActiveParticle) instance;
                 particle.applyInitialSpeed();
                 particle.syncPrev();
-                particles.add(particle);
+                addParticle(particle);
                 activeParticles++;
                 spawnedAny = true;
             }
@@ -1470,88 +1862,63 @@ public class BedrockParticleDebugSystem {
         }
     }
 
-    private static final class ParticleMolangEnvironment implements BindingMolangEnvironment {
-        private final ParticleMolangContext context;
-        private final ExpressionBindingContext bindings;
-        private final Map<org.mybad.core.legacy.expression.molang.ast.MolangExpression, org.mybad.core.legacy.expression.molang.ast.MolangExpression> cache;
-
-        private ParticleMolangEnvironment(ParticleMolangContext context, ExpressionBindingContext bindings) {
-            this.context = context;
-            this.bindings = bindings;
-            this.cache = new IdentityHashMap<>();
-        }
-
-        @Override
-        public org.mybad.core.legacy.expression.molang.ast.MolangExpression bind(
-            org.mybad.core.legacy.expression.molang.ast.MolangExpression expression
-        ) {
-            if (expression == null) {
-                return null;
-            }
-            org.mybad.core.legacy.expression.molang.ast.MolangExpression bound = cache.get(expression);
-            if (bound == null) {
-                bound = expression.bind(bindings, context);
-                cache.put(expression, bound);
-            }
-            return bound;
-        }
+    private static MolangRuntime createRuntime(ParticleMolangContext context, Map<String, ParticleData.Curve> curves) {
+        MolangRuntime.Builder builder = MolangRuntime.runtime();
+        bindCommonVariables(builder, context);
+        bindCurves(builder, context, curves);
+        return builder.create();
     }
 
-    private static ExpressionBindingContext buildMolangBindings() {
-        ExpressionBindingContext context = ExpressionBindingContext.create();
-        // variable.*
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "particle_age", ParticleMolangContext.class, ctx -> ctx.particleAge);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "particle_lifetime", ParticleMolangContext.class, ctx -> ctx.particleLifetime);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "emitter_age", ParticleMolangContext.class, ctx -> ctx.emitterAge);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "emitter_lifetime", ParticleMolangContext.class, ctx -> ctx.emitterLifetime);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "random", ParticleMolangContext.class, ctx -> ctx.random);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "random_1", ParticleMolangContext.class, ctx -> ctx.random1);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "random_2", ParticleMolangContext.class, ctx -> ctx.random2);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "random_3", ParticleMolangContext.class, ctx -> ctx.random3);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "random_4", ParticleMolangContext.class, ctx -> ctx.random4);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "particle_random_1", ParticleMolangContext.class, ctx -> ctx.random1);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "particle_random_2", ParticleMolangContext.class, ctx -> ctx.random2);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "particle_random_3", ParticleMolangContext.class, ctx -> ctx.random3);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "particle_random_4", ParticleMolangContext.class, ctx -> ctx.random4);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "emitter_random_1", ParticleMolangContext.class, ctx -> ctx.emitterRandom1);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "emitter_random_2", ParticleMolangContext.class, ctx -> ctx.emitterRandom2);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "emitter_random_3", ParticleMolangContext.class, ctx -> ctx.emitterRandom3);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "emitter_random_4", ParticleMolangContext.class, ctx -> ctx.emitterRandom4);
-        context.registerDirectReferenceResolver(ReferenceType.VARIABLE, "entity_scale", ParticleMolangContext.class, ctx -> ctx.entityScale);
-        // query.* (common aliases)
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "particle_age", ParticleMolangContext.class, ctx -> ctx.particleAge);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "particle_lifetime", ParticleMolangContext.class, ctx -> ctx.particleLifetime);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "emitter_age", ParticleMolangContext.class, ctx -> ctx.emitterAge);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "emitter_lifetime", ParticleMolangContext.class, ctx -> ctx.emitterLifetime);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "random", ParticleMolangContext.class, ctx -> ctx.random);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "random_1", ParticleMolangContext.class, ctx -> ctx.random1);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "random_2", ParticleMolangContext.class, ctx -> ctx.random2);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "random_3", ParticleMolangContext.class, ctx -> ctx.random3);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "random_4", ParticleMolangContext.class, ctx -> ctx.random4);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "particle_random_1", ParticleMolangContext.class, ctx -> ctx.random1);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "particle_random_2", ParticleMolangContext.class, ctx -> ctx.random2);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "particle_random_3", ParticleMolangContext.class, ctx -> ctx.random3);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "particle_random_4", ParticleMolangContext.class, ctx -> ctx.random4);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "emitter_random_1", ParticleMolangContext.class, ctx -> ctx.emitterRandom1);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "emitter_random_2", ParticleMolangContext.class, ctx -> ctx.emitterRandom2);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "emitter_random_3", ParticleMolangContext.class, ctx -> ctx.emitterRandom3);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "emitter_random_4", ParticleMolangContext.class, ctx -> ctx.emitterRandom4);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "entity_scale", ParticleMolangContext.class, ctx -> ctx.entityScale);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "age", ParticleMolangContext.class, ctx -> ctx.particleAge);
-        context.registerDirectReferenceResolver(ReferenceType.QUERY, "life_time", ParticleMolangContext.class, ctx -> ctx.particleLifetime);
-        return context;
+    private static void bindCommonVariables(MolangRuntime.Builder builder, ParticleMolangContext context) {
+        builder.setVariable("particle_age", MolangExpression.of(() -> context.particleAge));
+        builder.setVariable("particle_lifetime", MolangExpression.of(() -> context.particleLifetime));
+        builder.setVariable("emitter_age", MolangExpression.of(() -> context.emitterAge));
+        builder.setVariable("emitter_lifetime", MolangExpression.of(() -> context.emitterLifetime));
+        builder.setVariable("random", MolangExpression.of(() -> context.random));
+        builder.setVariable("random_1", MolangExpression.of(() -> context.random1));
+        builder.setVariable("random_2", MolangExpression.of(() -> context.random2));
+        builder.setVariable("random_3", MolangExpression.of(() -> context.random3));
+        builder.setVariable("random_4", MolangExpression.of(() -> context.random4));
+        builder.setVariable("particle_random_1", MolangExpression.of(() -> context.random1));
+        builder.setVariable("particle_random_2", MolangExpression.of(() -> context.random2));
+        builder.setVariable("particle_random_3", MolangExpression.of(() -> context.random3));
+        builder.setVariable("particle_random_4", MolangExpression.of(() -> context.random4));
+        builder.setVariable("emitter_random_1", MolangExpression.of(() -> context.emitterRandom1));
+        builder.setVariable("emitter_random_2", MolangExpression.of(() -> context.emitterRandom2));
+        builder.setVariable("emitter_random_3", MolangExpression.of(() -> context.emitterRandom3));
+        builder.setVariable("emitter_random_4", MolangExpression.of(() -> context.emitterRandom4));
+        builder.setVariable("entity_scale", MolangExpression.of(() -> context.entityScale));
+
+        builder.setQuery("particle_age", MolangExpression.of(() -> context.particleAge));
+        builder.setQuery("particle_lifetime", MolangExpression.of(() -> context.particleLifetime));
+        builder.setQuery("emitter_age", MolangExpression.of(() -> context.emitterAge));
+        builder.setQuery("emitter_lifetime", MolangExpression.of(() -> context.emitterLifetime));
+        builder.setQuery("random", MolangExpression.of(() -> context.random));
+        builder.setQuery("random_1", MolangExpression.of(() -> context.random1));
+        builder.setQuery("random_2", MolangExpression.of(() -> context.random2));
+        builder.setQuery("random_3", MolangExpression.of(() -> context.random3));
+        builder.setQuery("random_4", MolangExpression.of(() -> context.random4));
+        builder.setQuery("particle_random_1", MolangExpression.of(() -> context.random1));
+        builder.setQuery("particle_random_2", MolangExpression.of(() -> context.random2));
+        builder.setQuery("particle_random_3", MolangExpression.of(() -> context.random3));
+        builder.setQuery("particle_random_4", MolangExpression.of(() -> context.random4));
+        builder.setQuery("emitter_random_1", MolangExpression.of(() -> context.emitterRandom1));
+        builder.setQuery("emitter_random_2", MolangExpression.of(() -> context.emitterRandom2));
+        builder.setQuery("emitter_random_3", MolangExpression.of(() -> context.emitterRandom3));
+        builder.setQuery("emitter_random_4", MolangExpression.of(() -> context.emitterRandom4));
+        builder.setQuery("entity_scale", MolangExpression.of(() -> context.entityScale));
+        builder.setQuery("age", MolangExpression.of(() -> context.particleAge));
+        builder.setQuery("life_time", MolangExpression.of(() -> context.particleLifetime));
     }
 
-    private static ExpressionBindingContext createBindingContext(Map<String, ParticleData.Curve> curves) {
-        ExpressionBindingContext context = buildMolangBindings();
+    private static void bindCurves(MolangRuntime.Builder builder, ParticleMolangContext context, Map<String, ParticleData.Curve> curves) {
         if (curves == null || curves.isEmpty()) {
-            return context;
+            return;
         }
         for (String name : curves.keySet()) {
             final String key = name;
-            context.registerDirectReferenceResolver(ReferenceType.VARIABLE, key, ParticleMolangContext.class, ctx -> ctx.getCurveValue(key));
+            builder.setVariable(key, MolangExpression.of(() -> context.getCurveValue(key)));
         }
-        return context;
     }
 
     private static Map<String, ParticleData.Curve> buildCurveDefinitions(ParticleData data) {
@@ -1744,6 +2111,157 @@ public class BedrockParticleDebugSystem {
         GL11.glMultMatrix(ORIENTATION_BUFFER);
     }
 
+    private enum BlendMode {
+        ALPHA,
+        ADD,
+        OPAQUE
+    }
+
+    private BlendMode resolveBlendMode(ParticleData data) {
+        if (data == null || data.description() == null) {
+            return BlendMode.ALPHA;
+        }
+        String material = data.description().getMaterial();
+        if (material == null || material.isEmpty()) {
+            return BlendMode.ALPHA;
+        }
+        String lower = material.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains("add")) {
+            return BlendMode.ADD;
+        }
+        if (lower.contains("opaque")) {
+            return BlendMode.OPAQUE;
+        }
+        return BlendMode.ALPHA;
+    }
+
+    private Block[] resolveBlocks(ParticleExpireInBlocksComponent component) {
+        if (component == null) {
+            return null;
+        }
+        return resolveBlocks(component.blocks());
+    }
+
+    private Block[] resolveBlocks(ParticleExpireNotInBlocksComponent component) {
+        if (component == null) {
+            return null;
+        }
+        return resolveBlocks(component.blocks());
+    }
+
+    private Block[] resolveBlocks(String[] blockIds) {
+        if (blockIds == null || blockIds.length == 0) {
+            return null;
+        }
+        List<Block> blocks = new ArrayList<>(blockIds.length);
+        for (String name : blockIds) {
+            if (name == null || name.isEmpty()) {
+                continue;
+            }
+            try {
+                ResourceLocation id = new ResourceLocation(name);
+                Block block = Block.REGISTRY.getObject(id);
+                if (block != null) {
+                    blocks.add(block);
+                } else {
+                    SkyCoreMod.LOGGER.warn("[SkyCore] 未找到方块: {}", name);
+                }
+            } catch (Exception ex) {
+                SkyCoreMod.LOGGER.warn("[SkyCore] 方块ID无效: {}", name);
+            }
+        }
+        if (blocks.isEmpty()) {
+            return null;
+        }
+        return blocks.toArray(new Block[0]);
+    }
+
+    private void spawnEffectAt(String effect, double x, double y, double z, boolean bound) {
+        String path = normalizeParticlePath(effect);
+        if (path == null) {
+            return;
+        }
+        EmitterTransformProvider provider = new SnapshotTransformProvider(x, y, z, 0.0f, null, null, null);
+        spawnInternal(path, provider, 0);
+    }
+
+    private void spawnEffectFromEmitter(String effect, ActiveEmitter emitter, boolean bound) {
+        if (emitter == null) {
+            return;
+        }
+        String path = normalizeParticlePath(effect);
+        if (path == null) {
+            return;
+        }
+        EmitterTransformProvider provider;
+        if (bound) {
+            provider = new BoundTransformProvider(emitter);
+        } else {
+            provider = new SnapshotTransformProvider(
+                emitter.getX(), emitter.getY(), emitter.getZ(), emitter.getYaw(),
+                emitter.getBasisX(), emitter.getBasisY(), emitter.getBasisZ());
+        }
+        spawnInternal(path, provider, 0);
+    }
+
+    private String normalizeParticlePath(String effect) {
+        if (effect == null) {
+            return null;
+        }
+        String trimmed = effect.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        int colon = trimmed.indexOf(':');
+        String namespace = null;
+        String rel = trimmed;
+        if (colon > 0) {
+            namespace = trimmed.substring(0, colon);
+            rel = trimmed.substring(colon + 1);
+        }
+        if (!rel.startsWith("particles/")) {
+            rel = "particles/" + rel;
+        }
+        if (!rel.endsWith(".json")) {
+            rel = rel + ".json";
+        }
+        return namespace != null ? namespace + ":" + rel : rel;
+    }
+
+    private void playSoundAt(String sound, double x, double y, double z) {
+        if (sound == null || sound.isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null) {
+            return;
+        }
+        ResourceLocation id;
+        try {
+            id = new ResourceLocation(sound);
+        } catch (Exception ex) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 无效的声音ID: {}", sound);
+            return;
+        }
+        SoundEvent event = SoundEvent.REGISTRY.getObject(id);
+        if (event == null) {
+            event = new SoundEvent(id);
+        }
+        mc.world.playSound(x, y, z, event, SoundCategory.NEUTRAL, 1.0f, 1.0f, false);
+    }
+
+    private void logMessage(String message) {
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc != null && mc.ingameGUI != null) {
+            mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentString("[Particle] " + message));
+            return;
+        }
+        SkyCoreMod.LOGGER.info("[Particle] {}", message);
+    }
+
     public interface EmitterTransformProvider {
         void fill(EmitterTransform transform, float deltaSeconds);
     }
@@ -1781,6 +2299,62 @@ public class BedrockParticleDebugSystem {
         }
     }
 
+    private static final class SnapshotTransformProvider implements EmitterTransformProvider {
+        private final double x;
+        private final double y;
+        private final double z;
+        private final float yaw;
+        private final float[] basisX;
+        private final float[] basisY;
+        private final float[] basisZ;
+
+        private SnapshotTransformProvider(double x, double y, double z, float yaw,
+                                          float[] basisX, float[] basisY, float[] basisZ) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.yaw = yaw;
+            this.basisX = new float[]{1.0f, 0.0f, 0.0f};
+            this.basisY = new float[]{0.0f, 1.0f, 0.0f};
+            this.basisZ = new float[]{0.0f, 0.0f, 1.0f};
+            if (basisX != null && basisY != null && basisZ != null) {
+                copyBasis(basisX, this.basisX);
+                copyBasis(basisY, this.basisY);
+                copyBasis(basisZ, this.basisZ);
+            }
+        }
+
+        @Override
+        public void fill(EmitterTransform transform, float deltaSeconds) {
+            transform.x = x;
+            transform.y = y;
+            transform.z = z;
+            transform.yaw = yaw;
+            copyBasis(basisX, transform.basisX);
+            copyBasis(basisY, transform.basisY);
+            copyBasis(basisZ, transform.basisZ);
+        }
+    }
+
+    private final class BoundTransformProvider implements EmitterTransformProvider {
+        private final ActiveEmitter emitter;
+
+        private BoundTransformProvider(ActiveEmitter emitter) {
+            this.emitter = emitter;
+        }
+
+        @Override
+        public void fill(EmitterTransform transform, float deltaSeconds) {
+            transform.x = emitter.getX();
+            transform.y = emitter.getY();
+            transform.z = emitter.getZ();
+            transform.yaw = emitter.getYaw();
+            copyBasis(emitter.getBasisX(), transform.basisX);
+            copyBasis(emitter.getBasisY(), transform.basisY);
+            copyBasis(emitter.getBasisZ(), transform.basisZ);
+        }
+    }
+
     private static void setIdentityBasis(EmitterTransform transform) {
         transform.basisX[0] = 1.0f;
         transform.basisX[1] = 0.0f;
@@ -1791,5 +2365,11 @@ public class BedrockParticleDebugSystem {
         transform.basisZ[0] = 0.0f;
         transform.basisZ[1] = 0.0f;
         transform.basisZ[2] = 1.0f;
+    }
+
+    private static void copyBasis(float[] src, float[] dst) {
+        dst[0] = src[0];
+        dst[1] = src[1];
+        dst[2] = src[2];
     }
 }
