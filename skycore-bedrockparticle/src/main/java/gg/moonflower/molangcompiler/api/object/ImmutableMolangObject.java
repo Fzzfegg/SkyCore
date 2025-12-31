@@ -23,6 +23,16 @@ public class ImmutableMolangObject implements MolangObject  {
         return this.parent;
     }
 
+    @Override
+    public MolangObject getCopy() {
+        return this.createCopy();
+    }
+
+    @Override
+    public MolangObject createCopy() {
+        return new ImmutableMolangObject(this.parent.createCopy());
+    }
+
 @Override
     public void set(String name, MolangExpression value) throws MolangRuntimeException {
         throw new MolangRuntimeException("Cannot set values on an immutable object");
@@ -46,6 +56,11 @@ public class ImmutableMolangObject implements MolangObject  {
     @Override
     public Collection<String> getKeys() {
         return this.parent.getKeys();
+    }
+
+    @Override
+    public boolean isMutable() {
+        return false;
     }
 
     @Override

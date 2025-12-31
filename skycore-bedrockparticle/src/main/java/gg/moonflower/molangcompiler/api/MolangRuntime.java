@@ -493,9 +493,13 @@ public class MolangRuntime implements MolangEnvironment {
 
                     if (this.runtime.has(name)) {
                         MolangObject runtimeObject = this.runtime.get(name);
-                        if (runtimeObject.isMutable()) {
+                        MolangObject target = runtimeObject;
+                        if (runtimeObject instanceof ImmutableMolangObject) {
+                            target = ((ImmutableMolangObject) runtimeObject).parent();
+                        }
+                        if (target.isMutable()) {
                             for (String field : copy.getKeys()) {
-                                runtimeObject.set(field, copy.get(field).createCopy());
+                                target.set(field, copy.get(field).createCopy());
                             }
                             continue;
                         }
