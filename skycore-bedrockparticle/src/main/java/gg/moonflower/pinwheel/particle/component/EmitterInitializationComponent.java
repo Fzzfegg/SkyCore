@@ -35,11 +35,15 @@ public final class EmitterInitializationComponent implements ParticleEmitterComp
     private final MolangExpression creationExpression;
     @Nullable
     private final MolangExpression tickExpression;
+    @Nullable
+    private final MolangExpression renderExpression;
 
     public EmitterInitializationComponent(@Nullable MolangExpression creationExpression,
-                                          @Nullable MolangExpression tickExpression) {
+                                          @Nullable MolangExpression tickExpression,
+                                          @Nullable MolangExpression renderExpression) {
         this.creationExpression = creationExpression;
         this.tickExpression = tickExpression;
+        this.renderExpression = renderExpression;
     }
 
     @Nullable
@@ -52,11 +56,17 @@ public final class EmitterInitializationComponent implements ParticleEmitterComp
         return tickExpression;
     }
 
+    @Nullable
+    public MolangExpression renderExpression() {
+        return renderExpression;
+    }
+
     public static EmitterInitializationComponent deserialize(JsonElement json) throws JsonParseException {
         JsonObject object = json.getAsJsonObject();
         return new EmitterInitializationComponent(
                 JsonTupleParser.getExpression(object, "creation_expression", () -> null),
-                JsonTupleParser.getExpression(object, "per_update_expression", () -> null));
+                JsonTupleParser.getExpression(object, "per_update_expression", () -> null),
+                JsonTupleParser.getExpression(object, "per_render_expression", () -> null));
     }
 
     @Override

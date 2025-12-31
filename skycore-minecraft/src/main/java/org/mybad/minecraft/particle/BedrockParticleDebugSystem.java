@@ -1,6 +1,7 @@
 package org.mybad.minecraft.particle;
 
 import gg.moonflower.molangcompiler.api.MolangEnvironment;
+import gg.moonflower.molangcompiler.api.MolangEnvironmentBuilder;
 import gg.moonflower.molangcompiler.api.MolangExpression;
 import gg.moonflower.molangcompiler.api.MolangRuntime;
 import gg.moonflower.pinwheel.particle.ParticleData;
@@ -363,13 +364,18 @@ public class BedrockParticleDebugSystem {
             this.curves = buildCurveDefinitions(data);
             this.curveValues = this.curves.isEmpty() ? Collections.emptyMap() : new HashMap<>(this.curves.size());
             this.molangContext.curves = this.curveValues;
-            this.molangContext.random = (float) Math.random();
-            this.molangContext.random1 = (float) Math.random();
-            this.molangContext.random2 = (float) Math.random();
-            this.molangContext.random3 = (float) Math.random();
-            this.molangContext.random4 = (float) Math.random();
+            for (int i = 1; i <= 16; i++) {
+                this.molangContext.setRandom(i, (float) Math.random());
+            }
+            this.molangContext.random = this.molangContext.getRandom(1);
             this.molangContext.entityScale = emitter != null ? emitter.getScale() : 1.0f;
             this.environment = createRuntime(this.molangContext, this.curves);
+            if (emitter != null) {
+                MolangEnvironmentBuilder<? extends MolangEnvironment> builder = this.environment.edit();
+                builder.copy(emitter.environment);
+                bindCommonVariables(builder, this.molangContext);
+                bindCurves(builder, this.molangContext, this.curves);
+            }
             this.lifetime = resolveLifetime(lifetimeComponent);
             this.molangContext.particleLifetime = this.lifetime;
             this.tempDir = new float[3];
@@ -507,6 +513,9 @@ public class BedrockParticleDebugSystem {
         private void render(Minecraft mc, double camX, double camY, double camZ, float partialTicks) {
             float renderAge = this.age + partialTicks * TICK_SECONDS;
             updateContext(renderAge);
+            if (particleInitialization != null && particleInitialization.renderExpression() != null) {
+                environment.safeResolve(particleInitialization.renderExpression());
+            }
             float width = 1.0f;
             float height = 1.0f;
             if (billboard != null && billboard.size() != null && billboard.size().length >= 2) {
@@ -992,18 +1001,16 @@ public class BedrockParticleDebugSystem {
             if (emitter != null) {
                 this.molangContext.emitterAge = emitter.getEmitterAge();
                 this.molangContext.emitterLifetime = emitter.getEmitterLifetime();
-                this.molangContext.emitterRandom1 = emitter.getEmitterRandom1();
-                this.molangContext.emitterRandom2 = emitter.getEmitterRandom2();
-                this.molangContext.emitterRandom3 = emitter.getEmitterRandom3();
-                this.molangContext.emitterRandom4 = emitter.getEmitterRandom4();
+                for (int i = 1; i <= 16; i++) {
+                    this.molangContext.setEmitterRandom(i, emitter.getEmitterRandom(i));
+                }
                 this.molangContext.entityScale = emitter.getScale();
             } else {
                 this.molangContext.emitterAge = ageSeconds;
                 this.molangContext.emitterLifetime = this.lifetime;
-                this.molangContext.emitterRandom1 = this.molangContext.random1;
-                this.molangContext.emitterRandom2 = this.molangContext.random2;
-                this.molangContext.emitterRandom3 = this.molangContext.random3;
-                this.molangContext.emitterRandom4 = this.molangContext.random4;
+                for (int i = 1; i <= 16; i++) {
+                    this.molangContext.setEmitterRandom(i, this.molangContext.getRandom(i));
+                }
                 this.molangContext.entityScale = 1.0f;
             }
             updateCurves();
@@ -1249,15 +1256,13 @@ public class BedrockParticleDebugSystem {
             this.curveValues = this.curves.isEmpty() ? Collections.emptyMap() : new HashMap<>(this.curves.size());
             this.molangContext = new ParticleMolangContext();
             this.molangContext.curves = this.curveValues;
-            this.molangContext.random1 = (float) Math.random();
-            this.molangContext.random2 = (float) Math.random();
-            this.molangContext.random3 = (float) Math.random();
-            this.molangContext.random4 = (float) Math.random();
-            this.molangContext.random = this.molangContext.random1;
-            this.molangContext.emitterRandom1 = this.molangContext.random1;
-            this.molangContext.emitterRandom2 = this.molangContext.random2;
-            this.molangContext.emitterRandom3 = this.molangContext.random3;
-            this.molangContext.emitterRandom4 = this.molangContext.random4;
+            for (int i = 1; i <= 16; i++) {
+                this.molangContext.setRandom(i, (float) Math.random());
+            }
+            this.molangContext.random = this.molangContext.getRandom(1);
+            for (int i = 1; i <= 16; i++) {
+                this.molangContext.setEmitterRandom(i, this.molangContext.getRandom(i));
+            }
             this.molangContext.entityScale = this.scale;
             this.environment = createRuntime(this.molangContext, this.curves);
 
@@ -1442,15 +1447,13 @@ public class BedrockParticleDebugSystem {
             activeTimeEval = Math.max(0.0f, environment.safeResolve(lifetimeLooping.activeTime()));
             sleepTimeEval = Math.max(0.0f, environment.safeResolve(lifetimeLooping.sleepTime()));
             sleepRemaining = sleepTimeEval;
-            molangContext.random1 = (float) Math.random();
-            molangContext.random2 = (float) Math.random();
-            molangContext.random3 = (float) Math.random();
-            molangContext.random4 = (float) Math.random();
-            molangContext.random = molangContext.random1;
-            molangContext.emitterRandom1 = molangContext.random1;
-            molangContext.emitterRandom2 = molangContext.random2;
-            molangContext.emitterRandom3 = molangContext.random3;
-            molangContext.emitterRandom4 = molangContext.random4;
+            for (int i = 1; i <= 16; i++) {
+                molangContext.setRandom(i, (float) Math.random());
+            }
+            molangContext.random = molangContext.getRandom(1);
+            for (int i = 1; i <= 16; i++) {
+                molangContext.setEmitterRandom(i, molangContext.getRandom(i));
+            }
             instantEmitted = false;
             maxParticlesEval = 0;
             updateContext(0.0f);
@@ -1611,6 +1614,10 @@ public class BedrockParticleDebugSystem {
 
         private float getEmitterRandom4() {
             return molangContext.emitterRandom4;
+        }
+
+        private float getEmitterRandom(int index) {
+            return molangContext.getEmitterRandom(index);
         }
 
         @Override
@@ -1877,10 +1884,12 @@ public class BedrockParticleDebugSystem {
         private float random2;
         private float random3;
         private float random4;
+        private final float[] randomExtra = new float[12];
         private float emitterRandom1;
         private float emitterRandom2;
         private float emitterRandom3;
         private float emitterRandom4;
+        private final float[] emitterRandomExtra = new float[12];
         private float entityScale;
         private Map<String, Float> curves;
 
@@ -1891,6 +1900,84 @@ public class BedrockParticleDebugSystem {
             Float value = curves.get(name);
             return value != null ? value : 0.0f;
         }
+
+        private float getRandom(int index) {
+            switch (index) {
+                case 1:
+                    return random1;
+                case 2:
+                    return random2;
+                case 3:
+                    return random3;
+                case 4:
+                    return random4;
+                default:
+                    if (index >= 5 && index <= 16) {
+                        return randomExtra[index - 5];
+                    }
+                    return 0.0f;
+            }
+        }
+
+        private void setRandom(int index, float value) {
+            switch (index) {
+                case 1:
+                    random1 = value;
+                    return;
+                case 2:
+                    random2 = value;
+                    return;
+                case 3:
+                    random3 = value;
+                    return;
+                case 4:
+                    random4 = value;
+                    return;
+                default:
+                    if (index >= 5 && index <= 16) {
+                        randomExtra[index - 5] = value;
+                    }
+            }
+        }
+
+        private float getEmitterRandom(int index) {
+            switch (index) {
+                case 1:
+                    return emitterRandom1;
+                case 2:
+                    return emitterRandom2;
+                case 3:
+                    return emitterRandom3;
+                case 4:
+                    return emitterRandom4;
+                default:
+                    if (index >= 5 && index <= 16) {
+                        return emitterRandomExtra[index - 5];
+                    }
+                    return 0.0f;
+            }
+        }
+
+        private void setEmitterRandom(int index, float value) {
+            switch (index) {
+                case 1:
+                    emitterRandom1 = value;
+                    return;
+                case 2:
+                    emitterRandom2 = value;
+                    return;
+                case 3:
+                    emitterRandom3 = value;
+                    return;
+                case 4:
+                    emitterRandom4 = value;
+                    return;
+                default:
+                    if (index >= 5 && index <= 16) {
+                        emitterRandomExtra[index - 5] = value;
+                    }
+            }
+        }
     }
 
     private static MolangRuntime createRuntime(ParticleMolangContext context, Map<String, ParticleData.Curve> curves) {
@@ -1900,24 +1987,12 @@ public class BedrockParticleDebugSystem {
         return builder.create();
     }
 
-    private static void bindCommonVariables(MolangRuntime.Builder builder, ParticleMolangContext context) {
+    private static void bindCommonVariables(MolangEnvironmentBuilder<?> builder, ParticleMolangContext context) {
         builder.setVariable("particle_age", MolangExpression.of(() -> context.particleAge));
         builder.setVariable("particle_lifetime", MolangExpression.of(() -> context.particleLifetime));
         builder.setVariable("emitter_age", MolangExpression.of(() -> context.emitterAge));
         builder.setVariable("emitter_lifetime", MolangExpression.of(() -> context.emitterLifetime));
         builder.setVariable("random", MolangExpression.of(() -> context.random));
-        builder.setVariable("random_1", MolangExpression.of(() -> context.random1));
-        builder.setVariable("random_2", MolangExpression.of(() -> context.random2));
-        builder.setVariable("random_3", MolangExpression.of(() -> context.random3));
-        builder.setVariable("random_4", MolangExpression.of(() -> context.random4));
-        builder.setVariable("particle_random_1", MolangExpression.of(() -> context.random1));
-        builder.setVariable("particle_random_2", MolangExpression.of(() -> context.random2));
-        builder.setVariable("particle_random_3", MolangExpression.of(() -> context.random3));
-        builder.setVariable("particle_random_4", MolangExpression.of(() -> context.random4));
-        builder.setVariable("emitter_random_1", MolangExpression.of(() -> context.emitterRandom1));
-        builder.setVariable("emitter_random_2", MolangExpression.of(() -> context.emitterRandom2));
-        builder.setVariable("emitter_random_3", MolangExpression.of(() -> context.emitterRandom3));
-        builder.setVariable("emitter_random_4", MolangExpression.of(() -> context.emitterRandom4));
         builder.setVariable("entity_scale", MolangExpression.of(() -> context.entityScale));
 
         builder.setQuery("particle_age", MolangExpression.of(() -> context.particleAge));
@@ -1925,24 +2000,23 @@ public class BedrockParticleDebugSystem {
         builder.setQuery("emitter_age", MolangExpression.of(() -> context.emitterAge));
         builder.setQuery("emitter_lifetime", MolangExpression.of(() -> context.emitterLifetime));
         builder.setQuery("random", MolangExpression.of(() -> context.random));
-        builder.setQuery("random_1", MolangExpression.of(() -> context.random1));
-        builder.setQuery("random_2", MolangExpression.of(() -> context.random2));
-        builder.setQuery("random_3", MolangExpression.of(() -> context.random3));
-        builder.setQuery("random_4", MolangExpression.of(() -> context.random4));
-        builder.setQuery("particle_random_1", MolangExpression.of(() -> context.random1));
-        builder.setQuery("particle_random_2", MolangExpression.of(() -> context.random2));
-        builder.setQuery("particle_random_3", MolangExpression.of(() -> context.random3));
-        builder.setQuery("particle_random_4", MolangExpression.of(() -> context.random4));
-        builder.setQuery("emitter_random_1", MolangExpression.of(() -> context.emitterRandom1));
-        builder.setQuery("emitter_random_2", MolangExpression.of(() -> context.emitterRandom2));
-        builder.setQuery("emitter_random_3", MolangExpression.of(() -> context.emitterRandom3));
-        builder.setQuery("emitter_random_4", MolangExpression.of(() -> context.emitterRandom4));
         builder.setQuery("entity_scale", MolangExpression.of(() -> context.entityScale));
         builder.setQuery("age", MolangExpression.of(() -> context.particleAge));
         builder.setQuery("life_time", MolangExpression.of(() -> context.particleLifetime));
+
+        for (int i = 1; i <= 16; i++) {
+            final int index = i;
+            builder.setVariable("random_" + i, MolangExpression.of(() -> context.getRandom(index)));
+            builder.setVariable("particle_random_" + i, MolangExpression.of(() -> context.getRandom(index)));
+            builder.setVariable("emitter_random_" + i, MolangExpression.of(() -> context.getEmitterRandom(index)));
+
+            builder.setQuery("random_" + i, MolangExpression.of(() -> context.getRandom(index)));
+            builder.setQuery("particle_random_" + i, MolangExpression.of(() -> context.getRandom(index)));
+            builder.setQuery("emitter_random_" + i, MolangExpression.of(() -> context.getEmitterRandom(index)));
+        }
     }
 
-    private static void bindCurves(MolangRuntime.Builder builder, ParticleMolangContext context, Map<String, ParticleData.Curve> curves) {
+    private static void bindCurves(MolangEnvironmentBuilder<?> builder, ParticleMolangContext context, Map<String, ParticleData.Curve> curves) {
         if (curves == null || curves.isEmpty()) {
             return;
         }
