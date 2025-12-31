@@ -409,10 +409,11 @@ public class RenderEventHandler {
 
     private void fireEvent(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation.Event event,
                            float entityYaw, float partialTicks) {
-        double[] pos = resolveEventPosition(entity, wrapper, event.getLocator(), entityYaw, partialTicks);
         if (event.getType() == Animation.Event.Type.PARTICLE) {
-            spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), entityYaw, pos);
+            spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), partialTicks);
         } else {
+            float positionYaw = resolveBodyYaw(entity, partialTicks);
+            double[] pos = resolveEventPosition(entity, wrapper, event.getLocator(), positionYaw, partialTicks);
             playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
         }
     }
@@ -421,8 +422,7 @@ public class RenderEventHandler {
                                      EntityLivingBase entity,
                                      BedrockModelWrapper wrapper,
                                      String locatorName,
-                                     float entityYaw,
-                                     double[] initialPos) {
+                                     float partialTicks) {
         if (effect == null || effect.isEmpty()) {
             return;
         }
@@ -434,21 +434,26 @@ public class RenderEventHandler {
         if (system == null) {
             return;
         }
+        float positionYaw = resolveBodyYaw(entity, partialTicks);
+        float emitterYaw = resolveEmitterYaw(entity, partialTicks, params);
+        double[] initialPos = resolveEventPosition(entity, wrapper, locatorName, positionYaw, partialTicks);
         if (entity == null) {
             double[] pos = initialPos != null ? initialPos : new double[]{0.0, 0.0, 0.0};
             system.spawn(params.path, pos[0], pos[1], pos[2], params.count);
             return;
         }
-        float baseYaw = 180.0F - entityYaw;
         double ix = initialPos != null && initialPos.length > 0 ? initialPos[0] : entity.posX;
         double iy = initialPos != null && initialPos.length > 1 ? initialPos[1] : entity.posY;
         double iz = initialPos != null && initialPos.length > 2 ? initialPos[2] : entity.posZ;
-        system.spawn(params.path, new EventTransformProvider(entity, wrapper, locatorName, ix, iy, iz, baseYaw), params.count);
+        system.spawn(params.path, new EventTransformProvider(entity, wrapper, locatorName, ix, iy, iz, emitterYaw,
+            positionYaw, params.mode, params.yawOffset), params.count);
     }
 
     private ParticleParams parseParticleParams(String effect) {
         String path = null;
         int count = 0;
+        ParticleTargetMode mode = ParticleTargetMode.LOOK;
+        float yawOffset = 0.0f;
         String[] parts = effect.split(";");
         for (String part : parts) {
             String trimmed = part.trim();
@@ -473,6 +478,12 @@ public class RenderEventHandler {
                 try {
                     count = Integer.parseInt(value);
                 } catch (NumberFormatException ignored) {}
+            } else if ("mode".equals(key)) {
+                mode = ParticleTargetMode.parse(value);
+            } else if ("yaw".equals(key)) {
+                try {
+                    yawOffset = Float.parseFloat(value);
+                } catch (NumberFormatException ignored) {}
             }
         }
         if (path == null) {
@@ -481,29 +492,39 @@ public class RenderEventHandler {
         ParticleParams params = new ParticleParams();
         params.path = path;
         params.count = count;
+        params.mode = mode;
+        params.yawOffset = yawOffset;
         return params;
     }
 
     private static final class ParticleParams {
         private String path;
         private int count;
+        private ParticleTargetMode mode;
+        private float yawOffset;
     }
 
     private double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
-                                          float entityYaw, float partialTicks) {
+                                          float positionYaw, float partialTicks) {
+        if (entity == null) {
+            return resolveEventPosition(null, wrapper, locatorName, positionYaw, 0.0, 0.0, 0.0);
+        }
         double baseX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
         double baseY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
         double baseZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
-        return resolveEventPosition(entity, wrapper, locatorName, entityYaw, baseX, baseY, baseZ);
+        return resolveEventPosition(entity, wrapper, locatorName, positionYaw, baseX, baseY, baseZ);
     }
 
     private double[] resolveEventPositionNow(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
-                                             float entityYaw) {
-        return resolveEventPosition(entity, wrapper, locatorName, entityYaw, entity.posX, entity.posY, entity.posZ);
+                                             float positionYaw) {
+        if (entity == null) {
+            return resolveEventPosition(null, wrapper, locatorName, positionYaw, 0.0, 0.0, 0.0);
+        }
+        return resolveEventPosition(entity, wrapper, locatorName, positionYaw, entity.posX, entity.posY, entity.posZ);
     }
 
     private double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
-                                          float entityYaw, double baseX, double baseY, double baseZ) {
+                                          float positionYaw, double baseX, double baseY, double baseZ) {
         if (locatorName == null || locatorName.isEmpty()) {
             return new double[]{baseX, baseY, baseZ};
         }
@@ -519,7 +540,7 @@ public class RenderEventHandler {
         float ly = local[1] * scale;
         float lz = local[2] * scale;
 
-        float yawRad = (float) Math.toRadians(180.0F - entityYaw);
+        float yawRad = (float) Math.toRadians(180.0F - positionYaw);
         float cos = MathHelper.cos(yawRad);
         float sin = MathHelper.sin(yawRad);
         float rx = lx * cos - lz * sin;
@@ -534,7 +555,10 @@ public class RenderEventHandler {
         private final double initialX;
         private final double initialY;
         private final double initialZ;
-        private final float initialYaw;
+        private final float initialEmitterYaw;
+        private final float initialPositionYaw;
+        private final ParticleTargetMode mode;
+        private final float yawOffset;
         private final BedrockModelWrapper.LocatorTransform locatorTransform;
         private boolean usedInitial;
 
@@ -544,27 +568,34 @@ public class RenderEventHandler {
                                        double initialX,
                                        double initialY,
                                        double initialZ,
-                                       float initialYaw) {
+                                       float initialEmitterYaw,
+                                       float initialPositionYaw,
+                                       ParticleTargetMode mode,
+                                       float yawOffset) {
             this.entity = entity;
             this.wrapper = wrapper;
             this.locatorName = locatorName;
             this.initialX = initialX;
             this.initialY = initialY;
             this.initialZ = initialZ;
-            this.initialYaw = initialYaw;
+            this.initialEmitterYaw = initialEmitterYaw;
+            this.initialPositionYaw = initialPositionYaw;
+            this.mode = mode != null ? mode : ParticleTargetMode.LOOK;
+            this.yawOffset = yawOffset;
             this.locatorTransform = new BedrockModelWrapper.LocatorTransform();
             this.usedInitial = false;
         }
 
         @Override
         public void fill(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform, float deltaSeconds) {
-            float yaw = entity != null ? entity.rotationYawHead : 0.0f;
+            float positionYaw = resolveBodyYaw(entity);
+            float emitterYaw = resolveEmitterYaw(entity, mode, yawOffset, initialEmitterYaw);
             if (wrapper != null && locatorName != null && wrapper.getLocatorTransform(locatorName, locatorTransform)) {
                 float scale = wrapper.getModelScale();
                 float lx = locatorTransform.position[0] * scale;
                 float ly = locatorTransform.position[1] * scale;
                 float lz = locatorTransform.position[2] * scale;
-                float yawRad = (float) Math.toRadians(180.0F - yaw);
+                float yawRad = (float) Math.toRadians(180.0F - positionYaw);
                 float cos = MathHelper.cos(yawRad);
                 float sin = MathHelper.sin(yawRad);
                 float rx = lx * cos - lz * sin;
@@ -578,14 +609,19 @@ public class RenderEventHandler {
                     baseZ = entity != null ? entity.posZ : initialZ;
                 } else {
                     // initialX/Y/Z already include locator offset; subtract once to avoid double offset on first frame
-                    baseX = initialX - rx;
+                    float initYawRad = (float) Math.toRadians(180.0F - initialPositionYaw);
+                    float initCos = MathHelper.cos(initYawRad);
+                    float initSin = MathHelper.sin(initYawRad);
+                    float initRx = lx * initCos - lz * initSin;
+                    float initRz = lx * initSin + lz * initCos;
+                    baseX = initialX - initRx;
                     baseY = initialY - ly;
-                    baseZ = initialZ - rz;
+                    baseZ = initialZ - initRz;
                 }
                 transform.x = baseX + rx;
                 transform.y = baseY + ly;
                 transform.z = baseZ + rz;
-                transform.yaw = 180.0F - yaw;
+                transform.yaw = 180.0F - emitterYaw;
                 applyYawToBasis(locatorTransform, cos, sin, transform);
                 float sx = locatorTransform.scale[0] * scale;
                 float sy = locatorTransform.scale[1] * scale;
@@ -599,7 +635,7 @@ public class RenderEventHandler {
                 transform.x = initialX;
                 transform.y = initialY;
                 transform.z = initialZ;
-                transform.yaw = initialYaw;
+                transform.yaw = 180.0F - initialEmitterYaw;
                 setIdentityBasis(transform);
                 transform.scale = 1.0f;
                 usedInitial = true;
@@ -610,11 +646,11 @@ public class RenderEventHandler {
                 transform.scale = 1.0f;
                 return;
             }
-            double[] pos = resolveEventPositionNow(entity, wrapper, locatorName, yaw);
+            double[] pos = resolveEventPositionNow(entity, wrapper, locatorName, positionYaw);
             transform.x = pos[0];
             transform.y = pos[1];
             transform.z = pos[2];
-            transform.yaw = 180.0F - yaw;
+            transform.yaw = 180.0F - emitterYaw;
             setIdentityBasis(transform);
             transform.scale = 1.0f;
         }
@@ -646,6 +682,75 @@ public class RenderEventHandler {
             transform.basisZ[1] = 0.0f;
             transform.basisZ[2] = 1.0f;
         }
+    }
+
+    private enum ParticleTargetMode {
+        LOOK,
+        BODY,
+        WORLD;
+
+        private static ParticleTargetMode parse(String raw) {
+            if (raw == null || raw.isEmpty()) {
+                return LOOK;
+            }
+            String value = raw.trim().toLowerCase();
+            if ("body".equals(value)) {
+                return BODY;
+            }
+            if ("world".equals(value)) {
+                return WORLD;
+            }
+            return LOOK;
+        }
+    }
+
+    private float resolveBodyYaw(EntityLivingBase entity, float partialTicks) {
+        if (entity == null) {
+            return 0.0f;
+        }
+        return interpolateRotation(entity.prevRenderYawOffset, entity.renderYawOffset, partialTicks);
+    }
+
+    private float resolveBodyYaw(EntityLivingBase entity) {
+        if (entity == null) {
+            return 0.0f;
+        }
+        return entity.renderYawOffset;
+    }
+
+    private float resolveHeadYaw(EntityLivingBase entity, float partialTicks) {
+        if (entity == null) {
+            return 0.0f;
+        }
+        return interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
+    }
+
+    private float resolveEmitterYaw(EntityLivingBase entity, float partialTicks, ParticleParams params) {
+        if (params == null) {
+            return resolveHeadYaw(entity, partialTicks);
+        }
+        switch (params.mode) {
+            case BODY:
+                return resolveBodyYaw(entity, partialTicks) + params.yawOffset;
+            case WORLD:
+                return params.yawOffset;
+            case LOOK:
+            default:
+                return resolveHeadYaw(entity, partialTicks) + params.yawOffset;
+        }
+    }
+
+    private float resolveEmitterYaw(EntityLivingBase entity, ParticleTargetMode mode, float yawOffset, float fallbackYaw) {
+        if (entity == null) {
+            return fallbackYaw;
+        }
+        if (mode == ParticleTargetMode.BODY) {
+            return entity.renderYawOffset + yawOffset;
+        }
+        if (mode == ParticleTargetMode.WORLD) {
+            return yawOffset;
+        }
+        return entity.rotationYawHead + yawOffset;
     }
 
     private void playSoundEffect(String effect, double x, double y, double z) {

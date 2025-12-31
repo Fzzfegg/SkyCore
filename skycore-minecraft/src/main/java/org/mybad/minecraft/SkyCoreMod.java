@@ -275,7 +275,7 @@ public class SkyCoreMod {
                 return;
             }
 
-            if (message.startsWith("/skycore particle")) {
+            if (message.startsWith("/skycore particle ")) {
                 if (instance == null || instance.particleDebugSystem == null) {return;}
                 String[] parts = message.trim().split("\\s+");
                 if (parts.length < 3) {
