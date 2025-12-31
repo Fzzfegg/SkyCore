@@ -666,15 +666,19 @@ public class BedrockParticleDebugSystem {
                 tempAxisY[0] = ez[0];
                 tempAxisY[1] = ez[1];
                 tempAxisY[2] = ez[2];
-                cross(tempAxisX, tempAxisY, tempAxisZ);
+                tempAxisZ[0] = -ey[0];
+                tempAxisZ[1] = -ey[1];
+                tempAxisZ[2] = -ey[2];
             } else if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_YZ) {
-                tempAxisX[0] = ey[0];
-                tempAxisX[1] = ey[1];
-                tempAxisX[2] = ey[2];
-                tempAxisY[0] = ez[0];
-                tempAxisY[1] = ez[1];
-                tempAxisY[2] = ez[2];
-                cross(tempAxisX, tempAxisY, tempAxisZ);
+                tempAxisX[0] = -ez[0];
+                tempAxisX[1] = -ez[1];
+                tempAxisX[2] = -ez[2];
+                tempAxisY[0] = ey[0];
+                tempAxisY[1] = ey[1];
+                tempAxisY[2] = ey[2];
+                tempAxisZ[0] = ex[0];
+                tempAxisZ[1] = ex[1];
+                tempAxisZ[2] = ex[2];
             } else if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_XY) {
                 tempAxisX[0] = ex[0];
                 tempAxisX[1] = ex[1];
@@ -682,7 +686,9 @@ public class BedrockParticleDebugSystem {
                 tempAxisY[0] = ey[0];
                 tempAxisY[1] = ey[1];
                 tempAxisY[2] = ey[2];
-                cross(tempAxisX, tempAxisY, tempAxisZ);
+                tempAxisZ[0] = ez[0];
+                tempAxisZ[1] = ez[1];
+                tempAxisZ[2] = ez[2];
             } else {
                 tempAxisX[0] = ex[0];
                 tempAxisX[1] = ex[1];

@@ -418,11 +418,6 @@ public class BedrockModelWrapper {
         if (bone == null) {
             return local;
         }
-        // Bedrock locators on bones are relative to the bone pivot.
-        float[] pivot = bone.getPivot();
-        local[0] += convertX(pivot[0]);
-        local[1] += convertY(pivot[1]);
-        local[2] += convertZ(pivot[2]);
         MatrixStack stack = new MatrixStack();
         applyBoneTransformRecursive(bone, stack);
         stack.transform(local);
@@ -457,10 +452,6 @@ public class BedrockModelWrapper {
         if (boneName != null && !boneName.isEmpty()) {
             ModelBone bone = model.getBone(boneName);
             if (bone != null) {
-                float[] pivot = bone.getPivot();
-                local[0] += convertX(pivot[0]);
-                local[1] += convertY(pivot[1]);
-                local[2] += convertZ(pivot[2]);
                 applyBoneTransformRecursive(bone, stack);
             }
         }
@@ -924,7 +915,7 @@ public class BedrockModelWrapper {
     }
 
     private static float convertLocatorX(float raw) {
-        return raw * PIXEL_SCALE;
+        return -raw * PIXEL_SCALE;
     }
 
     private static float convertLocatorY(float raw) {
