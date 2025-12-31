@@ -100,6 +100,15 @@ public final class ModelRenderer {
     }
 
     private static void applyBoneTransform(ModelBone bone, CoreMatrixStack stack) {
+        float[] position = bone.getPosition();
+        float translateX = convertX(position[0]);
+        float translateY = convertY(position[1]);
+        float translateZ = convertZ(position[2]);
+
+        if (translateX != 0 || translateY != 0 || translateZ != 0) {
+            stack.translate(translateX, translateY, translateZ);
+        }
+
         float[] pivot = bone.getPivot();
         float pivotX = convertX(pivot[0]);
         float pivotY = convertY(pivot[1]);
@@ -122,15 +131,6 @@ public final class ModelRenderer {
         }
 
         stack.translate(-pivotX, -pivotY, -pivotZ);
-
-        float[] position = bone.getPosition();
-        float translateX = convertX(position[0]);
-        float translateY = convertY(position[1]);
-        float translateZ = convertZ(position[2]);
-
-        if (translateX != 0 || translateY != 0 || translateZ != 0) {
-            stack.translate(translateX, translateY, translateZ);
-        }
     }
 
     private static void applyCubeTransform(ModelCube cube, CoreMatrixStack stack) {
