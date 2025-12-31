@@ -149,7 +149,8 @@ public class QuadRenderProperties {
         } else {
             frame = (int) (time * flipbook.fps());
             if (flipbook.loop()) {
-                frame = maxFrame > 0 ? frame % maxFrame : 0;
+                int frameCount = Math.max(1, maxFrame + 1);
+                frame = frame % frameCount;
             } else {
                 frame = Math.min(frame, maxFrame);
             }
