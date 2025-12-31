@@ -368,7 +368,7 @@ public class BedrockParticleDebugSystem {
             this.molangContext.random2 = (float) Math.random();
             this.molangContext.random3 = (float) Math.random();
             this.molangContext.random4 = (float) Math.random();
-            this.molangContext.entityScale = 1.0f;
+            this.molangContext.entityScale = emitter != null ? emitter.getScale() : 1.0f;
             this.environment = createRuntime(this.molangContext, this.curves);
             this.lifetime = resolveLifetime(lifetimeComponent);
             this.molangContext.particleLifetime = this.lifetime;
@@ -512,6 +512,13 @@ public class BedrockParticleDebugSystem {
             if (billboard != null && billboard.size() != null && billboard.size().length >= 2) {
                 width = environment.safeResolve(billboard.size()[0]);
                 height = environment.safeResolve(billboard.size()[1]);
+            }
+            if (emitter != null) {
+                float scale = emitter.getScale();
+                if (scale != 1.0f) {
+                    width *= scale;
+                    height *= scale;
+                }
             }
             if (width <= 0.0f || height <= 0.0f) {
                 return;
@@ -667,6 +674,14 @@ public class BedrockParticleDebugSystem {
                 tempAxisY[0] = ez[0];
                 tempAxisY[1] = ez[1];
                 tempAxisY[2] = ez[2];
+                cross(tempAxisX, tempAxisY, tempAxisZ);
+            } else if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_XY) {
+                tempAxisX[0] = ex[0];
+                tempAxisX[1] = ex[1];
+                tempAxisX[2] = ex[2];
+                tempAxisY[0] = ey[0];
+                tempAxisY[1] = ey[1];
+                tempAxisY[2] = ey[2];
                 cross(tempAxisX, tempAxisY, tempAxisZ);
             } else {
                 tempAxisX[0] = ex[0];
@@ -975,6 +990,7 @@ public class BedrockParticleDebugSystem {
                 this.molangContext.emitterRandom2 = emitter.getEmitterRandom2();
                 this.molangContext.emitterRandom3 = emitter.getEmitterRandom3();
                 this.molangContext.emitterRandom4 = emitter.getEmitterRandom4();
+                this.molangContext.entityScale = emitter.getScale();
             } else {
                 this.molangContext.emitterAge = ageSeconds;
                 this.molangContext.emitterLifetime = this.lifetime;
@@ -982,6 +998,7 @@ public class BedrockParticleDebugSystem {
                 this.molangContext.emitterRandom2 = this.molangContext.random2;
                 this.molangContext.emitterRandom3 = this.molangContext.random3;
                 this.molangContext.emitterRandom4 = this.molangContext.random4;
+                this.molangContext.entityScale = 1.0f;
             }
             updateCurves();
         }
@@ -1169,6 +1186,7 @@ public class BedrockParticleDebugSystem {
         private final float[] lastBasisX;
         private final float[] lastBasisY;
         private final float[] lastBasisZ;
+        private float scale;
         private final Random eventRandom;
         private int lifetimeEventIndex;
         private boolean expirationEventsFired;
@@ -1215,6 +1233,7 @@ public class BedrockParticleDebugSystem {
             this.lastY = this.y;
             this.lastZ = this.z;
             this.lastYaw = this.yaw;
+            this.scale = currentTransform.scale;
             this.deltaX = 0.0;
             this.deltaY = 0.0;
             this.deltaZ = 0.0;
@@ -1233,7 +1252,7 @@ public class BedrockParticleDebugSystem {
             this.molangContext.emitterRandom2 = this.molangContext.random2;
             this.molangContext.emitterRandom3 = this.molangContext.random3;
             this.molangContext.emitterRandom4 = this.molangContext.random4;
-            this.molangContext.entityScale = 1.0f;
+            this.molangContext.entityScale = this.scale;
             this.environment = createRuntime(this.molangContext, this.curves);
 
             this.billboard = getComponent(data, "particle_appearance_billboard");
@@ -1451,6 +1470,7 @@ public class BedrockParticleDebugSystem {
             molangContext.emitterLifetime = lifetime;
             molangContext.particleAge = ageSeconds;
             molangContext.particleLifetime = lifetime;
+            molangContext.entityScale = scale;
             updateCurves();
         }
 
@@ -1528,6 +1548,7 @@ public class BedrockParticleDebugSystem {
             y = currentTransform.y;
             z = currentTransform.z;
             yaw = currentTransform.yaw;
+            scale = currentTransform.scale;
             copyBasis(currentTransform.basisX, basisX);
             copyBasis(currentTransform.basisY, basisY);
             copyBasis(currentTransform.basisZ, basisZ);
@@ -1674,6 +1695,10 @@ public class BedrockParticleDebugSystem {
 
         private float[] getBasisZ() {
             return basisZ;
+        }
+
+        private float getScale() {
+            return scale;
         }
 
         private double rotateLocalX(double x, double y, double z) {
@@ -2181,7 +2206,7 @@ public class BedrockParticleDebugSystem {
         if (path == null) {
             return;
         }
-        EmitterTransformProvider provider = new SnapshotTransformProvider(x, y, z, 0.0f, null, null, null);
+        EmitterTransformProvider provider = new SnapshotTransformProvider(x, y, z, 0.0f, null, null, null, 1.0f);
         spawnInternal(path, provider, 0);
     }
 
@@ -2199,7 +2224,7 @@ public class BedrockParticleDebugSystem {
         } else {
             provider = new SnapshotTransformProvider(
                 emitter.getX(), emitter.getY(), emitter.getZ(), emitter.getYaw(),
-                emitter.getBasisX(), emitter.getBasisY(), emitter.getBasisZ());
+                emitter.getBasisX(), emitter.getBasisY(), emitter.getBasisZ(), emitter.getScale());
         }
         spawnInternal(path, provider, 0);
     }
@@ -2271,6 +2296,7 @@ public class BedrockParticleDebugSystem {
         public double y;
         public double z;
         public float yaw;
+        public float scale = 1.0f;
         public final float[] basisX = new float[]{1.0f, 0.0f, 0.0f};
         public final float[] basisY = new float[]{0.0f, 1.0f, 0.0f};
         public final float[] basisZ = new float[]{0.0f, 0.0f, 1.0f};
@@ -2295,6 +2321,7 @@ public class BedrockParticleDebugSystem {
             transform.y = y;
             transform.z = z;
             transform.yaw = yaw;
+            transform.scale = 1.0f;
             setIdentityBasis(transform);
         }
     }
@@ -2307,13 +2334,15 @@ public class BedrockParticleDebugSystem {
         private final float[] basisX;
         private final float[] basisY;
         private final float[] basisZ;
+        private final float scale;
 
         private SnapshotTransformProvider(double x, double y, double z, float yaw,
-                                          float[] basisX, float[] basisY, float[] basisZ) {
+                                          float[] basisX, float[] basisY, float[] basisZ, float scale) {
             this.x = x;
             this.y = y;
             this.z = z;
             this.yaw = yaw;
+            this.scale = scale;
             this.basisX = new float[]{1.0f, 0.0f, 0.0f};
             this.basisY = new float[]{0.0f, 1.0f, 0.0f};
             this.basisZ = new float[]{0.0f, 0.0f, 1.0f};
@@ -2330,6 +2359,7 @@ public class BedrockParticleDebugSystem {
             transform.y = y;
             transform.z = z;
             transform.yaw = yaw;
+            transform.scale = scale;
             copyBasis(basisX, transform.basisX);
             copyBasis(basisY, transform.basisY);
             copyBasis(basisZ, transform.basisZ);
@@ -2349,6 +2379,7 @@ public class BedrockParticleDebugSystem {
             transform.y = emitter.getY();
             transform.z = emitter.getZ();
             transform.yaw = emitter.getYaw();
+            transform.scale = emitter.getScale();
             copyBasis(emitter.getBasisX(), transform.basisX);
             copyBasis(emitter.getBasisY(), transform.basisY);
             copyBasis(emitter.getBasisZ(), transform.basisZ);

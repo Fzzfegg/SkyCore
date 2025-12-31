@@ -587,6 +587,11 @@ public class RenderEventHandler {
                 transform.z = baseZ + rz;
                 transform.yaw = 180.0F - yaw;
                 applyYawToBasis(locatorTransform, cos, sin, transform);
+                float sx = locatorTransform.scale[0] * scale;
+                float sy = locatorTransform.scale[1] * scale;
+                float sz = locatorTransform.scale[2] * scale;
+                float uniformScale = (Math.abs(sx) + Math.abs(sy) + Math.abs(sz)) / 3.0f;
+                transform.scale = uniformScale <= 0.0f ? 1.0f : uniformScale;
                 usedInitial = true;
                 return;
             }
@@ -596,11 +601,13 @@ public class RenderEventHandler {
                 transform.z = initialZ;
                 transform.yaw = initialYaw;
                 setIdentityBasis(transform);
+                transform.scale = 1.0f;
                 usedInitial = true;
                 return;
             }
             if (entity == null) {
                 setIdentityBasis(transform);
+                transform.scale = 1.0f;
                 return;
             }
             double[] pos = resolveEventPositionNow(entity, wrapper, locatorName, yaw);
@@ -609,6 +616,7 @@ public class RenderEventHandler {
             transform.z = pos[2];
             transform.yaw = 180.0F - yaw;
             setIdentityBasis(transform);
+            transform.scale = 1.0f;
         }
 
         private void applyYawToBasis(BedrockModelWrapper.LocatorTransform source, float cos, float sin,

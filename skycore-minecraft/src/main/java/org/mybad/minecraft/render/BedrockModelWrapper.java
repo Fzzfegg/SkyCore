@@ -434,6 +434,7 @@ public class BedrockModelWrapper {
         public final float[] basisX = new float[3];
         public final float[] basisY = new float[3];
         public final float[] basisZ = new float[3];
+        public final float[] scale = new float[]{1.0f, 1.0f, 1.0f};
     }
 
     public boolean getLocatorTransform(String locatorName, LocatorTransform out) {
@@ -490,6 +491,9 @@ public class BedrockModelWrapper {
         rot.transform(xAxis);
         rot.transform(yAxis);
         rot.transform(zAxis);
+        float scaleX = xAxis.length();
+        float scaleY = yAxis.length();
+        float scaleZ = zAxis.length();
         orthonormalize(xAxis, yAxis, zAxis);
         out.basisX[0] = xAxis.x;
         out.basisX[1] = xAxis.y;
@@ -500,6 +504,9 @@ public class BedrockModelWrapper {
         out.basisZ[0] = zAxis.x;
         out.basisZ[1] = zAxis.y;
         out.basisZ[2] = zAxis.z;
+        out.scale[0] = scaleX == 0.0f ? 1.0f : scaleX;
+        out.scale[1] = scaleY == 0.0f ? 1.0f : scaleY;
+        out.scale[2] = scaleZ == 0.0f ? 1.0f : scaleZ;
     }
 
     private static void applyRotationToBasis(javax.vecmath.Matrix4f matrix, LocatorTransform out) {
@@ -862,15 +869,6 @@ public class BedrockModelWrapper {
     }
 
     private static void applyBoneTransform(ModelBone bone, MatrixStack stack) {
-        float[] position = bone.getPosition();
-        float translateX = convertX(position[0]);
-        float translateY = convertY(position[1]);
-        float translateZ = convertZ(position[2]);
-
-        if (translateX != 0 || translateY != 0 || translateZ != 0) {
-            stack.translate(translateX, translateY, translateZ);
-        }
-
         float[] pivot = bone.getPivot();
         float pivotX = convertX(pivot[0]);
         float pivotY = convertY(pivot[1]);
@@ -893,6 +891,15 @@ public class BedrockModelWrapper {
         }
 
         stack.translate(-pivotX, -pivotY, -pivotZ);
+
+        float[] position = bone.getPosition();
+        float translateX = convertX(position[0]);
+        float translateY = convertY(position[1]);
+        float translateZ = convertZ(position[2]);
+
+        if (translateX != 0 || translateY != 0 || translateZ != 0) {
+            stack.translate(translateX, translateY, translateZ);
+        }
     }
 
     private static void applyBoneTransformRecursive(ModelBone bone, MatrixStack stack) {
