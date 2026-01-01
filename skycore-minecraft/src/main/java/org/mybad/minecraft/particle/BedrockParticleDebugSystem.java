@@ -497,6 +497,11 @@ public class BedrockParticleDebugSystem {
             boolean collideX = false;
             boolean collideY = false;
             boolean collideZ = false;
+            boolean crossLocalPlane = false;
+            boolean stickLocalPlane = false;
+            float planeNormalX = 0.0f;
+            float planeNormalY = 0.0f;
+            float planeNormalZ = 0.0f;
             if (motionCollision != null && isCollisionEnabled() && collisionRadius > 0.0f) {
                 Minecraft mc = Minecraft.getMinecraft();
                 if (mc != null && mc.world != null) {
@@ -536,6 +541,32 @@ public class BedrockParticleDebugSystem {
                     this.vz = dz;
                 }
             }
+            if (motionCollision != null && isCollisionEnabled() && collisionRadius > 0.0f && emitter != null) {
+                float[] basisY = emitter.basisY;
+                double currLocalY = (this.x - emitter.x) * basisY[0]
+                    + (this.y - emitter.y) * basisY[1]
+                    + (this.z - emitter.z) * basisY[2];
+                double nextLocalY = (nextX - emitter.x) * basisY[0]
+                    + (nextY - emitter.y) * basisY[1]
+                    + (nextZ - emitter.z) * basisY[2];
+                crossLocalPlane = currLocalY > 0.0 && nextLocalY <= 0.0;
+                stickLocalPlane = currLocalY <= 0.0 || crossLocalPlane;
+                if (stickLocalPlane) {
+                    planeNormalX = basisY[0];
+                    planeNormalY = basisY[1];
+                    planeNormalZ = basisY[2];
+                    nextX -= planeNormalX * nextLocalY;
+                    nextY -= planeNormalY * nextLocalY;
+                    nextZ -= planeNormalZ * nextLocalY;
+                    double vdot = this.vx * planeNormalX + this.vy * planeNormalY + this.vz * planeNormalZ;
+                    if (vdot != 0.0) {
+                        this.vx -= planeNormalX * vdot;
+                        this.vy -= planeNormalY * vdot;
+                        this.vz -= planeNormalZ * vdot;
+                    }
+                }
+            }
+            collided = collided || crossLocalPlane;
             if (collided) {
                 double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
                 if (speed > 0.0) {
