@@ -494,36 +494,63 @@ public class BedrockParticleDebugSystem {
             double nextY = this.y + this.vy;
             double nextZ = this.z + this.vz;
             boolean collided = false;
-            if (motionCollision != null && isCollisionEnabled()) {
-                boolean collideX = isColliding(nextX, this.y, this.z, collisionRadius);
-                if (collideX) {
-                    nextX = this.x;
+            boolean collideX = false;
+            boolean collideY = false;
+            boolean collideZ = false;
+            if (motionCollision != null && isCollisionEnabled() && collisionRadius > 0.0f) {
+                Minecraft mc = Minecraft.getMinecraft();
+                if (mc != null && mc.world != null) {
+                    double dx = this.vx;
+                    double dy = this.vy;
+                    double dz = this.vz;
+                    AxisAlignedBB aabb = new AxisAlignedBB(
+                        this.x - collisionRadius, this.y - collisionRadius, this.z - collisionRadius,
+                        this.x + collisionRadius, this.y + collisionRadius, this.z + collisionRadius
+                    );
+                    List<AxisAlignedBB> boxes = mc.world.getCollisionBoxes(null, aabb.expand(dx, dy, dz));
+                    double originalDx = dx;
+                    double originalDy = dy;
+                    double originalDz = dz;
+                    for (AxisAlignedBB box : boxes) {
+                        dy = box.calculateYOffset(aabb, dy);
+                    }
+                    aabb = aabb.offset(0.0, dy, 0.0);
+                    for (AxisAlignedBB box : boxes) {
+                        dz = box.calculateZOffset(aabb, dz);
+                    }
+                    aabb = aabb.offset(0.0, 0.0, dz);
+                    for (AxisAlignedBB box : boxes) {
+                        dx = box.calculateXOffset(aabb, dx);
+                    }
+                    aabb = aabb.offset(dx, 0.0, 0.0);
+
+                    collideX = dx != originalDx;
+                    collideY = dy != originalDy;
+                    collideZ = dz != originalDz;
+                    collided = collideX || collideY || collideZ;
+                    nextX = this.x + dx;
+                    nextY = this.y + dy;
+                    nextZ = this.z + dz;
+                    this.vx = dx;
+                    this.vy = dy;
+                    this.vz = dz;
                 }
-                boolean collideY = isColliding(this.x, nextY, this.z, collisionRadius);
+            }
+            if (collided) {
+                double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
+                if (speed > 0.0) {
+                    double newSpeed = Math.max(0.0, speed - collisionDrag);
+                    double scale = newSpeed / speed;
+                    this.vx *= scale;
+                    this.vy *= scale;
+                    this.vz *= scale;
+                }
                 if (collideY) {
-                    nextY = this.y;
+                    this.vy = -this.vy * collisionRestitution;
                 }
-                boolean collideZ = isColliding(this.x, this.y, nextZ, collisionRadius);
-                if (collideZ) {
-                    nextZ = this.z;
-                }
-                collided = collideX || collideY || collideZ;
-                if (collided) {
-                    double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
-                    if (speed > 0.0) {
-                        double newSpeed = Math.max(0.0, speed - collisionDrag);
-                        double scale = newSpeed / speed;
-                        this.vx *= scale;
-                        this.vy *= scale;
-                        this.vz *= scale;
-                    }
-                    if (collideY) {
-                        this.vy = -this.vy * collisionRestitution;
-                    }
-                    fireCollisionEvents();
-                    if (expireOnContact) {
-                        return false;
-                    }
+                fireCollisionEvents();
+                if (expireOnContact) {
+                    return false;
                 }
             }
             if (killPlane != null && isKillPlaneCrossed(this.prevX, this.prevY, this.prevZ, nextX, nextY, nextZ)) {
