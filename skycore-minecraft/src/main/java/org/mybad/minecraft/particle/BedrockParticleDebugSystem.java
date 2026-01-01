@@ -1236,8 +1236,8 @@ public class BedrockParticleDebugSystem {
             double oz = this.z - emitterZ;
             double cos = Math.cos(yawDeltaRad);
             double sin = Math.sin(yawDeltaRad);
-            double rx = ox * cos - oz * sin;
-            double rz = ox * sin + oz * cos;
+            double rx = ox * cos + oz * sin;
+            double rz = -ox * sin + oz * cos;
             this.x = emitterX + rx;
             this.z = emitterZ + rz;
         }
@@ -1248,8 +1248,8 @@ public class BedrockParticleDebugSystem {
             }
             double cos = Math.cos(yawDeltaRad);
             double sin = Math.sin(yawDeltaRad);
-            double rvx = this.vx * cos - this.vz * sin;
-            double rvz = this.vx * sin + this.vz * cos;
+            double rvx = this.vx * cos + this.vz * sin;
+            double rvz = -this.vx * sin + this.vz * cos;
             this.vx = rvx;
             this.vz = rvz;
         }

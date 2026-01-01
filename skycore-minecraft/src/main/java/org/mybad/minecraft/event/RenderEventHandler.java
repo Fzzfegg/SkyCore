@@ -543,8 +543,8 @@ public class RenderEventHandler {
         float yawRad = (float) Math.toRadians(180.0F - positionYaw);
         float cos = MathHelper.cos(yawRad);
         float sin = MathHelper.sin(yawRad);
-        float rx = lx * cos - lz * sin;
-        float rz = lx * sin + lz * cos;
+        float rx = lx * cos + lz * sin;
+        float rz = -lx * sin + lz * cos;
         return new double[]{baseX + rx, baseY + ly, baseZ + rz};
     }
 
@@ -598,8 +598,8 @@ public class RenderEventHandler {
                 float yawRad = (float) Math.toRadians(180.0F - positionYaw);
                 float cos = MathHelper.cos(yawRad);
                 float sin = MathHelper.sin(yawRad);
-                float rx = lx * cos - lz * sin;
-                float rz = lx * sin + lz * cos;
+                float rx = lx * cos + lz * sin;
+                float rz = -lx * sin + lz * cos;
                 double baseX;
                 double baseY;
                 double baseZ;
@@ -612,8 +612,8 @@ public class RenderEventHandler {
                     float initYawRad = (float) Math.toRadians(180.0F - initialPositionYaw);
                     float initCos = MathHelper.cos(initYawRad);
                     float initSin = MathHelper.sin(initYawRad);
-                    float initRx = lx * initCos - lz * initSin;
-                    float initRz = lx * initSin + lz * initCos;
+                    float initRx = lx * initCos + lz * initSin;
+                    float initRz = -lx * initSin + lz * initCos;
                     baseX = initialX - initRx;
                     baseY = initialY - ly;
                     baseZ = initialZ - initRz;
@@ -666,9 +666,9 @@ public class RenderEventHandler {
             float x = axis[0];
             float y = axis[1];
             float z = axis[2];
-            out[0] = x * cos - z * sin;
+            out[0] = x * cos + z * sin;
             out[1] = y;
-            out[2] = x * sin + z * cos;
+            out[2] = -x * sin + z * cos;
         }
 
         private void setIdentityBasis(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
