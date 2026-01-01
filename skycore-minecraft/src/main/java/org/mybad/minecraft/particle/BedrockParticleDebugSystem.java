@@ -1192,12 +1192,12 @@ public class BedrockParticleDebugSystem {
             double ax = environment.safeResolve(accel[0]) / 400.0;
             double ay = environment.safeResolve(accel[1]) / 400.0;
             double az = environment.safeResolve(accel[2]) / 400.0;
-            double drag = environment.safeResolve(motionDynamic.linearDragCoefficient()) / 400.0;
+            double drag = environment.safeResolve(motionDynamic.linearDragCoefficient()) / 20.0;
             this.ax = ax - drag * this.vx;
             this.ay = ay - drag * this.vy;
             this.az = az - drag * this.vz;
             float rotAcc = (float) (environment.safeResolve(motionDynamic.rotationAcceleration()) / 400.0);
-            float rotDrag = (float) (environment.safeResolve(motionDynamic.rotationDragCoefficient()) / 400.0);
+            float rotDrag = (float) (environment.safeResolve(motionDynamic.rotationDragCoefficient()) / 20.0);
             this.rollAcceleration = rotAcc - rotDrag * this.rollVelocity;
         }
 
@@ -2279,7 +2279,7 @@ public class BedrockParticleDebugSystem {
             return environment.safeResolve(current.getRightValue());
         }
         ParticleData.BezierChainCurveNode next = (ParticleData.BezierChainCurveNode) nodes[index + 1];
-        float step = input - current.getTime() + next.getTime() / 3.0f;
+        float step = (next.getTime() - current.getTime()) / 3.0f;
         float a = environment.safeResolve(current.getRightValue());
         float b = a + step * environment.safeResolve(current.getRightSlope());
         float d = environment.safeResolve(next.getLeftValue());
