@@ -222,11 +222,13 @@ public class BedrockParticleDebugSystem {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.disableCull();
+        GlStateManager.depthMask(false);
 
         for (ActiveParticle particle : particles) {
             particle.render(mc, camX, camY, camZ, partialTicks);
         }
 
+        GlStateManager.depthMask(true);
         GlStateManager.enableCull();
         GlStateManager.disableBlend();
         GlStateManager.enableLighting();
@@ -584,6 +586,7 @@ public class BedrockParticleDebugSystem {
             applyBlendMode();
             GlStateManager.pushMatrix();
             GlStateManager.translate(px - camX, py - camY, pz - camZ);
+            GlStateManager.translate(0.0, 0.01, 0.0);
             float yaw = mc.getRenderManager().playerViewY;
             float pitch = mc.getRenderManager().playerViewX;
             boolean oriented = false;
