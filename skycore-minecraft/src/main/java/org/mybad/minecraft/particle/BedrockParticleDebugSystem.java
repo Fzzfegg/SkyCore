@@ -780,44 +780,57 @@ public class BedrockParticleDebugSystem {
         }
 
         private boolean applyDirectionX(float dx, float dy, float dz) {
-            float yRot = (float) Math.atan2(dz, dx);
-            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
-            tempQuat.identity().rotateZYX(0.0f, -yRot, xRot);
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg));
+            tempQuat.rotateY((float) Math.toRadians(90.0f));
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
             return applyRotationFromQuaternion();
         }
 
         private boolean applyDirectionY(float dx, float dy, float dz) {
-            float yRot = (float) Math.atan2(dz, dx);
-            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
-            float halfPi = (float) (Math.PI * 0.5f);
-            tempQuat.identity().rotateZYX(0.0f, -(yRot - halfPi), -(xRot - halfPi));
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg + 90.0f));
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
             return applyRotationFromQuaternion();
         }
 
         private boolean applyDirectionZ(float dx, float dy, float dz) {
-            float yRot = (float) Math.atan2(dz, dx);
-            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
-            float halfPi = (float) (Math.PI * 0.5f);
-            tempQuat.identity().rotateZYX(0.0f, -(halfPi + yRot), xRot);
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg));
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
             return applyRotationFromQuaternion();
         }
 
         private boolean applyLookAtDirection(float dx, float dy, float dz,
                                              double camX, double camY, double camZ,
                                              double px, double py, double pz) {
-            float yRot = (float) Math.atan2(dz, dx);
-            float xRot = (float) Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            // Blockbuster/Snowstorm-like: align to direction, then rotate around local Y to face camera.
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
             tempQuat.identity();
-            tempQuat.rotateY(-yRot);
-            tempQuat.rotateX(xRot + (float) (Math.PI * 0.5f));
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg + 90.0f));
 
             // rotated normal
             tempVecZ.set(0.0f, 0.0f, 1.0f);
             tempQuat.transform(tempVecZ);
 
-            // camera direction projected onto plane
+            // camera direction projected onto plane (direction is the plane normal)
             tempVecA.set((float) (camX - px), (float) (camY - py), (float) (camZ - pz));
-            tempVecB.set(dx, dy, dz).normalize();
+            tempVecB.set(dx, dy, dz);
+            if (tempVecB.lengthSquared() <= 1.0e-6f) {
+                return false;
+            }
+            tempVecB.normalize();
             float dot = tempVecA.dot(tempVecB);
             tempVecA.sub(tempVecB.x * dot, tempVecB.y * dot, tempVecB.z * dot);
             if (tempVecA.lengthSquared() <= 1.0e-6f) {
@@ -830,8 +843,19 @@ public class BedrockParticleDebugSystem {
             float sign = tempVecX.dot(tempVecB);
             float finalRot = (float) -Math.copySign(angle, sign);
             tempQuat.rotateY(finalRot);
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
 
             return applyRotationFromQuaternion();
+        }
+
+        private float getDirectionYawDeg(float dx, float dy, float dz) {
+            double yaw = Math.atan2(-dx, dz);
+            return (float) -Math.toDegrees(yaw);
+        }
+
+        private float getDirectionPitchDeg(float dx, float dy, float dz) {
+            double pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            return (float) -Math.toDegrees(pitch);
         }
 
         private boolean applyRotationFromQuaternion() {
