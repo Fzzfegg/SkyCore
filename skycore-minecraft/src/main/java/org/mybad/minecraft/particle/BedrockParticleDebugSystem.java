@@ -1281,9 +1281,9 @@ public class BedrockParticleDebugSystem {
                 double lx = environment.safeResolve(dir[0]);
                 double ly = environment.safeResolve(dir[1]);
                 double lz = environment.safeResolve(dir[2]);
-                double dx = emitter != null ? emitter.rotateLocalX(lx, ly, lz) : lx;
-                double dy = emitter != null ? emitter.rotateLocalY(lx, ly, lz) : ly;
-                double dz = emitter != null ? emitter.rotateLocalZ(lx, ly, lz) : lz;
+                double dx = (emitter != null && localVelocity) ? emitter.rotateLocalX(lx, ly, lz) : lx;
+                double dy = (emitter != null && localVelocity) ? emitter.rotateLocalY(lx, ly, lz) : ly;
+                double dz = (emitter != null && localVelocity) ? emitter.rotateLocalZ(lx, ly, lz) : lz;
                 setDirection(dx, dy, dz);
             }
             this.roll = environment.safeResolve(motionParametric.rotation());
@@ -1394,6 +1394,7 @@ public class BedrockParticleDebugSystem {
         private final float[] lastBasisZ;
         private float scale;
         private final Random eventRandom;
+        private final boolean locatorBound;
         private int lifetimeEventIndex;
         private boolean expirationEventsFired;
 
@@ -1424,6 +1425,7 @@ public class BedrockParticleDebugSystem {
         private ActiveEmitter(ParticleData data, EmitterTransformProvider provider, int overrideCount) {
             this.data = data;
             this.transformProvider = provider != null ? provider : new StaticTransformProvider(0.0, 0.0, 0.0, 0.0f);
+            this.locatorBound = provider != null && provider.isLocatorBound();
             this.currentTransform = new EmitterTransform();
             this.transformProvider.fill(currentTransform, 0.0f);
             this.x = currentTransform.x;
@@ -2079,9 +2081,10 @@ public class BedrockParticleDebugSystem {
                 if (!(instance instanceof ActiveParticle)) {
                     return;
                 }
-                double rx = rotateLocalX(dx, dy, dz);
-                double ry = rotateLocalY(dx, dy, dz);
-                double rz = rotateLocalZ(dx, dy, dz);
+                boolean localVel = ActiveEmitter.this.isLocalVelocity();
+                double rx = localVel ? rotateLocalX(dx, dy, dz) : dx;
+                double ry = localVel ? rotateLocalY(dx, dy, dz) : dy;
+                double rz = localVel ? rotateLocalZ(dx, dy, dz) : dz;
                 double vx = rx + ActiveEmitter.this.deltaX;
                 double vy = ry + ActiveEmitter.this.deltaY;
                 double vz = rz + ActiveEmitter.this.deltaZ;
@@ -2586,6 +2589,10 @@ public class BedrockParticleDebugSystem {
 
     public interface EmitterTransformProvider {
         void fill(EmitterTransform transform, float deltaSeconds);
+
+        default boolean isLocatorBound() {
+            return false;
+        }
     }
 
     public static final class EmitterTransform {

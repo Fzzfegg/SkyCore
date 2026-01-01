@@ -655,6 +655,11 @@ public class RenderEventHandler {
             transform.scale = 1.0f;
         }
 
+        @Override
+        public boolean isLocatorBound() {
+            return locatorName != null && !locatorName.isEmpty();
+        }
+
         private void applyYawToBasis(BedrockModelWrapper.LocatorTransform source, float cos, float sin,
                                      org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
             rotateBasis(source.basisX, cos, sin, transform.basisX);
