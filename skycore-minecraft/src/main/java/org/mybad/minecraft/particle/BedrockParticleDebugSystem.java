@@ -868,9 +868,9 @@ public class BedrockParticleDebugSystem {
                 tempAxisX[0] = ex[0];
                 tempAxisX[1] = ex[1];
                 tempAxisX[2] = ex[2];
-                tempAxisY[0] = ez[0];
-                tempAxisY[1] = ez[1];
-                tempAxisY[2] = ez[2];
+                tempAxisY[0] = -ez[0];
+                tempAxisY[1] = -ez[1];
+                tempAxisY[2] = -ez[2];
                 tempAxisZ[0] = -ey[0];
                 tempAxisZ[1] = -ey[1];
                 tempAxisZ[2] = -ey[2];
