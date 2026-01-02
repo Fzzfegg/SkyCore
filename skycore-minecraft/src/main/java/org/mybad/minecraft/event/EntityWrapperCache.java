@@ -3,9 +3,12 @@ package org.mybad.minecraft.event;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import org.mybad.core.animation.Animation;
+import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 import java.util.Collection;
@@ -39,7 +42,7 @@ final class EntityWrapperCache {
             }
         }
 
-        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping, "entity: " + entityName);
+        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping);
         if (wrapper == null) {
             return null;
         }

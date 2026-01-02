@@ -41,7 +41,7 @@ final class ResourcePathResolver {
                 return sb.toString();
             }
         } catch (IOException e) {
-            reporter.warn("资源文件不存在: {} - {}", location, e.getMessage());
+            reporter.missing(location.toString(), e);
             return null;
         }
     }

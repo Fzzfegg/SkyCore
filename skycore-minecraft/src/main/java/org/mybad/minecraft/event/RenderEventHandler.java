@@ -7,6 +7,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.debug.DebugStackManager;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.resource.ResourceLoader;
 

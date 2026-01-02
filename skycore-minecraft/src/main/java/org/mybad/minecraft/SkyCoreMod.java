@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import org.mybad.minecraft.command.SkyCoreCommandHandler;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.RenderEventHandler;
-import org.mybad.minecraft.particle.BedrockParticleDebugSystem;
+import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceLoader;
 

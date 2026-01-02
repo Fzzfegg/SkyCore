@@ -1,24 +1,21 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render;
 
 import net.minecraft.util.ResourceLocation;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
-import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
-import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.resource.ResourceLoader;
 
-final class ModelHandleFactory {
+public final class ModelHandleFactory {
     private ModelHandleFactory() {
     }
 
-    static BedrockModelHandle create(ResourceLoader resourceLoader, EntityModelMapping mapping, String contextName) {
+    public static BedrockModelHandle create(ResourceLoader resourceLoader, EntityModelMapping mapping) {
         if (resourceLoader == null || mapping == null) {
             return null;
         }
         Model model = resourceLoader.loadModel(mapping.getModel());
         if (model == null) {
-            warnMissingModel(mapping.getModel(), contextName);
             return null;
         }
 
@@ -44,11 +41,4 @@ final class ModelHandleFactory {
         );
     }
 
-    private static void warnMissingModel(String modelPath, String contextName) {
-        if (contextName == null || contextName.isEmpty()) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载模型: {}", modelPath);
-        } else {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载模型: {} for {}", modelPath, contextName);
-        }
-    }
 }

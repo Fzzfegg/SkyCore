@@ -1,28 +1,29 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.debug;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-final class DebugStackManager {
+public final class DebugStackManager {
     private final ResourceLoader resourceLoader;
     private final List<DebugStack> debugStacks;
 
-    DebugStackManager(ResourceLoader resourceLoader) {
+    public DebugStackManager(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
         this.debugStacks = new ArrayList<>();
     }
 
-    void onRenderWorldLast(RenderWorldLastEvent event) {
+    public void onRenderWorldLast(RenderWorldLastEvent event) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.getRenderManager() == null) {
             return;
@@ -52,7 +53,7 @@ final class DebugStackManager {
         }
     }
 
-    void clearDebugStacks() {
+    public void clearDebugStacks() {
         synchronized (debugStacks) {
             for (DebugStack stack : debugStacks) {
                 stack.wrapper.dispose();
@@ -61,13 +62,13 @@ final class DebugStackManager {
         }
     }
 
-    boolean addDebugStack(String mappingName, double x, double y, double z, float yaw, int count, double spacing) {
+    public boolean addDebugStack(String mappingName, double x, double y, double z, float yaw, int count, double spacing) {
         EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
         if (mapping == null) {
             return false;
         }
 
-        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping, "debug stack");
+        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping);
         if (wrapper == null) {
             return false;
         }
