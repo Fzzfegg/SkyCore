@@ -6,7 +6,6 @@ import com.google.gson.JsonParser;
 import gg.moonflower.pinwheel.particle.ParticleData;
 import gg.moonflower.pinwheel.particle.ParticleParser;
 import net.minecraft.util.ResourceLocation;
-import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.bedrockparticle.BedrockResourceLocation;
 
 import java.util.Map;
@@ -15,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 final class ParticleResourceLoader {
     private final ResourceLoader owner;
     private final Map<String, ParticleData> particleCache = new ConcurrentHashMap<>();
+    private final ResourceLoadReporter reporter = new ResourceLoadReporter("Particle");
 
     ParticleResourceLoader(ResourceLoader owner) {
         this.owner = owner;
@@ -28,7 +28,7 @@ final class ParticleResourceLoader {
         try {
             String jsonContent = owner.loadResourceAsString(path);
             if (jsonContent == null) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载粒子文件: {}", path);
+                reporter.missing(path);
                 return null;
             }
             JsonElement root = new JsonParser().parse(jsonContent);
@@ -37,7 +37,7 @@ final class ParticleResourceLoader {
             particleCache.put(path, data);
             return data;
         } catch (Exception e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析粒子文件失败: {} - {}", path, e.getMessage());
+            reporter.parseFailed(path, e);
             return null;
         }
     }

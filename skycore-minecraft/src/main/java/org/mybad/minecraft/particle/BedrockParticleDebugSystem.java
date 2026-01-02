@@ -25,7 +25,7 @@ public final class BedrockParticleDebugSystem {
         return system.spawn(particlePath, x, y, z, overrideCount);
     }
 
-    public boolean spawn(String particlePath, BedrockParticleSystem.EmitterTransformProvider provider, int overrideCount) {
+    public boolean spawn(String particlePath, EmitterTransformProvider provider, int overrideCount) {
         return system.spawn(particlePath, provider, overrideCount);
     }
 

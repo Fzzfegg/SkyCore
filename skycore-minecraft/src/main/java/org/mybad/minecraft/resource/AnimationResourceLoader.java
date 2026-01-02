@@ -2,7 +2,6 @@ package org.mybad.minecraft.resource;
 
 import org.mybad.core.animation.Animation;
 import org.mybad.core.parsing.AnimationParser;
-import org.mybad.minecraft.SkyCoreMod;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,6 +11,7 @@ final class AnimationResourceLoader {
     private final Map<String, Animation> animationCache = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Animation>> animationSetCache = new ConcurrentHashMap<>();
     private final AnimationParser animationParser = new AnimationParser();
+    private final ResourceLoadReporter reporter = new ResourceLoadReporter("Animation");
 
     AnimationResourceLoader(ResourceLoader owner) {
         this.owner = owner;
@@ -39,7 +39,7 @@ final class AnimationResourceLoader {
         }
         Animation animation = set.get(clipName);
         if (animation == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 动画片段不存在: {} in {}", clipName, path);
+            reporter.warn("动画片段不存在: {} in {}", clipName, path);
         }
         return animation;
     }
@@ -52,14 +52,14 @@ final class AnimationResourceLoader {
         try {
             String jsonContent = owner.loadResourceAsString(path);
             if (jsonContent == null) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载动画文件: {}", path);
+                reporter.missing(path);
                 return null;
             }
             Map<String, Animation> animations = animationParser.parseAllToAnimations(jsonContent);
             animationSetCache.put(path, animations);
             return animations;
         } catch (Exception e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析动画文件失败: {} - {}", path, e.getMessage());
+            reporter.parseFailed(path, e);
             return null;
         }
     }

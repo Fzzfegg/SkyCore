@@ -11,6 +11,8 @@ import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.particle.BedrockParticleSystem;
+import org.mybad.minecraft.particle.EmitterTransform;
+import org.mybad.minecraft.particle.EmitterTransformProvider;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 
 import java.util.HashSet;
@@ -267,7 +269,7 @@ final class AnimationEventDispatcher {
         return new double[]{baseX + rx, baseY + ly, baseZ + rz};
     }
 
-    private final class EventTransformProvider implements BedrockParticleSystem.EmitterTransformProvider {
+    private final class EventTransformProvider implements EmitterTransformProvider {
         private final EntityLivingBase entity;
         private final BedrockModelWrapper wrapper;
         private final String locatorName;
@@ -306,7 +308,7 @@ final class AnimationEventDispatcher {
         }
 
         @Override
-        public void fill(BedrockParticleSystem.EmitterTransform transform, float deltaSeconds) {
+        public void fill(EmitterTransform transform, float deltaSeconds) {
             float positionYaw = resolveHeadYaw(entity);
             float emitterYaw = resolveEmitterYaw(entity, mode, yawOffset, initialEmitterYaw);
             if (wrapper != null && locatorName != null && wrapper.getLocatorTransform(locatorName, locatorTransform)) {
@@ -380,13 +382,13 @@ final class AnimationEventDispatcher {
         }
 
         private void applyYawToBasis(BedrockModelWrapper.LocatorTransform source, float cos, float sin,
-                                     BedrockParticleSystem.EmitterTransform transform) {
+                                     EmitterTransform transform) {
             rotateBasis(source.basisX, cos, sin, transform.basisX);
             rotateBasis(source.basisY, cos, sin, transform.basisY);
             rotateBasis(source.basisZ, cos, sin, transform.basisZ);
         }
 
-        private void flipLocatorBasisY(BedrockParticleSystem.EmitterTransform transform) {
+        private void flipLocatorBasisY(EmitterTransform transform) {
             transform.basisY[0] = -transform.basisY[0];
             transform.basisY[1] = -transform.basisY[1];
             transform.basisY[2] = -transform.basisY[2];
@@ -401,7 +403,7 @@ final class AnimationEventDispatcher {
             out[2] = -x * sin + z * cos;
         }
 
-        private void setIdentityBasis(BedrockParticleSystem.EmitterTransform transform) {
+        private void setIdentityBasis(EmitterTransform transform) {
             transform.basisX[0] = 1.0f;
             transform.basisX[1] = 0.0f;
             transform.basisX[2] = 0.0f;

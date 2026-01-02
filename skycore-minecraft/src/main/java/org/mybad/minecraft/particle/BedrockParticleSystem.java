@@ -2687,25 +2687,6 @@ public class BedrockParticleSystem {
         }
     }
 
-    public interface EmitterTransformProvider {
-        void fill(EmitterTransform transform, float deltaSeconds);
-
-        default boolean isLocatorBound() {
-            return false;
-        }
-    }
-
-    public static final class EmitterTransform {
-        public double x;
-        public double y;
-        public double z;
-        public float yaw;
-        public float scale = 1.0f;
-        public final float[] basisX = new float[]{1.0f, 0.0f, 0.0f};
-        public final float[] basisY = new float[]{0.0f, 1.0f, 0.0f};
-        public final float[] basisZ = new float[]{0.0f, 0.0f, 1.0f};
-    }
-
     public static final class StaticTransformProvider implements EmitterTransformProvider {
         private final double x;
         private final double y;
