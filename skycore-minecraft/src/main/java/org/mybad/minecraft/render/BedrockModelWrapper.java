@@ -117,14 +117,14 @@ public class BedrockModelWrapper {
     /**
      * 重新开始当前动画
      */
-    public void restartAnimation() {
+    void restartAnimation() {
         animationController.restartAnimation();
     }
 
     /**
      * 获取动画播放器
      */
-    public AnimationPlayer getAnimationPlayer() {
+    AnimationPlayer getAnimationPlayer() {
         return animationController.getAnimationPlayer();
     }
 
@@ -143,7 +143,7 @@ public class BedrockModelWrapper {
     /**
      * 获取模型
      */
-    public Model getModel() {
+    Model getModel() {
         return model;
     }
 
@@ -187,21 +187,21 @@ public class BedrockModelWrapper {
         animationController.dispose();
     }
 
-    public static void clearSharedResources() {
+    static void clearSharedResources() {
         ModelWrapperFactory.clearSharedResources();
     }
 
     /**
      * 获取纹理
      */
-    public ResourceLocation getTexture() {
+    ResourceLocation getTexture() {
         return texture;
     }
 
     /**
      * 重新生成四边形
      */
-    public void regenerateQuads() {
+    void regenerateQuads() {
         geometryBuilder.regenerateQuads();
     }
 

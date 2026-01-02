@@ -11,12 +11,7 @@ import java.nio.FloatBuffer;
 final class SkinningPipeline {
     private final Model model;
     private final ModelGeometryBuilder geometryBuilder;
-    private final GeometryCache geometryCache;
-    private final GeometryCache.Key geometryKey;
-    private SharedGeometry sharedGeometry;
-    private SkinnedMesh skinnedMesh;
-    private boolean shaderAcquired;
-    private boolean gpuSkinningReady;
+    private final SkinningResourceManager resourceManager;
     private FloatBuffer boneMatrixBuffer;
     private float[] boneMatrices;
     private final BoneMatrixUpdater boneMatrixUpdater;
@@ -24,43 +19,13 @@ final class SkinningPipeline {
     SkinningPipeline(Model model, ModelGeometryBuilder geometryBuilder, GeometryCache geometryCache, GeometryCache.Key geometryKey) {
         this.model = model;
         this.geometryBuilder = geometryBuilder;
-        this.geometryCache = geometryCache;
-        this.geometryKey = geometryKey;
+        this.resourceManager = new SkinningResourceManager(geometryBuilder, geometryCache, geometryKey);
         this.boneMatrixUpdater = new BoneMatrixUpdater(model, geometryBuilder.getBoneIndexMap(), geometryBuilder.getRootBones());
         initBoneMatrices();
     }
 
     boolean ensureGpuSkinningReady() {
-        if (gpuSkinningReady) {
-            return true;
-        }
-        if (!GpuSkinningSupport.isGpuSkinningAvailable()) {
-            return false;
-        }
-        if (!shaderAcquired) {
-            GpuSkinningShader.acquire();
-            shaderAcquired = true;
-        }
-        if (sharedGeometry == null || sharedGeometry.isDestroyed()) {
-            sharedGeometry = geometryCache.acquire(geometryKey, geometryBuilder::buildSharedGeometry);
-        }
-        if (sharedGeometry == null || sharedGeometry.isDestroyed()) {
-            if (shaderAcquired) {
-                GpuSkinningShader.release();
-                shaderAcquired = false;
-            }
-            return false;
-        }
-        skinnedMesh = new SkinnedMesh(sharedGeometry, model.getBones().size());
-        gpuSkinningReady = skinnedMesh != null;
-        if (!gpuSkinningReady) {
-            releaseSharedGeometry();
-            if (shaderAcquired) {
-                GpuSkinningShader.release();
-                shaderAcquired = false;
-            }
-        }
-        return gpuSkinningReady;
+        return resourceManager.ensureGpuSkinningReady(model.getBones().size());
     }
 
     void updateBoneMatrices() {
@@ -68,6 +33,7 @@ final class SkinningPipeline {
     }
 
     void runSkinningPass() {
+        SkinnedMesh skinnedMesh = resourceManager.getSkinnedMesh();
         if (skinnedMesh == null) {
             return;
         }
@@ -76,22 +42,14 @@ final class SkinningPipeline {
     }
 
     void draw() {
+        SkinnedMesh skinnedMesh = resourceManager.getSkinnedMesh();
         if (skinnedMesh != null) {
             skinnedMesh.draw();
         }
     }
 
     void dispose() {
-        if (skinnedMesh != null) {
-            skinnedMesh.destroy();
-            skinnedMesh = null;
-        }
-        releaseSharedGeometry();
-        if (shaderAcquired) {
-            GpuSkinningShader.release();
-            shaderAcquired = false;
-        }
-        gpuSkinningReady = false;
+        resourceManager.dispose();
     }
 
     private void initBoneMatrices() {
@@ -103,11 +61,4 @@ final class SkinningPipeline {
         boneMatrixBuffer = BufferUtils.createFloatBuffer(boneCount * 16);
     }
 
-    private void releaseSharedGeometry() {
-        if (sharedGeometry == null) {
-            return;
-        }
-        geometryCache.release(geometryKey, sharedGeometry);
-        sharedGeometry = null;
-    }
 }
