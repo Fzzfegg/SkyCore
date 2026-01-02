@@ -10,7 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mybad.minecraft.command.SkyCoreCommandHandler;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.event.RenderEventHandler;
+import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceLoader;
@@ -42,7 +42,7 @@ public class SkyCoreMod {
 
     /** 渲染事件处理器 */
     @SideOnly(Side.CLIENT)
-    private RenderEventHandler renderEventHandler;
+    private EntityRenderEventHandler renderEventHandler;
     @SideOnly(Side.CLIENT)
     private BedrockParticleSystem particleSystem;
     @SideOnly(Side.CLIENT)
@@ -68,7 +68,7 @@ public class SkyCoreMod {
         LOGGER.info("[SkyCore] Init - 注册事件处理器...");
 
         // 创建并注册渲染事件处理器
-        renderEventHandler = new RenderEventHandler(resourceLoader);
+        renderEventHandler = new EntityRenderEventHandler(resourceLoader);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
         // 粒子系统（核心）
         particleSystem = new BedrockParticleSystem(resourceLoader);
@@ -120,9 +120,10 @@ public class SkyCoreMod {
      * 获取渲染事件处理器
      */
     @SideOnly(Side.CLIENT)
-    public static RenderEventHandler getRenderEventHandler() {
+    public static EntityRenderEventHandler getEntityRenderEventHandler() {
         return instance != null ? instance.renderEventHandler : null;
     }
+
 
     @SideOnly(Side.CLIENT)
     public static BedrockParticleSystem getParticleSystem() {

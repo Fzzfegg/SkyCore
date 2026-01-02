@@ -1,4 +1,4 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;

@@ -1,11 +1,11 @@
 package org.mybad.minecraft.config;
 
-import com.google.gson.*;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import org.mybad.minecraft.SkyCoreMod;
 
 import java.io.*;
-import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
@@ -27,6 +27,10 @@ public class SkyCoreConfig {
 
     /** Gson 实例 */
     private final Gson gson;
+
+    private static final class ConfigFile {
+        List<EntityModelMapping> entities = new ArrayList<>();
+    }
 
     private SkyCoreConfig(Path configDir) {
         this.configPath = configDir.resolve("skycore.json");
@@ -62,35 +66,20 @@ public class SkyCoreConfig {
     public void load() {
         mappings.clear();
 
-        if (!Files.exists(configPath)) {
-            // 创建默认配置
+        ConfigFile file = readConfigFile();
+        if (file == null) {
             createDefaultConfig();
             return;
         }
-
-        try (Reader reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
-            JsonObject root = new JsonParser().parse(reader).getAsJsonObject();
-
-            if (root.has("entities")) {
-                JsonArray entities = root.getAsJsonArray("entities");
-                Type listType = new TypeToken<List<EntityModelMapping>>(){}.getType();
-                List<EntityModelMapping> list = gson.fromJson(entities, listType);
-
-                for (EntityModelMapping mapping : list) {
-                    if (mapping.getName() != null && !mapping.getName().isEmpty()) {
-                        mappings.put(mapping.getName(), mapping);
-                        SkyCoreMod.LOGGER.info("[SkyCore] 加载实体映射: {}", mapping.getName());
-                    }
+        if (file.entities != null) {
+            for (EntityModelMapping mapping : file.entities) {
+                if (mapping != null && mapping.getName() != null && !mapping.getName().isEmpty()) {
+                    mappings.put(mapping.getName(), mapping);
+                    SkyCoreMod.LOGGER.info("[SkyCore] 加载实体映射: {}", mapping.getName());
                 }
             }
-
-            SkyCoreMod.LOGGER.info("[SkyCore] 配置加载完成，共 {} 个实体映射", mappings.size());
-
-        } catch (IOException e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 加载配置文件失败", e);
-        } catch (JsonParseException e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 配置文件格式错误", e);
         }
+        SkyCoreMod.LOGGER.info("[SkyCore] 配置加载完成，共 {} 个实体映射", mappings.size());
     }
 
     /**
@@ -106,50 +95,67 @@ public class SkyCoreConfig {
      * 创建默认配置文件
      */
     private void createDefaultConfig() {
+        ConfigFile file = new ConfigFile();
+        file.entities.add(buildExampleMapping());
+        file.entities.add(buildBillboardExampleMapping());
+        if (writeConfigFile(file)) {
+            SkyCoreMod.LOGGER.info("[SkyCore] 已创建默认配置文件: {}", configPath);
+        }
+    }
+
+    private ConfigFile readConfigFile() {
+        if (!Files.exists(configPath)) {
+            return null;
+        }
+        try (Reader reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
+            return gson.fromJson(reader, ConfigFile.class);
+        } catch (IOException e) {
+            SkyCoreMod.LOGGER.error("[SkyCore] 加载配置文件失败", e);
+        } catch (JsonParseException e) {
+            SkyCoreMod.LOGGER.error("[SkyCore] 配置文件格式错误", e);
+        }
+        return null;
+    }
+
+    private boolean writeConfigFile(ConfigFile file) {
         try {
             Files.createDirectories(configPath.getParent());
-
-            JsonObject root = new JsonObject();
-            JsonArray entities = new JsonArray();
-
-            // 添加示例配置
-            // 路径格式：直接写路径（默认 skycore 命名空间）或 "namespace:path" 格式
-            JsonObject example = new JsonObject();
-            example.addProperty("name", "ExampleEntity");
-            example.addProperty("model", "models/example.geo.json");
-            example.addProperty("animation", "animations/example.animation.json");
-            example.addProperty("texture", "textures/example.png");
-            example.addProperty("emissive", "textures/example_emissive.png");
-            example.addProperty("emissiveStrength", 1.0f);
-            example.addProperty("enableCull", true);  // 是否启用背面剔除，默认为 true
-            example.addProperty("scale", 1.0f);  // 模型缩放
-            example.addProperty("primaryFadeSeconds", 0.12f);  // 主动画切换淡入淡出时间（秒）
-            entities.add(example);
-
-            // 添加禁用背面剔除的示例（用于布料、旗子等需要双面渲染的模型）
-            JsonObject example2 = new JsonObject();
-            example2.addProperty("name", "BillboardEntity");
-            example2.addProperty("model", "models/billboard.geo.json");
-            example2.addProperty("animation", "animations/billboard.animation.json");
-            example2.addProperty("texture", "textures/billboard.png");
-            example2.addProperty("emissive", "textures/billboard_emissive.png");
-            example2.addProperty("emissiveStrength", 1.0f);
-            example2.addProperty("enableCull", false);  // 禁用背面剔除，显示双面
-            example2.addProperty("scale", 1.0f);
-            example2.addProperty("primaryFadeSeconds", 0.12f);
-            entities.add(example2);
-
-            root.add("entities", entities);
-
             try (Writer writer = Files.newBufferedWriter(configPath, StandardCharsets.UTF_8)) {
-                gson.toJson(root, writer);
+                gson.toJson(file, writer);
             }
-
-            SkyCoreMod.LOGGER.info("[SkyCore] 已创建默认配置文件: {}", configPath);
-
+            return true;
         } catch (IOException e) {
             SkyCoreMod.LOGGER.error("[SkyCore] 创建默认配置文件失败", e);
+            return false;
         }
+    }
+
+    private EntityModelMapping buildExampleMapping() {
+        EntityModelMapping example = new EntityModelMapping();
+        example.setName("ExampleEntity");
+        example.setModel("models/example.geo.json");
+        example.setAnimation("animations/example.animation.json");
+        example.setTexture("textures/example.png");
+        example.setEmissive("textures/example_emissive.png");
+        example.setEmissiveStrength(1.0f);
+        example.setEnableCull(true);
+        example.setModelScale(1.0f);
+        example.setPrimaryFadeSeconds(0.12f);
+        return example;
+    }
+
+    private EntityModelMapping buildBillboardExampleMapping() {
+        EntityModelMapping example = new EntityModelMapping();
+        example.setName("BillboardEntity");
+        example.setModel("models/billboard.geo.json");
+        example.setAnimation("animations/billboard.animation.json");
+        example.setTexture("textures/billboard.png");
+        example.setEmissive("textures/billboard_emissive.png");
+        example.setEmissiveStrength(1.0f);
+        example.setEnableCull(false);
+        example.setModelScale(1.0f);
+        example.setPrimaryFadeSeconds(0.12f);
+        return example;
     }
 
     /**

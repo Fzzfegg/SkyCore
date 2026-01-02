@@ -9,6 +9,7 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.debug.DebugStackManager;
 import org.mybad.minecraft.render.GLDeletionQueue;
+import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 /**
@@ -17,12 +18,12 @@ import org.mybad.minecraft.resource.ResourceLoader;
  * 使用 SkyCore Bedrock 模型替换原版渲染
  */
 @SideOnly(Side.CLIENT)
-public class RenderEventHandler {
+public class EntityRenderEventHandler {
 
     private final EntityRenderDispatcher entityDispatcher;
     private final DebugStackManager debugStackManager;
 
-    public RenderEventHandler(ResourceLoader resourceLoader) {
+    public EntityRenderEventHandler(ResourceLoader resourceLoader) {
         this.entityDispatcher = new EntityRenderDispatcher(resourceLoader);
         this.debugStackManager = new DebugStackManager(resourceLoader);
     }

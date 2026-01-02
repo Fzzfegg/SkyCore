@@ -1,4 +1,4 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import net.minecraft.entity.EntityLivingBase;
 import org.mybad.core.animation.Animation;
@@ -11,7 +11,7 @@ import java.util.Set;
 final class OverlayEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
 
-    void dispatch(EntityLivingBase entity, WrapperEntry entry, BedrockModelHandle wrapper,
+    void dispatch(EntityLivingBase entity, EntityWrapperEntry entry, BedrockModelHandle wrapper,
                   float partialTicks, AnimationEventDispatcher dispatcher) {
         if (entry.overlayStates == null || entry.overlayStates.isEmpty()) {
             entry.overlayCursors.clear();
@@ -24,7 +24,7 @@ final class OverlayEventDispatcher {
             }
             Animation animation = state.animation;
             active.add(animation);
-            EventCursor cursor = entry.overlayCursors.getOrCreate(animation);
+            OverlayEventCursor cursor = entry.overlayCursors.getOrCreate(animation);
             float currentTime = state.time;
             if (!cursor.valid) {
                 cursor.lastTime = currentTime;

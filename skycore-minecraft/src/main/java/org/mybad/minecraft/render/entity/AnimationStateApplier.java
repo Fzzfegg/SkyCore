@@ -1,4 +1,4 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import net.minecraft.entity.EntityLivingBase;
 import org.mybad.core.animation.Animation;
@@ -12,7 +12,7 @@ final class AnimationStateApplier {
     }
 
     static List<EntityAnimationController.OverlayState> apply(EntityLivingBase entity,
-                                                              WrapperEntry entry,
+                                                              EntityWrapperEntry entry,
                                                               Animation forced) {
         if (entry == null || entry.wrapper == null) {
             return Collections.emptyList();

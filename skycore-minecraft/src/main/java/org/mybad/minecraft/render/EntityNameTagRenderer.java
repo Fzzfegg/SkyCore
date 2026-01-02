@@ -1,13 +1,13 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 
-final class NameTagRenderer {
-    private NameTagRenderer() {
+public final class EntityNameTagRenderer {
+    private EntityNameTagRenderer() {
     }
 
-    static boolean shouldRenderNameTag(EntityLivingBase entity) {
+    public static boolean shouldRenderNameTag(EntityLivingBase entity) {
         if (entity == null) {
             return false;
         }
@@ -18,7 +18,7 @@ final class NameTagRenderer {
         return entity.getAlwaysRenderNameTagForRender();
     }
 
-    static void render(EntityLivingBase entity, double x, double y, double z) {
+    public static void render(EntityLivingBase entity, double x, double y, double z) {
         if (entity == null) {
             return;
         }

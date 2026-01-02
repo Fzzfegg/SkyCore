@@ -1,4 +1,4 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
@@ -18,14 +18,14 @@ final class AnimationEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
     private final OverlayEventDispatcher overlayDispatcher = new OverlayEventDispatcher();
 
-    void dispatchAnimationEvents(EntityLivingBase entity, WrapperEntry entry,
+    void dispatchAnimationEvents(EntityLivingBase entity, EntityWrapperEntry entry,
                                  BedrockModelHandle wrapper, float partialTicks) {
         AnimationPlayer primaryPlayer = wrapper.getActiveAnimationPlayer();
         if (primaryPlayer != null && primaryPlayer.getAnimation() != null) {
             Animation animation = primaryPlayer.getAnimation();
             float currentTime = primaryPlayer.getState().getCurrentTime();
             int loopCount = primaryPlayer.getState().getLoopCount();
-            EntityRenderState renderState = entry.renderState;
+            AnimationEventState renderState = entry.renderState;
             if (!renderState.primaryValid || renderState.lastPrimaryAnimation != animation) {
                 renderState.lastPrimaryAnimation = animation;
                 renderState.lastPrimaryTime = currentTime;

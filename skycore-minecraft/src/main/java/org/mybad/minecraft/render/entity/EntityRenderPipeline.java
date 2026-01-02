@@ -1,7 +1,8 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import net.minecraft.entity.EntityLivingBase;
 import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.EntityNameTagRenderer;
 
 final class EntityRenderPipeline {
     private final AnimationEventDispatcher eventDispatcher;
@@ -10,7 +11,7 @@ final class EntityRenderPipeline {
         this.eventDispatcher = eventDispatcher;
     }
 
-    void render(EntityLivingBase entity, WrapperEntry entry,
+    void render(EntityLivingBase entity, EntityWrapperEntry entry,
                 double x, double y, double z, float partialTicks) {
         if (entry == null || entry.wrapper == null) {
             return;
@@ -21,8 +22,8 @@ final class EntityRenderPipeline {
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
         eventDispatcher.dispatchAnimationEvents(entity, entry, wrapper, partialTicks);
 
-        if (NameTagRenderer.shouldRenderNameTag(entity)) {
-            NameTagRenderer.render(entity, x, y, z);
+        if (EntityNameTagRenderer.shouldRenderNameTag(entity)) {
+            EntityNameTagRenderer.render(entity, x, y, z);
         }
     }
 }

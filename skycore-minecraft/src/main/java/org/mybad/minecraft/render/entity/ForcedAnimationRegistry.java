@@ -1,4 +1,4 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import org.mybad.core.animation.Animation;
 
@@ -15,13 +15,13 @@ final class ForcedAnimationRegistry {
         return forcedAnimations.get(mappingName);
     }
 
-    boolean set(String mappingName, Animation animation, Iterable<WrapperEntry> entries) {
+    boolean set(String mappingName, Animation animation, Iterable<EntityWrapperEntry> entries) {
         if (mappingName == null || mappingName.isEmpty() || animation == null) {
             return false;
         }
         forcedAnimations.put(mappingName, animation);
         if (entries != null) {
-            for (WrapperEntry entry : entries) {
+            for (EntityWrapperEntry entry : entries) {
                 if (entry != null && mappingName.equals(entry.mappingName)) {
                     entry.wrapper.setAnimation(animation);
                     entry.wrapper.clearOverlayStates();

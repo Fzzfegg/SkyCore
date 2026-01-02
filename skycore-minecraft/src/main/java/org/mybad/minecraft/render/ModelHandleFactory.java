@@ -24,10 +24,10 @@ public final class ModelHandleFactory {
             animation = resourceLoader.loadAnimation(mapping.getAnimation());
         }
 
-        ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
+        ResourceLocation texture = resourceLoader.getResourceLocation(mapping.getTexture());
         ResourceLocation emissiveTexture = null;
         if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
-            emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
+            emissiveTexture = resourceLoader.getResourceLocation(mapping.getEmissive());
         }
 
         return BedrockModelHandle.create(

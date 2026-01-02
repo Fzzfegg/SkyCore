@@ -1,4 +1,4 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import org.mybad.core.animation.Animation;
 
@@ -7,13 +7,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-final class OverlayCursorMap {
-    private final Map<Animation, EventCursor> cursors = new HashMap<>();
+final class OverlayEventCursorMap {
+    private final Map<Animation, OverlayEventCursor> cursors = new HashMap<>();
 
-    EventCursor getOrCreate(Animation animation) {
-        EventCursor cursor = cursors.get(animation);
+    OverlayEventCursor getOrCreate(Animation animation) {
+        OverlayEventCursor cursor = cursors.get(animation);
         if (cursor == null) {
-            cursor = new EventCursor();
+            cursor = new OverlayEventCursor();
             cursors.put(animation, cursor);
         }
         return cursor;
@@ -23,7 +23,7 @@ final class OverlayCursorMap {
         cursors.keySet().removeIf(anim -> !active.contains(anim));
     }
 
-    Collection<EventCursor> values() {
+    Collection<OverlayEventCursor> values() {
         return cursors.values();
     }
 

@@ -1,9 +1,9 @@
-package org.mybad.minecraft.event;
+package org.mybad.minecraft.render.entity;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
-import org.mybad.minecraft.event.AnimationEventParams.ParticleParams;
-import org.mybad.minecraft.event.AnimationEventParams.ParticleTargetMode;
+import org.mybad.minecraft.render.entity.AnimationEventParams.ParticleParams;
+import org.mybad.minecraft.render.entity.AnimationEventParams.ParticleTargetMode;
 import org.mybad.minecraft.render.BedrockModelHandle;
 
 final class AnimationEventMath {

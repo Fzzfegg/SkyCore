@@ -10,7 +10,7 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.event.RenderEventHandler;
+import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.render.GeometryCache;
 import org.mybad.minecraft.resource.ResourceLoader;
@@ -75,7 +75,7 @@ public class SkyCoreCommandHandler {
         }
 
         if (message.equalsIgnoreCase("/skycore debug_clear")) {
-            RenderEventHandler handler = SkyCoreMod.getRenderEventHandler();
+            EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
             if (handler != null) {
                 handler.clearDebugStacks();
                 Minecraft.getMinecraft().player.sendMessage(
@@ -86,7 +86,7 @@ public class SkyCoreCommandHandler {
         }
 
         if (message.startsWith("/skycore debug_stack")) {
-            RenderEventHandler handler = SkyCoreMod.getRenderEventHandler();
+            EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
             if (handler == null) {
                 return;
             }
@@ -128,7 +128,7 @@ public class SkyCoreCommandHandler {
         }
 
         if (message.startsWith("/skycore play_anim_clear")) {
-            RenderEventHandler handler = SkyCoreMod.getRenderEventHandler();
+            EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
             if (handler == null) {
                 return;
             }
@@ -152,7 +152,7 @@ public class SkyCoreCommandHandler {
             if (SkyCoreMod.instance == null) {
                 return;
             }
-            RenderEventHandler handler = SkyCoreMod.getRenderEventHandler();
+            EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
             ResourceLoader loader = SkyCoreMod.instance.getResourceLoader();
             if (handler == null || loader == null) {
                 return;

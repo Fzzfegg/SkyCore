@@ -61,10 +61,6 @@ public class ResourceLoader {
      * @param path 纹理路径
      * @return ResourceLocation
      */
-    public ResourceLocation getTextureLocation(String path) {
-        return parseResourceLocation(path);
-    }
-
     public ResourceLocation getResourceLocation(String path) {
         return parseResourceLocation(path);
     }

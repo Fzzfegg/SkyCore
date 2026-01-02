@@ -15,7 +15,6 @@ import java.nio.charset.StandardCharsets;
  * Resolves resource paths and loads raw content from Minecraft's resource manager.
  */
 final class ResourcePathResolver {
-    private final ResourceLoadReporter reporter = new ResourceLoadReporter("Resource");
 
     ResourceLocation resolve(String path) {
         int colonIndex = path.indexOf(':');
@@ -41,7 +40,6 @@ final class ResourcePathResolver {
                 return sb.toString();
             }
         } catch (IOException e) {
-            reporter.missing(location.toString(), e);
             return null;
         }
     }
