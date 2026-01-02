@@ -2,11 +2,15 @@ package org.mybad.core.parsing;
 
 import com.google.gson.*;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * 解析工具函数
  * 提供通用的JSON解析辅助方法
  */
 public class ParseUtils {
+    private static final Pattern SIMPLE_NUMBER = Pattern.compile("[+-]?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?");
 
     /**
      * 从JsonElement中获取float数组
@@ -23,7 +27,7 @@ public class ParseUtils {
             for (int i = 0; i < arr.size(); i++) {
                 JsonElement item = arr.get(i);
                 if (item.isJsonPrimitive()) {
-                    result[i] = item.getAsFloat();
+                    result[i] = parseFloatPrimitive(item.getAsJsonPrimitive(), i < defaults.length ? defaults[i] : 0);
                 } else if (item.isJsonNull()) {
                     result[i] = i < defaults.length ? defaults[i] : 0;
                 }
@@ -67,7 +71,7 @@ public class ParseUtils {
             JsonElement elem = obj.get(key);
             if (elem.isJsonPrimitive()) {
                 try {
-                    return elem.getAsFloat();
+                    return parseFloatPrimitive(elem.getAsJsonPrimitive(), defaultValue);
                 } catch (NumberFormatException e) {
                     return defaultValue;
                 }
@@ -128,6 +132,64 @@ public class ParseUtils {
             return parseFloatArray(elem, defaults);
         }
         return defaults.length > 0 ? defaults : new float[]{0, 0, 0};
+    }
+
+    private static float parseFloatPrimitive(JsonPrimitive primitive, float defaultValue) {
+        if (primitive == null) {
+            return defaultValue;
+        }
+        if (primitive.isNumber()) {
+            try {
+                return primitive.getAsFloat();
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        if (primitive.isString()) {
+            return parseFloatExpression(primitive.getAsString(), defaultValue);
+        }
+        try {
+            return primitive.getAsFloat();
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Parses simple numeric expressions like "18.067+360" or "1.5-0.25".
+     * Only supports + and - on plain numbers; other characters will fallback.
+     */
+    private static float parseFloatExpression(String raw, float defaultValue) {
+        if (raw == null) {
+            return defaultValue;
+        }
+        String expr = raw.trim();
+        if (expr.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Float.parseFloat(expr);
+        } catch (NumberFormatException ignored) {
+            // continue
+        }
+        for (int i = 0; i < expr.length(); i++) {
+            char c = expr.charAt(i);
+            if (!(c == '+' || c == '-' || c == '.' || c == 'e' || c == 'E' || (c >= '0' && c <= '9'))) {
+                return defaultValue;
+            }
+        }
+        Matcher matcher = SIMPLE_NUMBER.matcher(expr);
+        float sum = 0.0f;
+        int count = 0;
+        while (matcher.find()) {
+            try {
+                sum += Float.parseFloat(matcher.group());
+                count++;
+            } catch (NumberFormatException ignored) {
+                return defaultValue;
+            }
+        }
+        return count > 0 ? sum : defaultValue;
     }
 
     /**
