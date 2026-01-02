@@ -42,7 +42,6 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.SoundCategory;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -2683,12 +2682,9 @@ public class BedrockParticleDebugSystem {
         if (message == null || message.isEmpty()) {
             return;
         }
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc != null && mc.ingameGUI != null) {
-            mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentString("[Particle] " + message));
-            return;
+        if (SkyCoreMod.LOGGER.isDebugEnabled()) {
+            SkyCoreMod.LOGGER.debug("[Particle] {}", message);
         }
-        SkyCoreMod.LOGGER.info("[Particle] {}", message);
     }
 
     public interface EmitterTransformProvider {
