@@ -857,9 +857,9 @@ public class BedrockParticleDebugSystem {
                 tempAxisX[0] = ex[0];
                 tempAxisX[1] = ex[1];
                 tempAxisX[2] = ex[2];
-                tempAxisY[0] = -ez[0];
-                tempAxisY[1] = -ez[1];
-                tempAxisY[2] = -ez[2];
+                tempAxisY[0] = ez[0];
+                tempAxisY[1] = ez[1];
+                tempAxisY[2] = ez[2];
                 tempAxisZ[0] = -ey[0];
                 tempAxisZ[1] = -ey[1];
                 tempAxisZ[2] = -ey[2];
@@ -2067,9 +2067,11 @@ public class BedrockParticleDebugSystem {
                     return;
                 }
                 ActiveParticle particle = (ActiveParticle) instance;
-                double rx = rotateLocalX(x, y, z);
-                double ry = rotateLocalY(x, y, z);
-                double rz = rotateLocalZ(x, y, z);
+                boolean localPos = ActiveEmitter.this.isLocalPosition();
+                boolean localRot = ActiveEmitter.this.isLocalRotation();
+                double rx = (localPos || localRot) ? rotateLocalX(x, y, z) : x;
+                double ry = (localPos || localRot) ? rotateLocalY(x, y, z) : y;
+                double rz = (localPos || localRot) ? rotateLocalZ(x, y, z) : z;
                 particle.setPosition(ActiveEmitter.this.x + rx, ActiveEmitter.this.y + ry, ActiveEmitter.this.z + rz);
             }
 
