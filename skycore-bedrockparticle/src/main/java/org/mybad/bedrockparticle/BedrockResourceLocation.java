@@ -6,11 +6,11 @@ import org.jetbrains.annotations.Nullable;
  * Lightweight ResourceLocation (namespace:path).
  * Used for particle parsing without Minecraft classes.
  */
-public final class ResourceLocation {
+public final class BedrockResourceLocation {
     private final String namespace;
     private final String path;
 
-    public ResourceLocation(String location) {
+    public BedrockResourceLocation(String location) {
         String trimmed = location == null ? "" : location.trim();
         int idx = trimmed.indexOf(':');
         if (idx >= 0) {
@@ -25,7 +25,7 @@ public final class ResourceLocation {
         }
     }
 
-    public ResourceLocation(String namespace, String path) {
+    public BedrockResourceLocation(String namespace, String path) {
         String ns = emptyToDefault(namespace);
         String p = normalizePath(path);
         if (p.isEmpty()) {
@@ -43,14 +43,14 @@ public final class ResourceLocation {
         return path;
     }
 
-    public static ResourceLocation parse(String location) {
-        return new ResourceLocation(location);
+    public static BedrockResourceLocation parse(String location) {
+        return new BedrockResourceLocation(location);
     }
 
     @Nullable
-    public static ResourceLocation tryParse(String location) {
+    public static BedrockResourceLocation tryParse(String location) {
         try {
-            return new ResourceLocation(location);
+            return new BedrockResourceLocation(location);
         } catch (IllegalArgumentException ex) {
             return null;
         }
@@ -75,10 +75,10 @@ public final class ResourceLocation {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ResourceLocation)) {
+        if (!(o instanceof BedrockResourceLocation)) {
             return false;
         }
-        ResourceLocation that = (ResourceLocation) o;
+        BedrockResourceLocation that = (BedrockResourceLocation) o;
         return namespace.equals(that.namespace) && path.equals(that.path);
     }
 

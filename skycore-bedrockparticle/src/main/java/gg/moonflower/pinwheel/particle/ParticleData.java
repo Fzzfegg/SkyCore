@@ -8,7 +8,7 @@
  * Changes:
  * - Renamed package from 'gg.moonflower.pinwheel.*' to 'priv.seventeen.artist.*' (all subpackages)
  * - Changed license from MIT to LGPL v3.0
- * - Changed ModelTexture to native ResourceLocation
+ * - Changed ModelTexture to native BedrockResourceLocation
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +25,7 @@ import gg.moonflower.pinwheel.particle.component.ParticleComponentParser;
 import gg.moonflower.pinwheel.particle.event.ParticleEvent;
 import gg.moonflower.pinwheel.particle.json.JsonTupleParser;
 import gg.moonflower.pinwheel.particle.json.PinwheelGsonHelper;
-import org.mybad.bedrockparticle.ResourceLocation;
+import org.mybad.bedrockparticle.BedrockResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Type;
@@ -56,7 +56,7 @@ public final class ParticleData {
         this.components = components;
     }
 
-    public void setTexture(ResourceLocation resourceLocation){
+    public void setTexture(BedrockResourceLocation resourceLocation){
         this.description = new Description(description.getIdentifier(), resourceLocation, description.getMaterial());
     }
 
@@ -78,7 +78,7 @@ public final class ParticleData {
 
 
 
-    private static final ResourceLocation MISSING_TEXTURE = new ResourceLocation("missingno");
+    private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
     public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
 
     /**
@@ -95,17 +95,14 @@ public final class ParticleData {
     /**
      * Information about the particle.
      *
-     * @param identifier The identifier of this model. Used to refer to this particle definition
-     * @param texture    The texture to use if material is null
-     * @param material   The material to use or <code>null</code>
      * @author Ocelot
      */
     public static final class Description {
         private final String identifier;
-        private final ResourceLocation texture;
+        private final BedrockResourceLocation texture;
         private final String material;
 
-        public Description(String identifier, ResourceLocation texture, @Nullable String material) {
+        public Description(String identifier, BedrockResourceLocation texture, @Nullable String material) {
             this.identifier = identifier;
             this.texture = texture;
             this.material = material;
@@ -115,7 +112,7 @@ public final class ParticleData {
             return identifier;
         }
 
-        public ResourceLocation getTexture() {
+        public BedrockResourceLocation getTexture() {
             return texture;
         }
 
@@ -132,13 +129,13 @@ public final class ParticleData {
                 String identifier = PinwheelGsonHelper.getAsString(jsonObject, "identifier");
                 JsonObject basicRenderParams = PinwheelGsonHelper.getAsJsonObject(jsonObject, "basic_render_parameters");
 
-                ResourceLocation texture;
+                BedrockResourceLocation texture;
                 if (basicRenderParams.has("texture")) {
                     String textureText = basicRenderParams.get("texture").getAsString();
                     if(!textureText.endsWith(".png")){
                         textureText += ".png";
                     }
-                    texture = ResourceLocation.tryParse(textureText);
+                    texture = BedrockResourceLocation.tryParse(textureText);
                     if (texture == null) {
                         texture = MISSING_TEXTURE;
                     }
@@ -152,12 +149,7 @@ public final class ParticleData {
         }
     }
 
-    /**
-     * @param type            The type of curve to use
-     * @param nodes           The node inputs
-     * @param input           The value to use as input into nodes. For example, <code>v.particle_age/v.particle_lifetime</code> would result in an input from <code>0</code> to <code>1</code> over the particle's lifetime
-     * @param horizontalRange The range input is mapped to. From <code>0</code> to this value. <b><i>Note: This field is considered deprecated and optional</i></b>
-     */
+
     public static final class Curve {
         private final CurveType type;
         private final CurveNode[] nodes;

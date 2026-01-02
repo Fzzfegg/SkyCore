@@ -246,7 +246,7 @@ public class BedrockParticleSystem {
         if (data == null || data.description() == null || data.description().getTexture() == null) {
             return new ResourceLocation("missingno");
         }
-        org.mybad.bedrockparticle.ResourceLocation tex = data.description().getTexture();
+        org.mybad.bedrockparticle.BedrockResourceLocation tex = data.description().getTexture();
         return new ResourceLocation(tex.getNamespace(), tex.getPath());
     }
 

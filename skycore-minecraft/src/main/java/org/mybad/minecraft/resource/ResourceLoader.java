@@ -1,29 +1,15 @@
 package org.mybad.minecraft.resource;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.IResource;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import gg.moonflower.pinwheel.particle.ParticleData;
-import gg.moonflower.pinwheel.particle.ParticleParser;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
-import org.mybad.core.parsing.AnimationParser;
-import org.mybad.core.parsing.ModelParser;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.GeometryCache;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 资源加载器
@@ -33,31 +19,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @SideOnly(Side.CLIENT)
 public class ResourceLoader {
 
-    /** 模型缓存: 路径 -> Model */
-    private final Map<String, Model> modelCache;
-
-    /** 动画缓存: 路径 -> Animation */
-    private final Map<String, Animation> animationCache;
-    /** 动画集合缓存: 路径 -> (name -> Animation) */
-    private final Map<String, Map<String, Animation>> animationSetCache;
-    /** 粒子缓存: 路径 -> ParticleData */
-    private final Map<String, ParticleData> particleCache;
-
-    /** 模型解析器 */
-    private final ModelParser modelParser;
-
-    /** 动画解析器 */
-    private final AnimationParser animationParser;
+    private final ModelResourceLoader modelLoader;
+    private final AnimationResourceLoader animationLoader;
+    private final ParticleResourceLoader particleLoader;
+    private final ResourcePathResolver pathResolver;
 
     private final GeometryCache geometryCache;
 
     public ResourceLoader() {
-        this.modelCache = new ConcurrentHashMap<>();
-        this.animationCache = new ConcurrentHashMap<>();
-        this.animationSetCache = new ConcurrentHashMap<>();
-        this.particleCache = new ConcurrentHashMap<>();
-        this.modelParser = new ModelParser();
-        this.animationParser = new AnimationParser();
+        this.modelLoader = new ModelResourceLoader(this);
+        this.animationLoader = new AnimationResourceLoader(this);
+        this.particleLoader = new ParticleResourceLoader(this);
+        this.pathResolver = new ResourcePathResolver();
         this.geometryCache = new GeometryCache();
     }
 
@@ -67,26 +40,7 @@ public class ResourceLoader {
      * @return Model 对象，如果加载失败返回 null
      */
     public Model loadModel(String path) {
-        // 检查缓存
-        if (modelCache.containsKey(path)) {
-            return modelCache.get(path);
-        }
-
-        try {
-            String jsonContent = loadResourceAsString(path);
-            if (jsonContent == null) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载模型文件: {}", path);
-                return null;
-            }
-
-            Model model = modelParser.parse(jsonContent);
-            modelCache.put(path, model);
-            return model;
-
-        } catch (Exception e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析模型文件失败: {} - {}", path, e.getMessage());
-            return null;
-        }
+        return modelLoader.loadModel(path);
     }
 
     /**
@@ -95,31 +49,11 @@ public class ResourceLoader {
      * @return Animation 对象，如果加载失败返回 null
      */
     public Animation loadAnimation(String path) {
-        // 检查缓存
-        if (animationCache.containsKey(path)) {
-            return animationCache.get(path);
-        }
-
-        Animation animation = loadAnimation(path, null);
-        if (animation != null) {
-            animationCache.put(path, animation);
-        }
-        return animation;
+        return animationLoader.loadAnimation(path);
     }
 
     public Animation loadAnimation(String path, String clipName) {
-        Map<String, Animation> set = loadAnimationSet(path);
-        if (set == null || set.isEmpty()) {
-            return null;
-        }
-        if (clipName == null || clipName.trim().isEmpty()) {
-            return set.values().iterator().next();
-        }
-        Animation animation = set.get(clipName);
-        if (animation == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 动画片段不存在: {} in {}", clipName, path);
-        }
-        return animation;
+        return animationLoader.loadAnimation(path, clipName);
     }
 
     /**
@@ -143,51 +77,24 @@ public class ResourceLoader {
      * 2. "skycore:models/zombie.geo.json"  → skycore:models/zombie.geo.json (Minecraft 标准格式)
      * 3. "minecraft:textures/entity/pig.png" → minecraft:textures/entity/pig.png (其他命名空间)
      */
-    private ResourceLocation parseResourceLocation(String path) {
-        // 检查是否使用 Minecraft 标准格式 (namespace:path)
-        int colonIndex = path.indexOf(':');
-        if (colonIndex > 0) {
-            String namespace = path.substring(0, colonIndex);
-            String resourcePath = path.substring(colonIndex + 1);
-            return new ResourceLocation(namespace, resourcePath);
-        }
-
-        // 默认使用 skycore 命名空间
-        return new ResourceLocation(SkyCoreMod.MOD_ID, path);
+    ResourceLocation parseResourceLocation(String path) {
+        return pathResolver.resolve(path);
     }
 
     /**
      * 从 assets 加载资源文件为字符串
      */
-    private String loadResourceAsString(String path) {
-        ResourceLocation location = parseResourceLocation(path);
-
-        try {
-            IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
-            try (InputStream is = resource.getInputStream(); 
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
-                }
-                return sb.toString();
-            }
-        } catch (IOException e) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 资源文件不存在: {} - {}", location, e.getMessage());
-            return null;
-        }
+    String loadResourceAsString(String path) {
+        return pathResolver.loadAsString(path);
     }
 
     /**
      * 清空所有缓存
      */
     public void clearCache() {
-        modelCache.clear();
-        animationCache.clear();
-        animationSetCache.clear();
-        particleCache.clear();
+        modelLoader.clear();
+        animationLoader.clear();
+        particleLoader.clear();
         geometryCache.clear();
         SkyCoreMod.LOGGER.info("[SkyCore] 资源缓存已清空");
     }
@@ -200,117 +107,43 @@ public class ResourceLoader {
      * 从缓存中移除指定模型
      */
     public void invalidateModel(String path) {
-        modelCache.remove(path);
+        modelLoader.invalidateModel(path);
     }
 
     /**
      * 从缓存中移除指定动画
      */
     public void invalidateAnimation(String path) {
-        animationCache.remove(path);
-        animationSetCache.remove(path);
+        animationLoader.invalidateAnimation(path);
     }
 
     /**
      * 获取缓存的模型数量
      */
     public int getCachedModelCount() {
-        return modelCache.size();
+        return modelLoader.getCachedModelCount();
     }
 
     /**
      * 获取缓存的动画数量
      */
     public int getCachedAnimationCount() {
-        return animationCache.size();
+        return animationLoader.getCachedAnimationCount();
     }
 
     public Map<String, Animation> loadAnimationSet(String path) {
-        Map<String, Animation> cached = animationSetCache.get(path);
-        if (cached != null) {
-            return cached;
-        }
-        try {
-            String jsonContent = loadResourceAsString(path);
-            if (jsonContent == null) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载动画文件: {}", path);
-                return null;
-            }
-            Map<String, Animation> animations = animationParser.parseAllToAnimations(jsonContent);
-            animationSetCache.put(path, animations);
-            return animations;
-        } catch (Exception e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析动画文件失败: {} - {}", path, e.getMessage());
-            return null;
-        }
+        return animationLoader.loadAnimationSet(path);
     }
 
     public ParticleData loadParticle(String path) {
-        ParticleData cached = particleCache.get(path);
-        if (cached != null) {
-            return cached;
-        }
-        try {
-            String jsonContent = loadResourceAsString(path);
-            if (jsonContent == null) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载粒子文件: {}", path);
-                return null;
-            }
-            JsonElement root = new JsonParser().parse(jsonContent);
-            ParticleData data = ParticleParser.parseParticle(root);
-            patchParticleTextureNamespace(path, root, data);
-            particleCache.put(path, data);
-            return data;
-        } catch (Exception e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 解析粒子文件失败: {} - {}", path, e.getMessage());
-            return null;
-        }
+        return particleLoader.loadParticle(path);
     }
 
     public void invalidateParticle(String path) {
-        particleCache.remove(path);
+        particleLoader.invalidateParticle(path);
     }
 
     public int getCachedParticleCount() {
-        return particleCache.size();
-    }
-
-    private void patchParticleTextureNamespace(String particlePath, JsonElement root, ParticleData data) {
-        if (root == null || !root.isJsonObject() || data == null) {
-            return;
-        }
-        String textureText = extractTexturePath(root.getAsJsonObject());
-        if (textureText == null || textureText.contains(":")) {
-            return;
-        }
-        if (!textureText.endsWith(".png")) {
-            textureText += ".png";
-        }
-        ResourceLocation fileLoc = parseResourceLocation(particlePath);
-        String namespace = fileLoc.getNamespace();
-        data.setTexture(new org.mybad.bedrockparticle.ResourceLocation(namespace, textureText));
-    }
-
-    private String extractTexturePath(JsonObject root) {
-        if (!root.has("particle_effect")) {
-            return null;
-        }
-        JsonObject effect = root.getAsJsonObject("particle_effect");
-        if (!effect.has("description")) {
-            return null;
-        }
-        JsonObject desc = effect.getAsJsonObject("description");
-        if (!desc.has("basic_render_parameters")) {
-            return null;
-        }
-        JsonObject params = desc.getAsJsonObject("basic_render_parameters");
-        if (!params.has("texture")) {
-            return null;
-        }
-        try {
-            return params.get("texture").getAsString();
-        } catch (Exception ex) {
-            return null;
-        }
+        return particleLoader.getCachedParticleCount();
     }
 }
