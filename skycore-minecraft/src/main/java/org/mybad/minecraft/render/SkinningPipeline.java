@@ -2,11 +2,8 @@ package org.mybad.minecraft.render;
 
 import org.lwjgl.BufferUtils;
 import org.mybad.core.data.Model;
-import org.mybad.core.data.ModelBone;
 
 import java.nio.FloatBuffer;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Handles GPU skinning setup and bone matrix updates.
@@ -22,13 +19,14 @@ final class SkinningPipeline {
     private boolean gpuSkinningReady;
     private FloatBuffer boneMatrixBuffer;
     private float[] boneMatrices;
-    private final MatrixStack boneMatrixStack = new MatrixStack();
+    private final BoneMatrixUpdater boneMatrixUpdater;
 
     SkinningPipeline(Model model, ModelGeometryBuilder geometryBuilder, GeometryCache geometryCache, GeometryCache.Key geometryKey) {
         this.model = model;
         this.geometryBuilder = geometryBuilder;
         this.geometryCache = geometryCache;
         this.geometryKey = geometryKey;
+        this.boneMatrixUpdater = new BoneMatrixUpdater(model, geometryBuilder.getBoneIndexMap(), geometryBuilder.getRootBones());
         initBoneMatrices();
     }
 
@@ -66,21 +64,7 @@ final class SkinningPipeline {
     }
 
     void updateBoneMatrices() {
-        if (boneMatrices == null || boneMatrixBuffer == null) {
-            return;
-        }
-
-        ConstraintApplier.apply(model);
-
-        boneMatrixStack.loadIdentity();
-        List<ModelBone> rootBones = geometryBuilder.getRootBones();
-        for (ModelBone bone : rootBones) {
-            fillBoneMatricesRecursive(bone, boneMatrixStack);
-        }
-
-        boneMatrixBuffer.clear();
-        boneMatrixBuffer.put(boneMatrices, 0, boneMatrices.length);
-        boneMatrixBuffer.flip();
+        boneMatrixUpdater.update(boneMatrices, boneMatrixBuffer);
     }
 
     void runSkinningPass() {
@@ -117,24 +101,6 @@ final class SkinningPipeline {
         }
         boneMatrices = new float[boneCount * 16];
         boneMatrixBuffer = BufferUtils.createFloatBuffer(boneCount * 16);
-    }
-
-    private void fillBoneMatricesRecursive(ModelBone bone, MatrixStack stack) {
-        stack.push();
-        BedrockModelTransforms.applyBoneTransform(bone, stack);
-
-        Map<ModelBone, Integer> boneIndexMap = geometryBuilder.getBoneIndexMap();
-        Integer index = boneIndexMap.get(bone);
-        if (index != null) {
-            float[] current = stack.getCurrentMatrix();
-            System.arraycopy(current, 0, boneMatrices, index * 16, 16);
-        }
-
-        for (ModelBone child : bone.getChildren()) {
-            fillBoneMatricesRecursive(child, stack);
-        }
-
-        stack.pop();
     }
 
     private void releaseSharedGeometry() {

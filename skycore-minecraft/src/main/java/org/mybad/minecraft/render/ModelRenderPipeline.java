@@ -1,0 +1,108 @@
+package org.mybad.minecraft.render;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
+
+final class ModelRenderPipeline {
+    void render(Entity entity,
+                double x, double y, double z,
+                float entityYaw, float partialTicks,
+                float modelScale,
+                boolean enableCull,
+                ResourceLocation texture,
+                ResourceLocation emissiveTexture,
+                float emissiveStrength,
+                SkinningPipeline skinningPipeline) {
+        if (skinningPipeline == null) {
+            return;
+        }
+        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+
+        if (enableCull) {
+            GlStateManager.enableCull();
+        } else {
+            GlStateManager.disableCull();
+        }
+        GlStateManager.enableRescaleNormal();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableLighting();
+        GlStateManager.enableColorMaterial();
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate((float) x, (float) y, (float) z);
+        if (modelScale != 1.0f) {
+            GlStateManager.scale(modelScale, modelScale, modelScale);
+        }
+
+        if (entity != null) {
+            GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
+        }
+
+        int lightX = (int) OpenGlHelper.lastBrightnessX;
+        int lightY = (int) OpenGlHelper.lastBrightnessY;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+
+        boolean gpu = skinningPipeline.ensureGpuSkinningReady();
+        if (!gpu) {
+            GlStateManager.popMatrix();
+            GlStateManager.disableBlend();
+            GlStateManager.disableRescaleNormal();
+            GlStateManager.enableDepth();
+            GlStateManager.enableCull();
+            return;
+        }
+
+        skinningPipeline.updateBoneMatrices();
+        skinningPipeline.runSkinningPass();
+        skinningPipeline.draw();
+
+        if (emissiveTexture != null) {
+            renderEmissivePass(emissiveTexture, emissiveStrength, lightX, lightY, skinningPipeline, texture);
+        }
+
+        GlStateManager.popMatrix();
+
+        GlStateManager.disableBlend();
+        GlStateManager.disableRescaleNormal();
+        GlStateManager.enableDepth();
+        GlStateManager.enableCull();
+    }
+
+    private void renderEmissivePass(ResourceLocation emissiveTexture,
+                                    float emissiveStrength,
+                                    int lightX,
+                                    int lightY,
+                                    SkinningPipeline skinningPipeline,
+                                    ResourceLocation baseTexture) {
+        if (emissiveStrength <= 0f) {
+            return;
+        }
+        Minecraft.getMinecraft().getTextureManager().bindTexture(emissiveTexture);
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, emissiveStrength);
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        GlStateManager.depthMask(false);
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+
+        int fullBright = 240;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
+
+        skinningPipeline.draw();
+
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+        GlStateManager.depthMask(true);
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
+        Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+    }
+}

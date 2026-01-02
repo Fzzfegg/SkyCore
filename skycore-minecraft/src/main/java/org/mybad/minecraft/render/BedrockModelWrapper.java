@@ -1,9 +1,5 @@
 package org.mybad.minecraft.render;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.OpenGlHelper;
-import org.lwjgl.opengl.GL11;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
@@ -31,7 +27,7 @@ public class BedrockModelWrapper {
     private final Model model;
 
     /** 动画控制 */
-    private final AnimationBridge animationBridge;
+    private final ModelAnimationController animationController;
 
     /** 纹理位置 */
     private final ResourceLocation texture;
@@ -43,9 +39,9 @@ public class BedrockModelWrapper {
     private final int textureHeight;
 
     private float modelScale = 1.0f;
-    private static final GeometryCache FALLBACK_GEOMETRY_CACHE = new GeometryCache();
     private final ModelGeometryBuilder geometryBuilder;
     private final SkinningPipeline skinningPipeline;
+    private final ModelRenderPipeline renderPipeline;
 
     /** 是否启用背面剔除 */
     private final boolean enableCull;
@@ -63,38 +59,33 @@ public class BedrockModelWrapper {
     }
 
     public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
+        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, enableCull, modelId, geometryCache));
+    }
+
+    BedrockModelWrapper(ModelWrapperFactory.BuildData data) {
+        this(data.model, data.animationController, data.texture, data.emissiveTexture, data.enableCull,
+            data.textureWidth, data.textureHeight, data.geometryBuilder, data.skinningPipeline);
+    }
+
+    BedrockModelWrapper(Model model,
+                        ModelAnimationController animationController,
+                        ResourceLocation texture,
+                        ResourceLocation emissiveTexture,
+                        boolean enableCull,
+                        int textureWidth,
+                        int textureHeight,
+                        ModelGeometryBuilder geometryBuilder,
+                        SkinningPipeline skinningPipeline) {
         this.enableCull = enableCull;
-        Model baseModel = model;
-        this.model = baseModel != null ? baseModel.createInstance() : null;
+        this.model = model;
+        this.animationController = animationController != null ? animationController : new ModelAnimationController(null);
         this.texture = texture;
         this.emissiveTexture = emissiveTexture;
-
-        // 获取纹理尺寸
-        int texWidth = 64;
-        int texHeight = 64;
-        try {
-            String tw = baseModel.getTextureWidth();
-            String th = baseModel.getTextureHeight();
-            if (tw != null && !tw.isEmpty()) {
-                texWidth = Integer.parseInt(tw);
-            }
-            if (th != null && !th.isEmpty()) {
-                texHeight = Integer.parseInt(th);
-            }
-        } catch (NumberFormatException ignored) {}
-
-        this.textureWidth = texWidth;
-        this.textureHeight = texHeight;
-        GeometryCache resolvedCache = geometryCache != null ? geometryCache : FALLBACK_GEOMETRY_CACHE;
-        GeometryCache.Key resolvedKey = GeometryCache.key(normalizeModelId(modelId, model), textureWidth, textureHeight);
-
-        this.animationBridge = new AnimationBridge(animation);
-
-        this.geometryBuilder = new ModelGeometryBuilder(this.model, textureWidth, textureHeight);
-        // 预生成四边形
-        this.geometryBuilder.generateAllQuads();
-
-        this.skinningPipeline = new SkinningPipeline(this.model, geometryBuilder, resolvedCache, resolvedKey);
+        this.textureWidth = textureWidth;
+        this.textureHeight = textureHeight;
+        this.geometryBuilder = geometryBuilder;
+        this.skinningPipeline = skinningPipeline;
+        this.renderPipeline = new ModelRenderPipeline();
     }
 
     /**
@@ -102,99 +93,51 @@ public class BedrockModelWrapper {
      */
     public void render(Entity entity, double x, double y, double z, float entityYaw, float partialTicks) {
         // 更新动画并应用到模型
-        animationBridge.updateAndApply(model);
-
-        // 绑定纹理
-        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
-
-        // 设置 OpenGL 状态 - 根据配置控制背面剔除
-        if (enableCull) {
-            GlStateManager.enableCull();
-        } else {
-            GlStateManager.disableCull();
-        }
-        GlStateManager.enableRescaleNormal();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.enableColorMaterial();
-
-        GlStateManager.pushMatrix();
-        GlStateManager.translate((float) x, (float) y, (float) z);
-        if (modelScale != 1.0f) {
-            GlStateManager.scale(modelScale, modelScale, modelScale);
-        }
-
-
-        if (entity != null) {
-            GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
-        }
-
-        // 获取实际光照值
-        int lightX = (int) OpenGlHelper.lastBrightnessX;
-        int lightY = (int) OpenGlHelper.lastBrightnessY;
-        // 设置 lightmap 纹理坐标
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
-
-        boolean gpu = skinningPipeline.ensureGpuSkinningReady();
-        if (!gpu) {
-            GlStateManager.popMatrix();
-            GlStateManager.disableBlend();
-            GlStateManager.disableRescaleNormal();
-            GlStateManager.enableDepth();
-            GlStateManager.enableCull();
-            return;
-        }
-
-        skinningPipeline.updateBoneMatrices();
-        skinningPipeline.runSkinningPass();
-        skinningPipeline.draw();
-
-        if (emissiveTexture != null) {
-            renderEmissivePass(lightX, lightY);
-        }
-
-        GlStateManager.popMatrix();
-
-        // 恢复 OpenGL 状态
-        GlStateManager.disableBlend();
-        GlStateManager.disableRescaleNormal();
-        GlStateManager.enableDepth();
-        GlStateManager.enableCull();
+        animationController.updateAndApply(model);
+        renderPipeline.render(
+            entity,
+            x, y, z,
+            entityYaw, partialTicks,
+            modelScale,
+            enableCull,
+            texture,
+            emissiveTexture,
+            emissiveStrength,
+            skinningPipeline
+        );
     }
 
     /**
      * 设置动画
      */
     public void setAnimation(Animation animation) {
-        animationBridge.setAnimation(animation);
+        animationController.setAnimation(animation);
     }
 
     /**
      * 重新开始当前动画
      */
     public void restartAnimation() {
-        animationBridge.restartAnimation();
+        animationController.restartAnimation();
     }
 
     /**
      * 获取动画播放器
      */
     public AnimationPlayer getAnimationPlayer() {
-        return animationBridge.getAnimationPlayer();
+        return animationController.getAnimationPlayer();
     }
 
     public AnimationPlayer getActiveAnimationPlayer() {
-        return animationBridge.getActiveAnimationPlayer();
+        return animationController.getActiveAnimationPlayer();
     }
 
     public void setOverlayStates(List<EntityAnimationController.OverlayState> states) {
-        animationBridge.setOverlayStates(states);
+        animationController.setOverlayStates(states);
     }
 
     public void clearOverlayStates() {
-        animationBridge.clearOverlayStates();
+        animationController.clearOverlayStates();
     }
 
     /**
@@ -212,35 +155,8 @@ public class BedrockModelWrapper {
         return LocatorResolver.getLocatorTransform(model, locatorName, out);
     }
 
-    private void renderEmissivePass(int lightX, int lightY) {
-        if (emissiveStrength <= 0f) {
-            return;
-        }
-        Minecraft.getMinecraft().getTextureManager().bindTexture(emissiveTexture);
-        GlStateManager.enableTexture2D();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, emissiveStrength);
-        GlStateManager.disableLighting();
-        GlStateManager.disableColorMaterial();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-        GlStateManager.depthMask(false);
-        GlStateManager.depthFunc(GL11.GL_LEQUAL);
-
-        int fullBright = 240;
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
-
-        skinningPipeline.draw();
-
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
-        GlStateManager.depthMask(true);
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.enableColorMaterial();
-        GlStateManager.enableLighting();
-        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
-    }
-
     public void setPrimaryFadeDuration(float seconds) {
-        animationBridge.setPrimaryFadeDuration(seconds);
+        animationController.setPrimaryFadeDuration(seconds);
     }
 
     public void setEmissiveStrength(float strength) {
@@ -268,11 +184,11 @@ public class BedrockModelWrapper {
 
     public void dispose() {
         skinningPipeline.dispose();
-        animationBridge.dispose();
+        animationController.dispose();
     }
 
     public static void clearSharedResources() {
-        FALLBACK_GEOMETRY_CACHE.clear();
+        ModelWrapperFactory.clearSharedResources();
     }
 
     /**
@@ -287,17 +203,6 @@ public class BedrockModelWrapper {
      */
     public void regenerateQuads() {
         geometryBuilder.regenerateQuads();
-    }
-
-    private static String normalizeModelId(String modelId, Model model) {
-        if (modelId != null && !modelId.isEmpty()) {
-            return modelId;
-        }
-        String name = model != null ? model.getName() : null;
-        if (name != null && !name.isEmpty()) {
-            return name;
-        }
-        return "unknown";
     }
 
 }
