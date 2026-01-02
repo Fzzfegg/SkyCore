@@ -4,7 +4,6 @@ import gg.moonflower.molangcompiler.api.MolangEnvironment;
 import gg.moonflower.molangcompiler.api.MolangExpression;
 import gg.moonflower.pinwheel.particle.ParticleData;
 import gg.moonflower.pinwheel.particle.ParticleContext;
-import gg.moonflower.pinwheel.particle.ParticleInstance;
 import gg.moonflower.pinwheel.particle.component.EmitterInitializationComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeExpressionComponent;
 import gg.moonflower.pinwheel.particle.component.EmitterLifetimeLoopingComponent;
@@ -152,7 +151,7 @@ class ActiveEmitter implements ParticleContext {
             this.expired = false;
             this.activeParticles = 0;
             this.spawnedAny = false;
-            this.spawner = new EmitterShapeSpawner();
+            this.spawner = new EmitterShapeSpawner(this);
             this.eventRandom = new Random();
             this.particlePool = new ArrayDeque<>();
             int limit = BedrockParticleSystem.DEFAULT_PARTICLE_POOL_LIMIT;
@@ -296,8 +295,7 @@ class ActiveEmitter implements ParticleContext {
                     ActiveParticle particle = createParticle(x, y, z);
                     particle.applyInitialSpeed();
                     system.addParticle(particle);
-                    activeParticles++;
-                    spawnedAny = true;
+                    onParticleSpawned();
                 }
             }
         }
@@ -703,7 +701,7 @@ class ActiveEmitter implements ParticleContext {
             return count;
         }
 
-        private ActiveParticle createParticle(double px, double py, double pz) {
+        ActiveParticle createParticle(double px, double py, double pz) {
             return obtainParticle(px, py, pz);
         }
 
@@ -742,68 +740,16 @@ class ActiveEmitter implements ParticleContext {
             return ParticleEmitterShape.EMPTY;
         }
 
-        private final class EmitterShapeSpawner implements ParticleEmitterShape.Spawner {
-            @Override
-            public ParticleInstance createParticle() {
-                return ActiveEmitter.this.createParticle(x, y, z);
-            }
+        BedrockParticleSystem getSystem() {
+            return system;
+        }
 
-            @Override
-            public void spawnParticle(ParticleInstance instance) {
-                if (!(instance instanceof ActiveParticle)) {
-                    return;
-                }
-                ActiveParticle particle = (ActiveParticle) instance;
-                particle.applyInitialSpeed();
-                particle.syncPrev();
-                system.addParticle(particle);
-                activeParticles++;
-                spawnedAny = true;
-            }
+        Random getEventRandom() {
+            return eventRandom;
+        }
 
-            @Override
-            public gg.moonflower.pinwheel.particle.ParticleSourceObject getEntity() {
-                return null;
-            }
-
-            @Override
-            public MolangEnvironment getEnvironment() {
-                return environment;
-            }
-
-            @Override
-            public Random getRandom() {
-                return ActiveEmitter.this.eventRandom;
-            }
-
-            @Override
-            public void setPosition(ParticleInstance instance, double x, double y, double z) {
-                if (!(instance instanceof ActiveParticle)) {
-                    return;
-                }
-                ActiveParticle particle = (ActiveParticle) instance;
-                boolean localPos = ActiveEmitter.this.isLocalPosition();
-                boolean localRot = ActiveEmitter.this.isLocalRotation();
-                double rx = (localPos || localRot) ? rotateLocalX(x, y, z) : x;
-                double ry = (localPos || localRot) ? rotateLocalY(x, y, z) : y;
-                double rz = (localPos || localRot) ? rotateLocalZ(x, y, z) : z;
-                particle.setPosition(ActiveEmitter.this.x + rx, ActiveEmitter.this.y + ry, ActiveEmitter.this.z + rz);
-            }
-
-            @Override
-            public void setVelocity(ParticleInstance instance, double dx, double dy, double dz) {
-                if (!(instance instanceof ActiveParticle)) {
-                    return;
-                }
-                boolean localVel = ActiveEmitter.this.isLocalVelocity();
-                double rx = localVel ? rotateLocalX(dx, dy, dz) : dx;
-                double ry = localVel ? rotateLocalY(dx, dy, dz) : dy;
-                double rz = localVel ? rotateLocalZ(dx, dy, dz) : dz;
-                double vx = rx + ActiveEmitter.this.deltaX;
-                double vy = ry + ActiveEmitter.this.deltaY;
-                double vz = rz + ActiveEmitter.this.deltaZ;
-                ActiveParticle particle = (ActiveParticle) instance;
-                particle.setVelocity(vx, vy, vz);
-            }
+        void onParticleSpawned() {
+            activeParticles++;
+            spawnedAny = true;
         }
     }
