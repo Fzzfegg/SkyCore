@@ -623,6 +623,7 @@ public class RenderEventHandler {
                 transform.z = baseZ + rz;
                 transform.yaw = 180.0F - emitterYaw;
                 applyYawToBasis(locatorTransform, cos, sin, transform);
+                flipLocatorBasisY(transform);
                 float sx = locatorTransform.scale[0] * scale;
                 float sy = locatorTransform.scale[1] * scale;
                 float sz = locatorTransform.scale[2] * scale;
@@ -665,6 +666,12 @@ public class RenderEventHandler {
             rotateBasis(source.basisX, cos, sin, transform.basisX);
             rotateBasis(source.basisY, cos, sin, transform.basisY);
             rotateBasis(source.basisZ, cos, sin, transform.basisZ);
+        }
+
+        private void flipLocatorBasisY(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
+            transform.basisY[0] = -transform.basisY[0];
+            transform.basisY[1] = -transform.basisY[1];
+            transform.basisY[2] = -transform.basisY[2];
         }
 
         private void rotateBasis(float[] axis, float cos, float sin, float[] out) {

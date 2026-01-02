@@ -1272,9 +1272,9 @@ public class BedrockParticleDebugSystem {
                 double lx = environment.safeResolve(relative[0]);
                 double ly = environment.safeResolve(relative[1]);
                 double lz = environment.safeResolve(relative[2]);
-                double rx = emitter.rotateLocalX(lx, ly, lz);
-                double ry = emitter.rotateLocalY(lx, ly, lz);
-                double rz = emitter.rotateLocalZ(lx, ly, lz);
+                double rx = localPosition ? emitter.rotateLocalX(lx, ly, lz) : lx;
+                double ry = localPosition ? emitter.rotateLocalY(lx, ly, lz) : ly;
+                double rz = localPosition ? emitter.rotateLocalZ(lx, ly, lz) : lz;
                 setPosition(emitter.getX() + rx, emitter.getY() + ry, emitter.getZ() + rz);
             }
             MolangExpression[] dir = motionParametric.direction();
@@ -1883,7 +1883,7 @@ public class BedrockParticleDebugSystem {
         }
 
         private boolean isLocalVelocity() {
-            return localSpace != null && localSpace.velocity();
+            return (localSpace != null && localSpace.velocity()) || locatorBound;
         }
 
         private double getDeltaX() {
