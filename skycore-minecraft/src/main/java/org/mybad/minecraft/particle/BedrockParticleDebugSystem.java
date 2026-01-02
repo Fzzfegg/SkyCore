@@ -579,13 +579,9 @@ public class BedrockParticleDebugSystem {
                 width = environment.safeResolve(billboard.size()[0]);
                 height = environment.safeResolve(billboard.size()[1]);
             }
-            if (emitter != null) {
-                float scale = emitter.getScale();
-                if (scale != 1.0f) {
-                    width *= scale;
-                    height *= scale;
-                }
-            }
+            // Match Bedrock/Pollen quad sizing (base quad is 2x2 units).
+            width *= 2.0f;
+            height *= 2.0f;
             if (width <= 0.0f || height <= 0.0f) {
                 return;
             }
