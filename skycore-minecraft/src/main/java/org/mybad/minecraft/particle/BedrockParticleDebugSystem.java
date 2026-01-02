@@ -56,6 +56,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.BufferUtils;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -70,6 +71,8 @@ public class BedrockParticleDebugSystem {
 
     private static final float TICK_SECONDS = 1.0f / 20.0f;
     private static final int MAX_DEBUG_PARTICLES = 2000;
+    private static final int DEFAULT_PARTICLE_POOL_LIMIT = 96;
+    private static final int MAX_POOLED_PARTICLES = 768;
     private static final FloatBuffer ORIENTATION_BUFFER = BufferUtils.createFloatBuffer(16);
 
     private final ResourceLoader resourceLoader;
@@ -78,6 +81,7 @@ public class BedrockParticleDebugSystem {
     private final List<ActiveParticle> pendingParticles;
     private final List<ActiveEmitter> pendingEmitters;
     private final Random random;
+    private int pooledParticles;
     private boolean ticking;
 
     public BedrockParticleDebugSystem(ResourceLoader resourceLoader) {
@@ -183,6 +187,10 @@ public class BedrockParticleDebugSystem {
                 ActiveEmitter emitter = emitterIterator.next();
                 if (!emitter.tick()) {
                     emitterIterator.remove();
+                    pooledParticles -= emitter.clearPool();
+                    if (pooledParticles < 0) {
+                        pooledParticles = 0;
+                    }
                 }
             }
         }
@@ -191,6 +199,7 @@ public class BedrockParticleDebugSystem {
             ActiveParticle particle = iterator.next();
             if (!particle.tick()) {
                 particle.onExpired();
+                particle.recycle();
                 iterator.remove();
             }
         }
@@ -284,9 +293,10 @@ public class BedrockParticleDebugSystem {
         private final ParticleExpireInBlocksComponent expireInBlocks;
         private final ParticleExpireNotInBlocksComponent expireNotInBlocks;
         private final EmitterInitializationComponent particleInitialization;
+        private final ParticleLifetimeExpressionComponent lifetimeComponent;
         private final MolangExpression lifetimeExpiration;
         private final ResourceLocation texture;
-        private final float lifetime;
+        private float lifetime;
         private final ParticleMolangContext molangContext;
         private final MolangEnvironment environment;
         private final ActiveEmitter emitter;
@@ -394,9 +404,8 @@ public class BedrockParticleDebugSystem {
                 bindCommonVariables(builder, this.molangContext);
                 bindCurves(builder, this.molangContext, this.curves);
             }
-            this.lifetime = resolveLifetime(lifetimeComponent);
+            this.lifetimeComponent = lifetimeComponent;
             this.lifetimeExpiration = lifetimeComponent != null ? lifetimeComponent.expirationExpression() : null;
-            this.molangContext.particleLifetime = this.lifetime;
             this.tempDir = new float[3];
             this.tempAxisX = new float[3];
             this.tempAxisY = new float[3];
@@ -407,6 +416,52 @@ public class BedrockParticleDebugSystem {
             this.tempVecZ = new Vector3f();
             this.tempVecA = new Vector3f();
             this.tempVecB = new Vector3f();
+            reset(x, y, z);
+        }
+
+        private void reset(double x, double y, double z) {
+            MolangEnvironmentBuilder<? extends MolangEnvironment> builder = this.environment.edit();
+            builder.clearVariable();
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.prevX = x;
+            this.prevY = y;
+            this.prevZ = z;
+            this.vx = 0.0;
+            this.vy = 0.0;
+            this.vz = 0.0;
+            this.dirX = 0.0;
+            this.dirY = 0.0;
+            this.dirZ = 0.0;
+            this.ax = 0.0;
+            this.ay = 0.0;
+            this.az = 0.0;
+            this.age = 0.0f;
+            this.roll = 0.0f;
+            this.prevRoll = 0.0f;
+            this.rollVelocity = 0.0f;
+            this.rollAcceleration = 0.0f;
+            this.lifetimeEventIndex = 0;
+
+            for (int i = 1; i <= 16; i++) {
+                this.molangContext.setRandom(i, (float) Math.random());
+            }
+            this.molangContext.random = this.molangContext.getRandom(1);
+            this.eventRandom.setSeed(BedrockParticleDebugSystem.this.random.nextLong());
+            if (!this.curveValues.isEmpty()) {
+                this.curveValues.clear();
+            }
+
+            if (emitter != null) {
+                builder.copy(emitter.environment);
+            }
+            bindCommonVariables(builder, this.molangContext);
+            bindCurves(builder, this.molangContext, this.curves);
+
+            this.lifetime = resolveLifetime(lifetimeComponent);
+            this.molangContext.particleLifetime = this.lifetime;
+
             updateContext(0.0f);
             if (particleInitialization != null && particleInitialization.creationExpression() != null) {
                 environment.safeResolve(particleInitialization.creationExpression());
@@ -1321,6 +1376,12 @@ public class BedrockParticleDebugSystem {
             }
         }
 
+        private void recycle() {
+            if (emitter != null) {
+                emitter.recycleParticle(this);
+            }
+        }
+
         private void syncPrev() {
             this.prevX = this.x;
             this.prevY = this.y;
@@ -1392,6 +1453,8 @@ public class BedrockParticleDebugSystem {
         private float scale;
         private final Random eventRandom;
         private final boolean locatorBound;
+        private final ArrayDeque<ActiveParticle> particlePool;
+        private final int particlePoolLimit;
         private int lifetimeEventIndex;
         private boolean expirationEventsFired;
 
@@ -1481,6 +1544,12 @@ public class BedrockParticleDebugSystem {
             this.spawnedAny = false;
             this.spawner = new EmitterShapeSpawner();
             this.eventRandom = new Random();
+            this.particlePool = new ArrayDeque<>();
+            int limit = DEFAULT_PARTICLE_POOL_LIMIT;
+            if (overrideCount > 0) {
+                limit = Math.min(limit, overrideCount);
+            }
+            this.particlePoolLimit = Math.max(0, limit);
             this.lifetimeEventIndex = 0;
             this.expirationEventsFired = false;
             this.steadyRemainder = 0.0f;
@@ -1979,7 +2048,16 @@ public class BedrockParticleDebugSystem {
             particle.setVelocity(rx, ry, rz);
         }
 
-        private ActiveParticle createParticle(double px, double py, double pz) {
+        private ActiveParticle obtainParticle(double px, double py, double pz) {
+            ActiveParticle particle = particlePool.pollFirst();
+            if (particle != null) {
+                pooledParticles--;
+                if (pooledParticles < 0) {
+                    pooledParticles = 0;
+                }
+                particle.reset(px, py, pz);
+                return particle;
+            }
             return new ActiveParticle(
                 data,
                 this,
@@ -1990,6 +2068,33 @@ public class BedrockParticleDebugSystem {
                 texture,
                 particleLifetimeComponent
             );
+        }
+
+        private void recycleParticle(ActiveParticle particle) {
+            if (particle == null) {
+                return;
+            }
+            if (particlePoolLimit <= 0) {
+                return;
+            }
+            if (particlePool.size() >= particlePoolLimit) {
+                return;
+            }
+            if (pooledParticles >= MAX_POOLED_PARTICLES) {
+                return;
+            }
+            particlePool.addFirst(particle);
+            pooledParticles++;
+        }
+
+        private int clearPool() {
+            int count = particlePool.size();
+            particlePool.clear();
+            return count;
+        }
+
+        private ActiveParticle createParticle(double px, double py, double pz) {
+            return obtainParticle(px, py, pz);
         }
 
         private ParticleEmitterShape resolveEmitterShape() {
