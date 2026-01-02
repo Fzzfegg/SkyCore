@@ -6,78 +6,48 @@ import net.minecraft.util.SoundCategory;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
-import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.particle.BedrockParticleSystem;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Dispatches particle and sound events from animations.
  */
 final class AnimationEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
+    private final OverlayEventDispatcher overlayDispatcher = new OverlayEventDispatcher();
 
-    void dispatchAnimationEvents(EntityLivingBase entity, EntityRenderDispatcher.WrapperEntry entry,
+    void dispatchAnimationEvents(EntityLivingBase entity, WrapperEntry entry,
                                  BedrockModelWrapper wrapper, float partialTicks) {
         AnimationPlayer primaryPlayer = wrapper.getActiveAnimationPlayer();
         if (primaryPlayer != null && primaryPlayer.getAnimation() != null) {
             Animation animation = primaryPlayer.getAnimation();
             float currentTime = primaryPlayer.getState().getCurrentTime();
             int loopCount = primaryPlayer.getState().getLoopCount();
-            if (!entry.primaryValid || entry.lastPrimaryAnimation != animation) {
-                entry.lastPrimaryAnimation = animation;
-                entry.lastPrimaryTime = currentTime;
-                entry.lastPrimaryLoop = loopCount;
-                entry.primaryValid = true;
+            EntityRenderState renderState = entry.renderState;
+            if (!renderState.primaryValid || renderState.lastPrimaryAnimation != animation) {
+                renderState.lastPrimaryAnimation = animation;
+                renderState.lastPrimaryTime = currentTime;
+                renderState.lastPrimaryLoop = loopCount;
+                renderState.primaryValid = true;
             } else {
-                boolean looped = loopCount != entry.lastPrimaryLoop ||
-                    (animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < entry.lastPrimaryTime);
-                dispatchEventsForAnimation(entity, wrapper, animation, entry.lastPrimaryTime, currentTime, looped, partialTicks);
-                entry.lastPrimaryTime = currentTime;
-                entry.lastPrimaryLoop = loopCount;
+                boolean looped = loopCount != renderState.lastPrimaryLoop ||
+                    (animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < renderState.lastPrimaryTime);
+                dispatchEventsForAnimation(entity, wrapper, animation, renderState.lastPrimaryTime, currentTime, looped, partialTicks);
+                renderState.lastPrimaryTime = currentTime;
+                renderState.lastPrimaryLoop = loopCount;
             }
         } else {
-            entry.primaryValid = false;
+            entry.renderState.primaryValid = false;
         }
 
-        if (entry.overlayStates == null || entry.overlayStates.isEmpty()) {
-            entry.overlayCursors.clear();
-            return;
-        }
-
-        Set<Animation> active = new HashSet<>();
-        for (EntityAnimationController.OverlayState state : entry.overlayStates) {
-            if (state == null || state.animation == null) {
-                continue;
-            }
-            Animation animation = state.animation;
-            active.add(animation);
-            EntityRenderDispatcher.EventCursor cursor = entry.overlayCursors.get(animation);
-            if (cursor == null) {
-                cursor = new EntityRenderDispatcher.EventCursor();
-                entry.overlayCursors.put(animation, cursor);
-            }
-            float currentTime = state.time;
-            if (!cursor.valid) {
-                cursor.lastTime = currentTime;
-                cursor.lastLoop = 0;
-                cursor.valid = true;
-                continue;
-            }
-            boolean looped = animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < cursor.lastTime;
-            dispatchEventsForAnimation(entity, wrapper, animation, cursor.lastTime, currentTime, looped, partialTicks);
-            cursor.lastTime = currentTime;
-        }
-
-        entry.overlayCursors.keySet().removeIf(anim -> !active.contains(anim));
+        overlayDispatcher.dispatch(entity, entry, wrapper, partialTicks, this);
     }
 
-    private void dispatchEventsForAnimation(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
-                                            float prevTime, float currentTime, boolean looped,
-                                            float partialTicks) {
+    void dispatchEventsForAnimation(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
+                                    float prevTime, float currentTime, boolean looped,
+                                    float partialTicks) {
         if (animation == null) {
             return;
         }

@@ -12,7 +12,7 @@ final class AnimationStateApplier {
     }
 
     static List<EntityAnimationController.OverlayState> apply(EntityLivingBase entity,
-                                                              EntityRenderDispatcher.WrapperEntry entry,
+                                                              WrapperEntry entry,
                                                               Animation forced) {
         if (entry == null || entry.wrapper == null) {
             return Collections.emptyList();

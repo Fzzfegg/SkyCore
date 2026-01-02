@@ -18,21 +18,21 @@ import java.util.concurrent.ConcurrentHashMap;
 
 final class EntityWrapperCache {
     private final ResourceLoader resourceLoader;
-    private final Map<Integer, EntityRenderDispatcher.WrapperEntry> cache;
+    private final Map<Integer, WrapperEntry> cache;
 
     EntityWrapperCache(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
         this.cache = new ConcurrentHashMap<>();
     }
 
-    Collection<EntityRenderDispatcher.WrapperEntry> entries() {
+    Collection<WrapperEntry> entries() {
         return cache.values();
     }
 
-    EntityRenderDispatcher.WrapperEntry getOrCreate(EntityLivingBase entity, String entityName, EntityModelMapping mapping) {
+    WrapperEntry getOrCreate(EntityLivingBase entity, String entityName, EntityModelMapping mapping) {
         int entityId = entity.getEntityId();
         long tick = entity.world != null ? entity.world.getTotalWorldTime() : 0L;
-        EntityRenderDispatcher.WrapperEntry entry = cache.get(entityId);
+        WrapperEntry entry = cache.get(entityId);
         if (entry != null) {
             if (!entity.getUniqueID().equals(entry.entityUuid) || !entityName.equals(entry.mappingName)) {
                 entry.wrapper.dispose();
@@ -74,7 +74,7 @@ final class EntityWrapperCache {
         wrapper.setModelScale(mapping.getModelScale());
 
         EntityAnimationController controller = buildController(mapping);
-        EntityRenderDispatcher.WrapperEntry created = new EntityRenderDispatcher.WrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick);
+        WrapperEntry created = new WrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick);
         cache.put(entityId, created);
 
         SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);
@@ -82,15 +82,15 @@ final class EntityWrapperCache {
     }
 
     void clear() {
-        for (EntityRenderDispatcher.WrapperEntry entry : cache.values()) {
+        for (WrapperEntry entry : cache.values()) {
             entry.wrapper.dispose();
         }
         cache.clear();
     }
 
     void invalidateByName(String entityName) {
-        for (java.util.Iterator<Map.Entry<Integer, EntityRenderDispatcher.WrapperEntry>> it = cache.entrySet().iterator(); it.hasNext();) {
-            Map.Entry<Integer, EntityRenderDispatcher.WrapperEntry> entry = it.next();
+        for (java.util.Iterator<Map.Entry<Integer, WrapperEntry>> it = cache.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<Integer, WrapperEntry> entry = it.next();
             if (entityName.equals(entry.getValue().mappingName)) {
                 entry.getValue().wrapper.dispose();
                 it.remove();
@@ -103,8 +103,8 @@ final class EntityWrapperCache {
         if (mc.world == null) {
             return;
         }
-        for (java.util.Iterator<Map.Entry<Integer, EntityRenderDispatcher.WrapperEntry>> it = cache.entrySet().iterator(); it.hasNext();) {
-            Map.Entry<Integer, EntityRenderDispatcher.WrapperEntry> entry = it.next();
+        for (java.util.Iterator<Map.Entry<Integer, WrapperEntry>> it = cache.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<Integer, WrapperEntry> entry = it.next();
             Entity entity = mc.world.getEntityByID(entry.getKey());
             if (entity == null || entity.isDead) {
                 entry.getValue().wrapper.dispose();

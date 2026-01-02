@@ -15,13 +15,13 @@ final class ForcedAnimationRegistry {
         return forcedAnimations.get(mappingName);
     }
 
-    boolean set(String mappingName, Animation animation, Iterable<EntityRenderDispatcher.WrapperEntry> entries) {
+    boolean set(String mappingName, Animation animation, Iterable<WrapperEntry> entries) {
         if (mappingName == null || mappingName.isEmpty() || animation == null) {
             return false;
         }
         forcedAnimations.put(mappingName, animation);
         if (entries != null) {
-            for (EntityRenderDispatcher.WrapperEntry entry : entries) {
+            for (WrapperEntry entry : entries) {
                 if (entry != null && mappingName.equals(entry.mappingName)) {
                     entry.wrapper.setAnimation(animation);
                     entry.wrapper.clearOverlayStates();

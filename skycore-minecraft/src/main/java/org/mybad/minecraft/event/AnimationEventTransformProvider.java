@@ -6,6 +6,7 @@ import org.mybad.minecraft.event.AnimationEventParams.ParticleTargetMode;
 import org.mybad.minecraft.particle.EmitterTransform;
 import org.mybad.minecraft.particle.EmitterTransformProvider;
 import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.LocatorTransform;
 
 final class AnimationEventTransformProvider implements EmitterTransformProvider {
     private final EntityLivingBase entity;
@@ -18,7 +19,7 @@ final class AnimationEventTransformProvider implements EmitterTransformProvider 
     private final float initialPositionYaw;
     private final ParticleTargetMode mode;
     private final float yawOffset;
-    private final BedrockModelWrapper.LocatorTransform locatorTransform;
+    private final LocatorTransform locatorTransform;
     private boolean usedInitial;
 
     AnimationEventTransformProvider(EntityLivingBase entity,
@@ -41,7 +42,7 @@ final class AnimationEventTransformProvider implements EmitterTransformProvider 
         this.initialPositionYaw = initialPositionYaw;
         this.mode = mode != null ? mode : ParticleTargetMode.LOOK;
         this.yawOffset = yawOffset;
-        this.locatorTransform = new BedrockModelWrapper.LocatorTransform();
+        this.locatorTransform = new LocatorTransform();
         this.usedInitial = false;
     }
 
@@ -119,7 +120,7 @@ final class AnimationEventTransformProvider implements EmitterTransformProvider 
         return locatorName != null && !locatorName.isEmpty();
     }
 
-    private void applyYawToBasis(BedrockModelWrapper.LocatorTransform source, float cos, float sin,
+    private void applyYawToBasis(LocatorTransform source, float cos, float sin,
                                  EmitterTransform transform) {
         rotateBasis(source.basisX, cos, sin, transform.basisX);
         rotateBasis(source.basisY, cos, sin, transform.basisY);
