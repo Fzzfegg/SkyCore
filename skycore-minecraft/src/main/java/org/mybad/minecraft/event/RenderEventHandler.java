@@ -430,7 +430,7 @@ public class RenderEventHandler {
         if (params == null || params.path == null || params.path.isEmpty()) {
             return;
         }
-        org.mybad.minecraft.particle.BedrockParticleDebugSystem system = org.mybad.minecraft.SkyCoreMod.getParticleSystem();
+        org.mybad.minecraft.particle.BedrockParticleSystem system = org.mybad.minecraft.SkyCoreMod.getParticleSystem();
         if (system == null) {
             return;
         }
@@ -548,7 +548,7 @@ public class RenderEventHandler {
         return new double[]{baseX + rx, baseY + ly, baseZ + rz};
     }
 
-    private final class EventTransformProvider implements org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransformProvider {
+    private final class EventTransformProvider implements org.mybad.minecraft.particle.BedrockParticleSystem.EmitterTransformProvider {
         private final EntityLivingBase entity;
         private final BedrockModelWrapper wrapper;
         private final String locatorName;
@@ -587,7 +587,7 @@ public class RenderEventHandler {
         }
 
         @Override
-        public void fill(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform, float deltaSeconds) {
+        public void fill(org.mybad.minecraft.particle.BedrockParticleSystem.EmitterTransform transform, float deltaSeconds) {
             float positionYaw = resolveHeadYaw(entity);
             float emitterYaw = resolveEmitterYaw(entity, mode, yawOffset, initialEmitterYaw);
             if (wrapper != null && locatorName != null && wrapper.getLocatorTransform(locatorName, locatorTransform)) {
@@ -662,13 +662,13 @@ public class RenderEventHandler {
         }
 
         private void applyYawToBasis(BedrockModelWrapper.LocatorTransform source, float cos, float sin,
-                                     org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
+                                     org.mybad.minecraft.particle.BedrockParticleSystem.EmitterTransform transform) {
             rotateBasis(source.basisX, cos, sin, transform.basisX);
             rotateBasis(source.basisY, cos, sin, transform.basisY);
             rotateBasis(source.basisZ, cos, sin, transform.basisZ);
         }
 
-        private void flipLocatorBasisY(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
+        private void flipLocatorBasisY(org.mybad.minecraft.particle.BedrockParticleSystem.EmitterTransform transform) {
             transform.basisY[0] = -transform.basisY[0];
             transform.basisY[1] = -transform.basisY[1];
             transform.basisY[2] = -transform.basisY[2];
@@ -683,7 +683,7 @@ public class RenderEventHandler {
             out[2] = -x * sin + z * cos;
         }
 
-        private void setIdentityBasis(org.mybad.minecraft.particle.BedrockParticleDebugSystem.EmitterTransform transform) {
+        private void setIdentityBasis(org.mybad.minecraft.particle.BedrockParticleSystem.EmitterTransform transform) {
             transform.basisX[0] = 1.0f;
             transform.basisX[1] = 0.0f;
             transform.basisX[2] = 0.0f;

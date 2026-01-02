@@ -12,6 +12,7 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.event.RenderEventHandler;
 import org.mybad.minecraft.particle.BedrockParticleDebugSystem;
+import org.mybad.minecraft.particle.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 /**
@@ -43,6 +44,8 @@ public class SkyCoreMod {
     @SideOnly(Side.CLIENT)
     private RenderEventHandler renderEventHandler;
     @SideOnly(Side.CLIENT)
+    private BedrockParticleSystem particleSystem;
+    @SideOnly(Side.CLIENT)
     private BedrockParticleDebugSystem particleDebugSystem;
 
     @Mod.EventHandler
@@ -67,9 +70,11 @@ public class SkyCoreMod {
         // 创建并注册渲染事件处理器
         renderEventHandler = new RenderEventHandler(resourceLoader);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
-        // 粒子调试系统
-        particleDebugSystem = new BedrockParticleDebugSystem(resourceLoader);
-        MinecraftForge.EVENT_BUS.register(particleDebugSystem);
+        // 粒子系统（核心）
+        particleSystem = new BedrockParticleSystem(resourceLoader);
+        MinecraftForge.EVENT_BUS.register(particleSystem);
+        // 粒子调试包装
+        particleDebugSystem = new BedrockParticleDebugSystem(particleSystem);
 
         // 注册 reload 命令处理器
         MinecraftForge.EVENT_BUS.register(new ReloadCommandHandler());
@@ -120,7 +125,12 @@ public class SkyCoreMod {
     }
 
     @SideOnly(Side.CLIENT)
-    public static BedrockParticleDebugSystem getParticleSystem() {
+    public static BedrockParticleSystem getParticleSystem() {
+        return instance != null ? instance.particleSystem : null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public static BedrockParticleDebugSystem getParticleDebugSystem() {
         return instance != null ? instance.particleDebugSystem : null;
     }
 
