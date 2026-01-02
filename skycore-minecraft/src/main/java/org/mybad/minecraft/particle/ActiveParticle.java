@@ -1,0 +1,1214 @@
+package org.mybad.minecraft.particle;
+
+import gg.moonflower.molangcompiler.api.MolangEnvironment;
+import gg.moonflower.molangcompiler.api.MolangEnvironmentBuilder;
+import gg.moonflower.molangcompiler.api.MolangExpression;
+import gg.moonflower.pinwheel.particle.ParticleData;
+import gg.moonflower.pinwheel.particle.ParticleInstance;
+import gg.moonflower.pinwheel.particle.ParticleContext;
+import gg.moonflower.pinwheel.particle.component.EmitterInitializationComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleAppearanceBillboardComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleAppearanceLightingComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleAppearanceTintingComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleExpireInBlocksComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleExpireNotInBlocksComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleInitialSpeedComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleInitialSpinComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleLifetimeExpressionComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleLifetimeEventComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleKillPlaneComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleMotionCollisionComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleMotionDynamicComponent;
+import gg.moonflower.pinwheel.particle.component.ParticleMotionParametricComponent;
+import gg.moonflower.pinwheel.particle.event.ParticleEvent;
+import gg.moonflower.pollen.particle.render.QuadRenderProperties;
+import net.minecraft.block.Block;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.lwjgl.opengl.GL11;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.Random;
+
+class ActiveParticle implements ParticleInstance, ParticleContext {
+    private final BedrockParticleSystem system;
+    private final ParticleData data;
+    private final Map<String, ParticleData.Curve> curves;
+    private final Map<String, Float> curveValues;
+    private final QuadRenderProperties renderProps;
+    private final ParticleAppearanceBillboardComponent billboard;
+    private final ParticleAppearanceTintingComponent tint;
+    private final ParticleAppearanceLightingComponent lighting;
+    private final ParticleInitialSpeedComponent speed;
+    private final ParticleInitialSpinComponent initialSpin;
+    private final ParticleMotionDynamicComponent motionDynamic;
+    private final ParticleMotionParametricComponent motionParametric;
+    private final ParticleMotionCollisionComponent motionCollision;
+    private final ParticleLifetimeEventComponent lifetimeEvents;
+    private final ParticleKillPlaneComponent killPlane;
+    private final ParticleExpireInBlocksComponent expireInBlocks;
+    private final ParticleExpireNotInBlocksComponent expireNotInBlocks;
+    private final EmitterInitializationComponent particleInitialization;
+    private final ParticleLifetimeExpressionComponent lifetimeComponent;
+    private final MolangExpression lifetimeExpiration;
+    private final ResourceLocation texture;
+    private float lifetime;
+    private final ParticleMolangContext molangContext;
+    private final MolangEnvironment environment;
+    private final ActiveEmitter emitter;
+    private final boolean localPosition;
+    private final boolean localRotation;
+    private final boolean localVelocity;
+        private final BedrockParticleSystem.BlendMode blendMode;
+        private final Block[] expireInBlockIds;
+        private final Block[] expireNotInBlockIds;
+        private final BlockPos.MutableBlockPos blockPos;
+        private final Random eventRandom;
+        private int lifetimeEventIndex;
+
+        private double x;
+        private double y;
+        private double z;
+        private double prevX;
+        private double prevY;
+        private double prevZ;
+        private double vx;
+        private double vy;
+        private double vz;
+        private double dirX;
+        private double dirY;
+        private double dirZ;
+        private double ax;
+        private double ay;
+        private double az;
+        private float age;
+        private float roll;
+        private float prevRoll;
+        private float rollVelocity;
+        private float rollAcceleration;
+        private float collisionRadius;
+        private float collisionDrag;
+        private float collisionRestitution;
+        private boolean expireOnContact;
+        private final float[] tempDir;
+        private final float[] tempAxisX;
+        private final float[] tempAxisY;
+        private final float[] tempAxisZ;
+        private final Quaternionf tempQuat;
+        private final Vector3f tempVecX;
+        private final Vector3f tempVecY;
+        private final Vector3f tempVecZ;
+        private final Vector3f tempVecA;
+        private final Vector3f tempVecB;
+
+        ActiveParticle(BedrockParticleSystem system, ParticleData data,
+                               ActiveEmitter emitter,
+                               double x,
+                               double y,
+                               double z,
+                               ParticleAppearanceBillboardComponent billboard,
+                               ParticleAppearanceTintingComponent tint,
+                               ParticleInitialSpeedComponent speed,
+                               ResourceLocation texture,
+                               ParticleLifetimeExpressionComponent lifetimeComponent) {
+            this.system = system;
+            this.data = data;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.prevX = x;
+            this.prevY = y;
+            this.prevZ = z;
+            this.billboard = billboard;
+            this.tint = tint;
+            this.lighting = BedrockParticleSystem.getComponent(data, "particle_appearance_lighting");
+            this.speed = speed;
+            this.initialSpin = BedrockParticleSystem.getComponent(data, "particle_initial_spin");
+            this.motionDynamic = BedrockParticleSystem.getComponent(data, "particle_motion_dynamic");
+            this.motionParametric = BedrockParticleSystem.getComponent(data, "particle_motion_parametric");
+            this.motionCollision = BedrockParticleSystem.getComponent(data, "particle_motion_collision");
+            this.lifetimeEvents = BedrockParticleSystem.getComponent(data, "particle_lifetime_events");
+            this.killPlane = BedrockParticleSystem.getComponent(data, "particle_kill_plane");
+            this.expireInBlocks = BedrockParticleSystem.getComponent(data, "particle_expire_if_in_blocks");
+            this.expireNotInBlocks = BedrockParticleSystem.getComponent(data, "particle_expire_if_not_in_blocks");
+            this.particleInitialization = BedrockParticleSystem.getComponent(data, "particle_initialization");
+            this.texture = texture;
+            this.renderProps = new QuadRenderProperties();
+            this.age = 0.0f;
+            this.emitter = emitter;
+            this.localPosition = emitter != null && emitter.isLocalPosition();
+            this.localRotation = emitter != null && emitter.isLocalRotation();
+            this.localVelocity = emitter != null && emitter.isLocalVelocity();
+            this.blendMode = system.resolveBlendMode(data);
+            this.expireInBlockIds = system.resolveBlocks(expireInBlocks);
+            this.expireNotInBlockIds = system.resolveBlocks(expireNotInBlocks);
+            this.blockPos = new BlockPos.MutableBlockPos();
+            this.eventRandom = new Random();
+            this.lifetimeEventIndex = 0;
+            this.molangContext = new ParticleMolangContext();
+            this.curves = ParticleMolangBindings.buildCurveDefinitions(data);
+            this.curveValues = this.curves.isEmpty() ? Collections.emptyMap() : new HashMap<>(this.curves.size());
+            this.molangContext.curves = this.curveValues;
+            for (int i = 1; i <= 16; i++) {
+                this.molangContext.setRandom(i, (float) Math.random());
+            }
+            this.molangContext.random = this.molangContext.getRandom(1);
+            this.molangContext.entityScale = emitter != null ? emitter.getScale() : 1.0f;
+            this.environment = ParticleMolangBindings.createRuntime(this.molangContext, this.curves);
+            if (emitter != null) {
+                MolangEnvironmentBuilder<? extends MolangEnvironment> builder = this.environment.edit();
+                builder.copy(emitter.getEnvironment());
+                ParticleMolangBindings.bindCommonVariables(builder, this.molangContext);
+                ParticleMolangBindings.bindCurves(builder, this.molangContext, this.curves);
+            }
+            this.lifetimeComponent = lifetimeComponent;
+            this.lifetimeExpiration = lifetimeComponent != null ? lifetimeComponent.expirationExpression() : null;
+            this.tempDir = new float[3];
+            this.tempAxisX = new float[3];
+            this.tempAxisY = new float[3];
+            this.tempAxisZ = new float[3];
+            this.tempQuat = new Quaternionf();
+            this.tempVecX = new Vector3f();
+            this.tempVecY = new Vector3f();
+            this.tempVecZ = new Vector3f();
+            this.tempVecA = new Vector3f();
+            this.tempVecB = new Vector3f();
+            reset(x, y, z);
+        }
+
+        void reset(double x, double y, double z) {
+            MolangEnvironmentBuilder<? extends MolangEnvironment> builder = this.environment.edit();
+            builder.clearVariable();
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.prevX = x;
+            this.prevY = y;
+            this.prevZ = z;
+            this.vx = 0.0;
+            this.vy = 0.0;
+            this.vz = 0.0;
+            this.dirX = 0.0;
+            this.dirY = 0.0;
+            this.dirZ = 0.0;
+            this.ax = 0.0;
+            this.ay = 0.0;
+            this.az = 0.0;
+            this.age = 0.0f;
+            this.roll = 0.0f;
+            this.prevRoll = 0.0f;
+            this.rollVelocity = 0.0f;
+            this.rollAcceleration = 0.0f;
+            this.lifetimeEventIndex = 0;
+
+            for (int i = 1; i <= 16; i++) {
+                this.molangContext.setRandom(i, (float) Math.random());
+            }
+            this.molangContext.random = this.molangContext.getRandom(1);
+            this.eventRandom.setSeed(system.getRandom().nextLong());
+            if (!this.curveValues.isEmpty()) {
+                this.curveValues.clear();
+            }
+
+            if (emitter != null) {
+                builder.copy(emitter.getEnvironment());
+            }
+            ParticleMolangBindings.bindCommonVariables(builder, this.molangContext);
+            ParticleMolangBindings.bindCurves(builder, this.molangContext, this.curves);
+
+            this.lifetime = resolveLifetime(lifetimeComponent);
+            this.molangContext.particleLifetime = this.lifetime;
+
+            updateContext(0.0f);
+            if (particleInitialization != null && particleInitialization.creationExpression() != null) {
+                environment.safeResolve(particleInitialization.creationExpression());
+            }
+            if (lifetimeEvents != null) {
+                fireEvents(lifetimeEvents.creationEvent());
+            }
+            if (initialSpin != null) {
+                this.roll = environment.safeResolve(initialSpin.rotation());
+                this.rollVelocity = environment.safeResolve(initialSpin.rotationRate()) / 20.0f;
+            }
+            if (motionCollision != null) {
+                this.collisionRadius = motionCollision.collisionRadius();
+                this.collisionDrag = motionCollision.collisionDrag();
+                this.collisionRestitution = motionCollision.coefficientOfRestitution();
+                this.expireOnContact = motionCollision.expireOnContact();
+            } else {
+                this.collisionRadius = 0.0f;
+                this.collisionDrag = 0.0f;
+                this.collisionRestitution = 0.0f;
+                this.expireOnContact = false;
+            }
+        }
+
+        void applyInitialSpeed() {
+            if (speed == null) {
+                return;
+            }
+            MolangExpression[] speeds = speed.speed();
+            if (speeds == null || speeds.length < 3) {
+                return;
+            }
+            updateContext(this.age);
+            double sx = environment.safeResolve(speeds[0]) / 20.0;
+            double sy = environment.safeResolve(speeds[1]) / 20.0;
+            double sz = environment.safeResolve(speeds[2]) / 20.0;
+            double vx = this.dirX * sx;
+            double vy = this.dirY * sy;
+            double vz = this.dirZ * sz;
+            setVelocity(vx, vy, vz);
+        }
+
+        private float resolveLifetime(ParticleLifetimeExpressionComponent lifetimeComponent) {
+            if (lifetimeComponent == null) {
+                return 1.0f;
+            }
+            float value = environment.safeResolve(lifetimeComponent.maxLifetime());
+            return value > 0.0f ? value : 1.0f;
+        }
+
+        boolean tick() {
+            this.prevX = this.x;
+            this.prevY = this.y;
+            this.prevZ = this.z;
+            this.prevRoll = this.roll;
+            if (emitter != null) {
+                if (localPosition) {
+                    this.x += emitter.getDeltaX();
+                    this.y += emitter.getDeltaY();
+                    this.z += emitter.getDeltaZ();
+                }
+                if (localRotation) {
+                    emitter.applyDeltaRotation(this);
+                }
+                if (localVelocity) {
+                    emitter.applyDeltaRotationToVelocity(this);
+                }
+            }
+            updateContext(this.age);
+            if (particleInitialization != null && particleInitialization.tickExpression() != null) {
+                environment.safeResolve(particleInitialization.tickExpression());
+            }
+            if (lifetimeExpiration != null && environment.safeResolve(lifetimeExpiration) != 0.0f) {
+                return false;
+            }
+            tickLifetimeEvents();
+            applyParametricMotion();
+            applyDynamicMotion();
+            this.vx += this.ax;
+            this.vy += this.ay;
+            this.vz += this.az;
+            this.rollVelocity += this.rollAcceleration;
+            this.roll += this.rollVelocity;
+            double nextX = this.x + this.vx;
+            double nextY = this.y + this.vy;
+            double nextZ = this.z + this.vz;
+            boolean collided = false;
+            boolean collideX = false;
+            boolean collideY = false;
+            boolean collideZ = false;
+            if (motionCollision != null && isCollisionEnabled() && collisionRadius > 0.0f) {
+                Minecraft mc = Minecraft.getMinecraft();
+                if (mc != null && mc.world != null) {
+                    double dx = this.vx;
+                    double dy = this.vy;
+                    double dz = this.vz;
+                    AxisAlignedBB aabb = new AxisAlignedBB(
+                        this.x - collisionRadius, this.y - collisionRadius, this.z - collisionRadius,
+                        this.x + collisionRadius, this.y + collisionRadius, this.z + collisionRadius
+                    );
+                    List<AxisAlignedBB> boxes = mc.world.getCollisionBoxes(null, aabb.expand(dx, dy, dz));
+                    double originalDx = dx;
+                    double originalDy = dy;
+                    double originalDz = dz;
+                    for (AxisAlignedBB box : boxes) {
+                        dy = box.calculateYOffset(aabb, dy);
+                    }
+                    aabb = aabb.offset(0.0, dy, 0.0);
+                    for (AxisAlignedBB box : boxes) {
+                        dz = box.calculateZOffset(aabb, dz);
+                    }
+                    aabb = aabb.offset(0.0, 0.0, dz);
+                    for (AxisAlignedBB box : boxes) {
+                        dx = box.calculateXOffset(aabb, dx);
+                    }
+                    aabb = aabb.offset(dx, 0.0, 0.0);
+
+                    collideX = dx != originalDx;
+                    collideY = dy != originalDy;
+                    collideZ = dz != originalDz;
+                    collided = collideX || collideY || collideZ;
+                    nextX = this.x + dx;
+                    nextY = this.y + dy;
+                    nextZ = this.z + dz;
+                    this.vx = dx;
+                    this.vy = dy;
+                    this.vz = dz;
+                }
+            }
+            if (collided) {
+                double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
+                if (speed > 0.0) {
+                    double newSpeed = Math.max(0.0, speed - collisionDrag);
+                    double scale = newSpeed / speed;
+                    this.vx *= scale;
+                    this.vy *= scale;
+                    this.vz *= scale;
+                }
+                if (collideY) {
+                    this.vy = -this.vy * collisionRestitution;
+                }
+                fireCollisionEvents();
+                if (expireOnContact) {
+                    return false;
+                }
+            }
+            if (killPlane != null && isKillPlaneCrossed(this.prevX, this.prevY, this.prevZ, nextX, nextY, nextZ)) {
+                return false;
+            }
+            this.x = nextX;
+            this.y = nextY;
+            this.z = nextZ;
+            if (shouldExpireInBlocks() || shouldExpireNotInBlocks()) {
+                return false;
+            }
+            this.age += BedrockParticleSystem.TICK_SECONDS;
+            updateContext(this.age);
+            return this.age < this.lifetime;
+        }
+
+        void render(Minecraft mc, double camX, double camY, double camZ, float partialTicks) {
+            float renderAge = this.age + partialTicks * BedrockParticleSystem.TICK_SECONDS;
+            updateContext(renderAge);
+            if (particleInitialization != null && particleInitialization.renderExpression() != null) {
+                environment.safeResolve(particleInitialization.renderExpression());
+            }
+            float width = 1.0f;
+            float height = 1.0f;
+            if (billboard != null && billboard.size() != null && billboard.size().length >= 2) {
+                width = environment.safeResolve(billboard.size()[0]);
+                height = environment.safeResolve(billboard.size()[1]);
+            }
+            // Match Bedrock/Pollen quad sizing (base quad is 2x2 units).
+            width *= 2.0f;
+            height *= 2.0f;
+            if (width <= 0.0f || height <= 0.0f) {
+                return;
+            }
+            renderProps.setWidth(width);
+            renderProps.setHeight(height);
+            renderProps.setUV(0.0f, 0.0f, 1.0f, 1.0f);
+            if (billboard != null) {
+                billboard.textureSetter().setUV(this, environment, renderProps);
+            }
+            double px = this.prevX + (this.x - this.prevX) * partialTicks;
+            double py = this.prevY + (this.y - this.prevY) * partialTicks;
+            double pz = this.prevZ + (this.z - this.prevZ) * partialTicks;
+            float r = 1.0f;
+            float g = 1.0f;
+            float b = 1.0f;
+            float a = 1.0f;
+            if (tint != null) {
+                r = clamp01(tint.red().get(this, environment));
+                g = clamp01(tint.green().get(this, environment));
+                b = clamp01(tint.blue().get(this, environment));
+                a = clamp01(tint.alpha().get(this, environment));
+            }
+            renderProps.setColor(r, g, b, a);
+
+            applyBlendMode();
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(px - camX, py - camY, pz - camZ);
+            GlStateManager.translate(0.0, 0.01, 0.0);
+            float yaw = mc.getRenderManager().playerViewY;
+            float pitch = mc.getRenderManager().playerViewX;
+            boolean oriented = false;
+            boolean directionMode = false;
+            if (billboard != null && billboard.cameraMode() != null) {
+                switch (billboard.cameraMode()) {
+                    case ROTATE_Y:
+                        GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
+                        oriented = true;
+                        break;
+                    case ROTATE_XYZ:
+                        GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
+                        GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+                        oriented = true;
+                        break;
+                    case LOOK_AT_XYZ:
+                        oriented = applyLookAt(camX, camY, camZ, px, py, pz, false);
+                        break;
+                    case LOOK_AT_Y:
+                        oriented = applyLookAt(camX, camY, camZ, px, py, pz, true);
+                        break;
+                    case EMITTER_TRANSFORM_XY:
+                    case EMITTER_TRANSFORM_XZ:
+                    case EMITTER_TRANSFORM_YZ:
+                        oriented = applyEmitterTransform(billboard.cameraMode());
+                        break;
+                    case LOOKAT_DIRECTION:
+                    case DIRECTION_X:
+                    case DIRECTION_Y:
+                    case DIRECTION_Z:
+                        directionMode = true;
+                        oriented = applyDirectionFacing(billboard.cameraMode(), camX, camY, camZ, px, py, pz);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            if (!oriented) {
+                if (directionMode) {
+                    GlStateManager.popMatrix();
+                    resetBlendMode();
+                    return;
+                }
+                GlStateManager.rotate(-yaw, 0.0F, 1.0F, 0.0F);
+                GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
+            }
+            int prevLightX = (int) OpenGlHelper.lastBrightnessX;
+            int prevLightY = (int) OpenGlHelper.lastBrightnessY;
+            int lightX;
+            int lightY;
+            if (lighting != null) {
+                int packed = resolvePackedLight(px, py, pz);
+                lightX = packed & 0xFFFF;
+                lightY = (packed >> 16) & 0xFFFF;
+                renderProps.setPackedLight(packed);
+            } else {
+                lightX = 240;
+                lightY = 240;
+                renderProps.setPackedLight((lightY << 16) | lightX);
+            }
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+            float renderRoll = this.prevRoll + (this.roll - this.prevRoll) * partialTicks;
+            if (renderRoll != 0.0f) {
+                GlStateManager.rotate(renderRoll, 0.0F, 0.0F, 1.0F);
+            }
+            mc.getTextureManager().bindTexture(texture);
+
+            float halfW = renderProps.getWidth() * 0.5f;
+            float halfH = renderProps.getHeight() * 0.5f;
+            float u0 = renderProps.getUMin();
+            float v0 = renderProps.getVMin();
+            float u1 = renderProps.getUMax();
+            float v1 = renderProps.getVMax();
+
+            int cr = toColor(renderProps.getRed());
+            int cg = toColor(renderProps.getGreen());
+            int cb = toColor(renderProps.getBlue());
+            int ca = toColor(renderProps.getAlpha());
+
+            BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+            buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+            buffer.pos(-halfW, -halfH, 0.0).tex(u0, v1).color(cr, cg, cb, ca).endVertex();
+            buffer.pos(halfW, -halfH, 0.0).tex(u1, v1).color(cr, cg, cb, ca).endVertex();
+            buffer.pos(halfW, halfH, 0.0).tex(u1, v0).color(cr, cg, cb, ca).endVertex();
+            buffer.pos(-halfW, halfH, 0.0).tex(u0, v0).color(cr, cg, cb, ca).endVertex();
+            Tessellator.getInstance().draw();
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
+
+            GlStateManager.popMatrix();
+            resetBlendMode();
+        }
+
+        private boolean applyLookAt(double camX, double camY, double camZ, double px, double py, double pz, boolean yOnly) {
+            float dx = (float) (camX - px);
+            float dy = (float) (camY - py);
+            float dz = (float) (camZ - pz);
+            if (yOnly) {
+                dy = 0.0f;
+            }
+            tempDir[0] = dx;
+            tempDir[1] = dy;
+            tempDir[2] = dz;
+            if (tempDir[0] == 0.0f && tempDir[1] == 0.0f && tempDir[2] == 0.0f) {
+                return false;
+            }
+            return applyDirectionAsNormal(tempDir);
+        }
+
+        private boolean applyDirectionFacing(ParticleAppearanceBillboardComponent.FaceCameraMode mode,
+                                             double camX, double camY, double camZ,
+                                             double px, double py, double pz) {
+            if (!resolveFacingDirection(tempDir)) {
+                return false;
+            }
+            float dx = tempDir[0];
+            float dy = tempDir[1];
+            float dz = tempDir[2];
+            float lenSq = dx * dx + dy * dy + dz * dz;
+            if (lenSq <= 1.0e-6f) {
+                return false;
+            }
+            switch (mode) {
+                case DIRECTION_X:
+                    return applyDirectionX(dx, dy, dz);
+                case DIRECTION_Y:
+                    return applyDirectionY(dx, dy, dz);
+                case DIRECTION_Z:
+                    return applyDirectionZ(dx, dy, dz);
+                case LOOKAT_DIRECTION:
+                default:
+                    return applyLookAtDirection(dx, dy, dz, camX, camY, camZ, px, py, pz);
+            }
+        }
+
+        private boolean applyDirectionX(float dx, float dy, float dz) {
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg));
+            tempQuat.rotateY((float) Math.toRadians(90.0f));
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyDirectionY(float dx, float dy, float dz) {
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg + 90.0f));
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyDirectionZ(float dx, float dy, float dz) {
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg));
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
+            return applyRotationFromQuaternion();
+        }
+
+        private boolean applyLookAtDirection(float dx, float dy, float dz,
+                                             double camX, double camY, double camZ,
+                                             double px, double py, double pz) {
+            // Blockbuster/Snowstorm-like: align to direction, then rotate around local Y to face camera.
+            float yawDeg = getDirectionYawDeg(dx, dy, dz);
+            float pitchDeg = getDirectionPitchDeg(dx, dy, dz);
+            tempQuat.identity();
+            tempQuat.rotateY((float) Math.toRadians(yawDeg));
+            tempQuat.rotateX((float) Math.toRadians(pitchDeg + 90.0f));
+
+            // rotated normal
+            tempVecZ.set(0.0f, 0.0f, 1.0f);
+            tempQuat.transform(tempVecZ);
+
+            // camera direction projected onto plane (direction is the plane normal)
+            tempVecA.set((float) (camX - px), (float) (camY - py), (float) (camZ - pz));
+            tempVecB.set(dx, dy, dz);
+            if (tempVecB.lengthSquared() <= 1.0e-6f) {
+                return false;
+            }
+            tempVecB.normalize();
+            float dot = tempVecA.dot(tempVecB);
+            tempVecA.sub(tempVecB.x * dot, tempVecB.y * dot, tempVecB.z * dot);
+            if (tempVecA.lengthSquared() <= 1.0e-6f) {
+                return false;
+            }
+            tempVecA.normalize();
+
+            tempVecX.set(tempVecA).cross(tempVecZ);
+            float angle = tempVecA.angle(tempVecZ);
+            float sign = tempVecX.dot(tempVecB);
+            float finalRot = (float) -Math.copySign(angle, sign);
+            tempQuat.rotateY(finalRot);
+            tempQuat.rotateZ((float) Math.toRadians(90.0f));
+
+            return applyRotationFromQuaternion();
+        }
+
+        private float getDirectionYawDeg(float dx, float dy, float dz) {
+            double yaw = Math.atan2(-dx, dz);
+            return (float) -Math.toDegrees(yaw);
+        }
+
+        private float getDirectionPitchDeg(float dx, float dy, float dz) {
+            double pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            return (float) -Math.toDegrees(pitch);
+        }
+
+        private boolean applyRotationFromQuaternion() {
+            tempVecX.set(1.0f, 0.0f, 0.0f);
+            tempVecY.set(0.0f, 1.0f, 0.0f);
+            tempVecZ.set(0.0f, 0.0f, 1.0f);
+            tempQuat.transform(tempVecX);
+            tempQuat.transform(tempVecY);
+            tempQuat.transform(tempVecZ);
+            tempAxisX[0] = tempVecX.x;
+            tempAxisX[1] = tempVecX.y;
+            tempAxisX[2] = tempVecX.z;
+            tempAxisY[0] = tempVecY.x;
+            tempAxisY[1] = tempVecY.y;
+            tempAxisY[2] = tempVecY.z;
+            tempAxisZ[0] = tempVecZ.x;
+            tempAxisZ[1] = tempVecZ.y;
+            tempAxisZ[2] = tempVecZ.z;
+            BedrockParticleSystem.normalize(tempAxisX);
+            BedrockParticleSystem.normalize(tempAxisY);
+            BedrockParticleSystem.normalize(tempAxisZ);
+            BedrockParticleSystem.multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
+        }
+
+        private boolean applyEmitterTransform(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
+            if (emitter == null) {
+                return false;
+            }
+            float[] ex = emitter.getBasisX();
+            float[] ey = emitter.getBasisY();
+            float[] ez = emitter.getBasisZ();
+            if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_XZ) {
+                tempAxisX[0] = ex[0];
+                tempAxisX[1] = ex[1];
+                tempAxisX[2] = ex[2];
+                tempAxisY[0] = ez[0];
+                tempAxisY[1] = ez[1];
+                tempAxisY[2] = ez[2];
+                tempAxisZ[0] = -ey[0];
+                tempAxisZ[1] = -ey[1];
+                tempAxisZ[2] = -ey[2];
+            } else if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_YZ) {
+                tempAxisX[0] = -ez[0];
+                tempAxisX[1] = -ez[1];
+                tempAxisX[2] = -ez[2];
+                tempAxisY[0] = ey[0];
+                tempAxisY[1] = ey[1];
+                tempAxisY[2] = ey[2];
+                tempAxisZ[0] = ex[0];
+                tempAxisZ[1] = ex[1];
+                tempAxisZ[2] = ex[2];
+            } else if (mode == ParticleAppearanceBillboardComponent.FaceCameraMode.EMITTER_TRANSFORM_XY) {
+                tempAxisX[0] = ex[0];
+                tempAxisX[1] = ex[1];
+                tempAxisX[2] = ex[2];
+                tempAxisY[0] = ey[0];
+                tempAxisY[1] = ey[1];
+                tempAxisY[2] = ey[2];
+                tempAxisZ[0] = ez[0];
+                tempAxisZ[1] = ez[1];
+                tempAxisZ[2] = ez[2];
+            } else {
+                tempAxisX[0] = ex[0];
+                tempAxisX[1] = ex[1];
+                tempAxisX[2] = ex[2];
+                tempAxisY[0] = ey[0];
+                tempAxisY[1] = ey[1];
+                tempAxisY[2] = ey[2];
+                tempAxisZ[0] = ez[0];
+                tempAxisZ[1] = ez[1];
+                tempAxisZ[2] = ez[2];
+            }
+            BedrockParticleSystem.normalize(tempAxisX);
+            BedrockParticleSystem.normalize(tempAxisY);
+            BedrockParticleSystem.normalize(tempAxisZ);
+            BedrockParticleSystem.multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
+        }
+
+        private boolean resolveFacingDirection(float[] out) {
+            if (billboard != null && billboard.customDirection() != null) {
+                MolangExpression[] custom = billboard.customDirection();
+                out[0] = environment.safeResolve(custom[0]);
+                out[1] = environment.safeResolve(custom[1]);
+                out[2] = environment.safeResolve(custom[2]);
+            } else {
+                float speed = (float) Math.sqrt(vx * vx + vy * vy + vz * vz);
+                float threshold = billboard != null ? billboard.minSpeedThreshold() : 0.0f;
+                if (speed <= threshold) {
+                    return false;
+                }
+                out[0] = (float) vx;
+                out[1] = (float) vy;
+                out[2] = (float) vz;
+            }
+            if (out[0] == 0.0f && out[1] == 0.0f && out[2] == 0.0f) {
+                return false;
+            }
+            BedrockParticleSystem.normalize(out);
+            return true;
+        }
+
+        private boolean applyDirectionAsNormal(float[] direction) {
+            tempAxisZ[0] = direction[0];
+            tempAxisZ[1] = direction[1];
+            tempAxisZ[2] = direction[2];
+            float[] up = tempAxisY;
+            up[0] = 0.0f;
+            up[1] = 1.0f;
+            up[2] = 0.0f;
+            if (Math.abs(BedrockParticleSystem.dot(tempAxisZ, up)) > 0.99f) {
+                up[0] = 1.0f;
+                up[1] = 0.0f;
+                up[2] = 0.0f;
+            }
+            BedrockParticleSystem.cross(up, tempAxisZ, tempAxisX);
+            BedrockParticleSystem.normalize(tempAxisX);
+            BedrockParticleSystem.cross(tempAxisZ, tempAxisX, tempAxisY);
+            BedrockParticleSystem.normalize(tempAxisY);
+            BedrockParticleSystem.normalize(tempAxisZ);
+            BedrockParticleSystem.multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
+        }
+
+        private boolean applyDirectionAsAxis(float[] direction, int axis) {
+            float[] up = tempAxisZ;
+            up[0] = 0.0f;
+            up[1] = 1.0f;
+            up[2] = 0.0f;
+            if (axis == 1 && Math.abs(BedrockParticleSystem.dot(direction, up)) > 0.99f) {
+                up[0] = 1.0f;
+                up[1] = 0.0f;
+                up[2] = 0.0f;
+            }
+            if (axis == 0) {
+                tempAxisX[0] = direction[0];
+                tempAxisX[1] = direction[1];
+                tempAxisX[2] = direction[2];
+                BedrockParticleSystem.normalize(tempAxisX);
+                BedrockParticleSystem.cross(up, tempAxisX, tempAxisY);
+                BedrockParticleSystem.normalize(tempAxisY);
+                BedrockParticleSystem.cross(tempAxisX, tempAxisY, tempAxisZ);
+            } else if (axis == 1) {
+                tempAxisY[0] = direction[0];
+                tempAxisY[1] = direction[1];
+                tempAxisY[2] = direction[2];
+                BedrockParticleSystem.normalize(tempAxisY);
+                BedrockParticleSystem.cross(up, tempAxisY, tempAxisX);
+                BedrockParticleSystem.normalize(tempAxisX);
+                BedrockParticleSystem.cross(tempAxisY, tempAxisX, tempAxisZ);
+            } else {
+                return applyDirectionAsNormal(direction);
+            }
+            BedrockParticleSystem.normalize(tempAxisZ);
+            BedrockParticleSystem.multMatrix(tempAxisX, tempAxisY, tempAxisZ);
+            return true;
+        }
+
+        private int toColor(float value) {
+            return Math.min(255, Math.max(0, (int) (value * 255.0f)));
+        }
+
+        private float clamp01(float value) {
+            if (value < 0.0f) {
+                return 0.0f;
+            }
+            if (value > 1.0f) {
+                return 1.0f;
+            }
+            return value;
+        }
+
+        @Override
+        public float getParticleAge() {
+            return this.age;
+        }
+
+        @Override
+        public float getParticleLifetime() {
+            return this.lifetime;
+        }
+
+        @Override
+        public MolangEnvironment getEnvironment() {
+            return environment;
+        }
+
+        private void runEvent(String name) {
+            if (name == null || name.isEmpty()) {
+                return;
+            }
+            Map<String, ParticleEvent> events = data.events();
+            if (events == null || events.isEmpty()) {
+                return;
+            }
+            ParticleEvent event = events.get(name);
+            if (event == null) {
+                return;
+            }
+            event.execute(this);
+        }
+
+        private void fireEvents(String[] events) {
+            if (events == null || events.length == 0) {
+                return;
+            }
+            for (String event : events) {
+                runEvent(event);
+            }
+        }
+
+        private void tickLifetimeEvents() {
+            if (lifetimeEvents == null) {
+                return;
+            }
+            ParticleLifetimeEventComponent.TimelineEvent[] timeline = lifetimeEvents.timelineEvents();
+            if (timeline == null || lifetimeEventIndex >= timeline.length) {
+                return;
+            }
+            float time = this.age;
+            while (lifetimeEventIndex < timeline.length && time >= timeline[lifetimeEventIndex].time()) {
+                ParticleLifetimeEventComponent.TimelineEvent evt = timeline[lifetimeEventIndex];
+                fireEvents(evt.events());
+                lifetimeEventIndex++;
+            }
+        }
+
+        private void fireCollisionEvents() {
+            if (motionCollision == null) {
+                return;
+            }
+            fireEvents(motionCollision.events());
+        }
+
+        private boolean isKillPlaneCrossed(double oldX, double oldY, double oldZ,
+                                            double newX, double newY, double newZ) {
+            if (killPlane == null) {
+                return false;
+            }
+            double baseX = emitter != null ? emitter.getX() : 0.0;
+            double baseY = emitter != null ? emitter.getY() : 0.0;
+            double baseZ = emitter != null ? emitter.getZ() : 0.0;
+            return killPlane.solve(oldX - baseX, oldY - baseY, oldZ - baseZ,
+                newX - baseX, newY - baseY, newZ - baseZ);
+        }
+
+        private boolean shouldExpireInBlocks() {
+            if (expireInBlockIds == null || expireInBlockIds.length == 0) {
+                return false;
+            }
+            Block block = getCurrentBlock();
+            if (block == null) {
+                return false;
+            }
+            for (Block test : expireInBlockIds) {
+                if (block == test) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean shouldExpireNotInBlocks() {
+            if (expireNotInBlockIds == null || expireNotInBlockIds.length == 0) {
+                return false;
+            }
+            Block block = getCurrentBlock();
+            if (block == null) {
+                return false;
+            }
+            for (Block test : expireNotInBlockIds) {
+                if (block == test) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private Block getCurrentBlock() {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc == null || mc.world == null) {
+                return null;
+            }
+            blockPos.setPos((int) Math.floor(this.x), (int) Math.floor(this.y), (int) Math.floor(this.z));
+            return mc.world.getBlockState(blockPos).getBlock();
+        }
+
+        private int resolvePackedLight(double px, double py, double pz) {
+            if (lighting == null) {
+                return 0;
+            }
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc == null || mc.world == null) {
+                return 0;
+            }
+            blockPos.setPos((int) Math.floor(px), (int) Math.floor(py), (int) Math.floor(pz));
+            int packed = mc.world.getCombinedLight(blockPos, 0);
+            return packed;
+        }
+
+        private void applyBlendMode() {
+            if (blendMode == BedrockParticleSystem.BlendMode.OPAQUE) {
+                GlStateManager.disableBlend();
+                return;
+            }
+            GlStateManager.enableBlend();
+            if (blendMode == BedrockParticleSystem.BlendMode.ADD) {
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            } else {
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            }
+        }
+
+        private void resetBlendMode() {
+            GlStateManager.enableBlend();
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        }
+
+        @Override
+        public void particleEffect(String effect, ParticleEvent.ParticleSpawnType type) {
+            if (effect == null || effect.isEmpty()) {
+                return;
+            }
+            if (type == ParticleEvent.ParticleSpawnType.EMITTER || type == ParticleEvent.ParticleSpawnType.EMITTER_BOUND) {
+                if (emitter != null) {
+                    emitter.particleEffect(effect, ParticleEvent.ParticleSpawnType.PARTICLE);
+                } else {
+                    system.spawnEffectAt(effect, this.x, this.y, this.z, false);
+                }
+                return;
+            }
+            system.spawnEffectAt(effect, this.x, this.y, this.z, false);
+        }
+
+        @Override
+        public void soundEffect(String sound) {
+            system.playSoundAt(sound, this.x, this.y, this.z);
+        }
+
+        @Override
+        public void expression(MolangExpression expression) {
+            if (expression != null) {
+                environment.safeResolve(expression);
+            }
+        }
+
+        @Override
+        public void log(String message) {
+            system.logMessage(message);
+        }
+
+        @Override
+        public Random getRandom() {
+            return eventRandom;
+        }
+
+        private void updateContext(float ageSeconds) {
+            this.molangContext.particleAge = ageSeconds;
+            if (emitter != null) {
+                this.molangContext.emitterAge = emitter.getEmitterAge();
+                this.molangContext.emitterLifetime = emitter.getEmitterLifetime();
+                for (int i = 1; i <= 16; i++) {
+                    this.molangContext.setEmitterRandom(i, emitter.getEmitterRandom(i));
+                }
+                this.molangContext.entityScale = emitter.getScale();
+            } else {
+                this.molangContext.emitterAge = ageSeconds;
+                this.molangContext.emitterLifetime = this.lifetime;
+                for (int i = 1; i <= 16; i++) {
+                    this.molangContext.setEmitterRandom(i, this.molangContext.getRandom(i));
+                }
+                this.molangContext.entityScale = 1.0f;
+            }
+            updateCurves();
+        }
+
+        private void updateCurves() {
+            if (curves.isEmpty()) {
+                return;
+            }
+            for (Map.Entry<String, ParticleData.Curve> entry : curves.entrySet()) {
+                float value = ParticleCurveEvaluator.evaluateCurve(environment, entry.getValue());
+                curveValues.put(entry.getKey(), value);
+            }
+        }
+
+        private boolean isCollisionEnabled() {
+            if (motionCollision == null) {
+                return false;
+            }
+            return environment.safeResolve(motionCollision.enabled()) != 0.0f;
+        }
+
+        private boolean isColliding(double cx, double cy, double cz, float radius) {
+            if (radius <= 0.0f) {
+                return false;
+            }
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc == null || mc.world == null) {
+                return false;
+            }
+            AxisAlignedBB aabb = new AxisAlignedBB(
+                cx - radius, cy - radius, cz - radius,
+                cx + radius, cy + radius, cz + radius
+            );
+            return !mc.world.getCollisionBoxes(null, aabb).isEmpty();
+        }
+
+        private void applyDynamicMotion() {
+            if (motionDynamic == null) {
+                this.ax = 0.0;
+                this.ay = 0.0;
+                this.az = 0.0;
+                this.rollAcceleration = 0.0f;
+                return;
+            }
+            MolangExpression[] accel = motionDynamic.linearAcceleration();
+            double ax = environment.safeResolve(accel[0]) / 400.0;
+            double ay = environment.safeResolve(accel[1]) / 400.0;
+            double az = environment.safeResolve(accel[2]) / 400.0;
+            if (emitter != null && localRotation) {
+                double rax = emitter.rotateLocalX(ax, ay, az);
+                double ray = emitter.rotateLocalY(ax, ay, az);
+                double raz = emitter.rotateLocalZ(ax, ay, az);
+                ax = rax;
+                ay = ray;
+                az = raz;
+            }
+            double drag = environment.safeResolve(motionDynamic.linearDragCoefficient()) / 20.0;
+            this.ax = ax - drag * this.vx;
+            this.ay = ay - drag * this.vy;
+            this.az = az - drag * this.vz;
+            float rotAcc = (float) (environment.safeResolve(motionDynamic.rotationAcceleration()) / 400.0);
+            float rotDrag = (float) (environment.safeResolve(motionDynamic.rotationDragCoefficient()) / 20.0);
+            this.rollAcceleration = rotAcc - rotDrag * this.rollVelocity;
+        }
+
+        private void applyParametricMotion() {
+            if (motionParametric == null) {
+                return;
+            }
+            MolangExpression[] relative = motionParametric.relativePosition();
+            if (relative != null && emitter != null) {
+                double lx = environment.safeResolve(relative[0]);
+                double ly = environment.safeResolve(relative[1]);
+                double lz = environment.safeResolve(relative[2]);
+                double rx = localPosition ? emitter.rotateLocalX(lx, ly, lz) : lx;
+                double ry = localPosition ? emitter.rotateLocalY(lx, ly, lz) : ly;
+                double rz = localPosition ? emitter.rotateLocalZ(lx, ly, lz) : lz;
+                setPosition(emitter.getX() + rx, emitter.getY() + ry, emitter.getZ() + rz);
+            }
+            MolangExpression[] dir = motionParametric.direction();
+            if (dir != null) {
+                double lx = environment.safeResolve(dir[0]);
+                double ly = environment.safeResolve(dir[1]);
+                double lz = environment.safeResolve(dir[2]);
+                double dx = (emitter != null && localVelocity) ? emitter.rotateLocalX(lx, ly, lz) : lx;
+                double dy = (emitter != null && localVelocity) ? emitter.rotateLocalY(lx, ly, lz) : ly;
+                double dz = (emitter != null && localVelocity) ? emitter.rotateLocalZ(lx, ly, lz) : lz;
+                setDirection(dx, dy, dz);
+            }
+            this.roll = environment.safeResolve(motionParametric.rotation());
+        }
+
+        private void rotateAroundEmitter(double emitterX, double emitterZ, float yawDeltaRad) {
+            if (yawDeltaRad == 0.0f) {
+                return;
+            }
+            double ox = this.x - emitterX;
+            double oz = this.z - emitterZ;
+            double cos = Math.cos(yawDeltaRad);
+            double sin = Math.sin(yawDeltaRad);
+            double rx = ox * cos + oz * sin;
+            double rz = -ox * sin + oz * cos;
+            this.x = emitterX + rx;
+            this.z = emitterZ + rz;
+        }
+
+        private void rotateVelocity(float yawDeltaRad) {
+            if (yawDeltaRad == 0.0f) {
+                return;
+            }
+            double cos = Math.cos(yawDeltaRad);
+            double sin = Math.sin(yawDeltaRad);
+            double rvx = this.vx * cos + this.vz * sin;
+            double rvz = -this.vx * sin + this.vz * cos;
+            this.vx = rvx;
+            this.vz = rvz;
+        }
+
+        void onExpired() {
+            if (lifetimeEvents != null) {
+                fireEvents(lifetimeEvents.expirationEvent());
+            }
+            if (emitter != null) {
+                emitter.onParticleExpired();
+            }
+        }
+
+        void recycle() {
+            if (emitter != null) {
+                emitter.recycleParticle(this);
+            }
+        }
+
+        void syncPrev() {
+            this.prevX = this.x;
+            this.prevY = this.y;
+            this.prevZ = this.z;
+            this.prevRoll = this.roll;
+        }
+
+        void setPosition(double x, double y, double z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        double getX() {
+            return x;
+        }
+
+        double getY() {
+            return y;
+        }
+
+        double getZ() {
+            return z;
+        }
+
+        double getVx() {
+            return vx;
+        }
+
+        double getVy() {
+            return vy;
+        }
+
+        double getVz() {
+            return vz;
+        }
+
+        void setVelocity(double vx, double vy, double vz) {
+            this.vx = vx;
+            this.vy = vy;
+            this.vz = vz;
+            setDirection(vx, vy, vz);
+        }
+
+        private void setDirection(double dx, double dy, double dz) {
+            double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (length > 0.0) {
+                this.dirX = dx / length;
+                this.dirY = dy / length;
+                this.dirZ = dz / length;
+            } else {
+                this.dirX = 0.0;
+                this.dirY = 0.0;
+                this.dirZ = 0.0;
+            }
+            double speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy + this.vz * this.vz);
+            this.vx = this.dirX * speed;
+            this.vy = this.dirY * speed;
+            this.vz = this.dirZ * speed;
+        }
+    }
