@@ -3,7 +3,7 @@ package org.mybad.minecraft.event;
 import net.minecraft.entity.EntityLivingBase;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.animation.EntityAnimationController;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -11,7 +11,7 @@ import java.util.Set;
 final class OverlayEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
 
-    void dispatch(EntityLivingBase entity, WrapperEntry entry, BedrockModelWrapper wrapper,
+    void dispatch(EntityLivingBase entity, WrapperEntry entry, BedrockModelHandle wrapper,
                   float partialTicks, AnimationEventDispatcher dispatcher) {
         if (entry.overlayStates == null || entry.overlayStates.isEmpty()) {
             entry.overlayCursors.clear();

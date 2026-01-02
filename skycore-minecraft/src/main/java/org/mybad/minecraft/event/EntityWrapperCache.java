@@ -9,7 +9,7 @@ import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 import java.util.Collection;
@@ -60,7 +60,7 @@ final class EntityWrapperCache {
             emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
         }
 
-        BedrockModelWrapper wrapper = new BedrockModelWrapper(
+        BedrockModelHandle wrapper = BedrockModelHandle.create(
             model,
             animation,
             texture,

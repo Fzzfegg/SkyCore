@@ -4,13 +4,13 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
 import org.mybad.minecraft.event.AnimationEventParams.ParticleParams;
 import org.mybad.minecraft.event.AnimationEventParams.ParticleTargetMode;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 
 final class AnimationEventMath {
     private AnimationEventMath() {
     }
 
-    static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
+    static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
                                          float positionYaw, float partialTicks) {
         if (entity == null) {
             return resolveEventPosition(null, wrapper, locatorName, positionYaw, 0.0, 0.0, 0.0);
@@ -21,7 +21,7 @@ final class AnimationEventMath {
         return resolveEventPosition(entity, wrapper, locatorName, positionYaw, baseX, baseY, baseZ);
     }
 
-    static double[] resolveEventPositionNow(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
+    static double[] resolveEventPositionNow(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
                                             float positionYaw) {
         if (entity == null) {
             return resolveEventPosition(null, wrapper, locatorName, positionYaw, 0.0, 0.0, 0.0);
@@ -29,7 +29,7 @@ final class AnimationEventMath {
         return resolveEventPosition(entity, wrapper, locatorName, positionYaw, entity.posX, entity.posY, entity.posZ);
     }
 
-    static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelWrapper wrapper, String locatorName,
+    static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
                                          float positionYaw, double baseX, double baseY, double baseZ) {
         if (locatorName == null || locatorName.isEmpty()) {
             return new double[]{baseX, baseY, baseZ};

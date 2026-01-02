@@ -1,7 +1,7 @@
 package org.mybad.minecraft.event;
 
 import net.minecraft.entity.EntityLivingBase;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 
 final class EntityRenderPipeline {
     private final AnimationEventDispatcher eventDispatcher;
@@ -15,7 +15,7 @@ final class EntityRenderPipeline {
         if (entry == null || entry.wrapper == null) {
             return;
         }
-        BedrockModelWrapper wrapper = entry.wrapper;
+        BedrockModelHandle wrapper = entry.wrapper;
         float entityYaw = AnimationEventMath.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);

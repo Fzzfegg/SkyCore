@@ -5,12 +5,12 @@ import net.minecraft.util.math.MathHelper;
 import org.mybad.minecraft.event.AnimationEventParams.ParticleTargetMode;
 import org.mybad.minecraft.particle.EmitterTransform;
 import org.mybad.minecraft.particle.EmitterTransformProvider;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.LocatorTransform;
 
 final class AnimationEventTransformProvider implements EmitterTransformProvider {
     private final EntityLivingBase entity;
-    private final BedrockModelWrapper wrapper;
+    private final BedrockModelHandle wrapper;
     private final String locatorName;
     private final double initialX;
     private final double initialY;
@@ -23,7 +23,7 @@ final class AnimationEventTransformProvider implements EmitterTransformProvider 
     private boolean usedInitial;
 
     AnimationEventTransformProvider(EntityLivingBase entity,
-                                    BedrockModelWrapper wrapper,
+                                    BedrockModelHandle wrapper,
                                     String locatorName,
                                     double initialX,
                                     double initialY,

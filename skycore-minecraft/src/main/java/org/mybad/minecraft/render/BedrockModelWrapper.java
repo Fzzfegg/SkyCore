@@ -21,7 +21,7 @@ import java.util.List;
  * - 批量渲染
  */
 @SideOnly(Side.CLIENT)
-public class BedrockModelWrapper {
+class BedrockModelWrapper {
 
     /** 模型数据 */
     private final Model model;
@@ -46,19 +46,19 @@ public class BedrockModelWrapper {
     /** 是否启用背面剔除 */
     private final boolean enableCull;
 
-    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
+    BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
         this(model, animation, texture, null, true, null, null);
     }
 
-    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull) {
+    BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull) {
         this(model, animation, texture, null, enableCull, null, null);
     }
 
-    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull, String modelId) {
+    BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, boolean enableCull, String modelId) {
         this(model, animation, texture, null, enableCull, modelId, null);
     }
 
-    public BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
+    BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
         this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, enableCull, modelId, geometryCache));
     }
 
@@ -91,7 +91,7 @@ public class BedrockModelWrapper {
     /**
      * 渲染模型
      */
-    public void render(Entity entity, double x, double y, double z, float entityYaw, float partialTicks) {
+    void render(Entity entity, double x, double y, double z, float entityYaw, float partialTicks) {
         // 更新动画并应用到模型
         animationController.updateAndApply(model);
         renderPipeline.render(
@@ -110,7 +110,7 @@ public class BedrockModelWrapper {
     /**
      * 设置动画
      */
-    public void setAnimation(Animation animation) {
+    void setAnimation(Animation animation) {
         animationController.setAnimation(animation);
     }
 
@@ -128,15 +128,15 @@ public class BedrockModelWrapper {
         return animationController.getAnimationPlayer();
     }
 
-    public AnimationPlayer getActiveAnimationPlayer() {
+    AnimationPlayer getActiveAnimationPlayer() {
         return animationController.getActiveAnimationPlayer();
     }
 
-    public void setOverlayStates(List<EntityAnimationController.OverlayState> states) {
+    void setOverlayStates(List<EntityAnimationController.OverlayState> states) {
         animationController.setOverlayStates(states);
     }
 
-    public void clearOverlayStates() {
+    void clearOverlayStates() {
         animationController.clearOverlayStates();
     }
 
@@ -147,19 +147,19 @@ public class BedrockModelWrapper {
         return model;
     }
 
-    public float[] getLocatorPosition(String locatorName) {
+    float[] getLocatorPosition(String locatorName) {
         return LocatorResolver.getLocatorPosition(model, locatorName);
     }
 
-    public boolean getLocatorTransform(String locatorName, LocatorTransform out) {
+    boolean getLocatorTransform(String locatorName, LocatorTransform out) {
         return LocatorResolver.getLocatorTransform(model, locatorName, out);
     }
 
-    public void setPrimaryFadeDuration(float seconds) {
+    void setPrimaryFadeDuration(float seconds) {
         animationController.setPrimaryFadeDuration(seconds);
     }
 
-    public void setEmissiveStrength(float strength) {
+    void setEmissiveStrength(float strength) {
         if (Float.isNaN(strength)) {
             return;
         }
@@ -171,18 +171,18 @@ public class BedrockModelWrapper {
         this.emissiveStrength = strength;
     }
 
-    public void setModelScale(float scale) {
+    void setModelScale(float scale) {
         if (Float.isNaN(scale) || scale <= 0f) {
             return;
         }
         this.modelScale = scale;
     }
 
-    public float getModelScale() {
+    float getModelScale() {
         return modelScale;
     }
 
-    public void dispose() {
+    void dispose() {
         skinningPipeline.dispose();
         animationController.dispose();
     }

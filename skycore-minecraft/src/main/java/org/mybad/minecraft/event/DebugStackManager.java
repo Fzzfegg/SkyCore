@@ -10,7 +10,7 @@ import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 import java.util.ArrayList;
@@ -88,7 +88,7 @@ final class DebugStackManager {
             emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
         }
 
-        BedrockModelWrapper wrapper = new BedrockModelWrapper(
+        BedrockModelHandle wrapper = BedrockModelHandle.create(
             model,
             animation,
             texture,
@@ -106,7 +106,7 @@ final class DebugStackManager {
     }
 
     private static final class DebugStack {
-        private final BedrockModelWrapper wrapper;
+        private final BedrockModelHandle wrapper;
         private final double x;
         private final double y;
         private final double z;
@@ -114,7 +114,7 @@ final class DebugStackManager {
         private final int count;
         private final double spacing;
 
-        private DebugStack(BedrockModelWrapper wrapper, double x, double y, double z, float yaw, int count, double spacing) {
+        private DebugStack(BedrockModelHandle wrapper, double x, double y, double z, float yaw, int count, double spacing) {
             this.wrapper = wrapper;
             this.x = x;
             this.y = y;

@@ -7,7 +7,7 @@ import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.particle.BedrockParticleSystem;
-import org.mybad.minecraft.render.BedrockModelWrapper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 
 import java.util.List;
 
@@ -19,7 +19,7 @@ final class AnimationEventDispatcher {
     private final OverlayEventDispatcher overlayDispatcher = new OverlayEventDispatcher();
 
     void dispatchAnimationEvents(EntityLivingBase entity, WrapperEntry entry,
-                                 BedrockModelWrapper wrapper, float partialTicks) {
+                                 BedrockModelHandle wrapper, float partialTicks) {
         AnimationPlayer primaryPlayer = wrapper.getActiveAnimationPlayer();
         if (primaryPlayer != null && primaryPlayer.getAnimation() != null) {
             Animation animation = primaryPlayer.getAnimation();
@@ -45,7 +45,7 @@ final class AnimationEventDispatcher {
         overlayDispatcher.dispatch(entity, entry, wrapper, partialTicks, this);
     }
 
-    void dispatchEventsForAnimation(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
+    void dispatchEventsForAnimation(EntityLivingBase entity, BedrockModelHandle wrapper, Animation animation,
                                     float prevTime, float currentTime, boolean looped,
                                     float partialTicks) {
         if (animation == null) {
@@ -63,7 +63,7 @@ final class AnimationEventDispatcher {
         }
     }
 
-    private void dispatchEventList(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation animation,
+    private void dispatchEventList(EntityLivingBase entity, BedrockModelHandle wrapper, Animation animation,
                                    List<Animation.Event> events,
                                    float prevTime, float currentTime, boolean looped,
                                    float partialTicks) {
@@ -97,7 +97,7 @@ final class AnimationEventDispatcher {
         }
     }
 
-    private void fireEvent(EntityLivingBase entity, BedrockModelWrapper wrapper, Animation.Event event,
+    private void fireEvent(EntityLivingBase entity, BedrockModelHandle wrapper, Animation.Event event,
                            float partialTicks) {
         if (event.getType() == Animation.Event.Type.PARTICLE) {
             spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), partialTicks);
@@ -110,7 +110,7 @@ final class AnimationEventDispatcher {
 
     private void spawnParticleEffect(String effect,
                                      EntityLivingBase entity,
-                                     BedrockModelWrapper wrapper,
+                                     BedrockModelHandle wrapper,
                                      String locatorName,
                                      float partialTicks) {
         if (effect == null || effect.isEmpty()) {
