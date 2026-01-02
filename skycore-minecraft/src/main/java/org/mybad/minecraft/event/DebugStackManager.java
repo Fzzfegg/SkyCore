@@ -1,13 +1,9 @@
 package org.mybad.minecraft.event;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.mybad.core.animation.Animation;
-import org.mybad.core.data.Model;
-import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
@@ -71,33 +67,12 @@ final class DebugStackManager {
             return false;
         }
 
-        Model model = resourceLoader.loadModel(mapping.getModel());
-        if (model == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载模型: {} for debug stack", mapping.getModel());
+        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping, "debug stack");
+        if (wrapper == null) {
             return false;
         }
-
-        Animation animation = null;
-        if (mapping.getAnimation() != null && !mapping.getAnimation().isEmpty()) {
-            animation = resourceLoader.loadAnimation(mapping.getAnimation());
-        }
-
-        ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
-        ResourceLocation emissiveTexture = null;
-        if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
-            emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
-        }
-
-        BedrockModelHandle wrapper = BedrockModelHandle.create(
-            model,
-            animation,
-            texture,
-            emissiveTexture,
-            mapping.isEnableCull(),
-            mapping.getModel(),
-            resourceLoader.getGeometryCache()
-        );
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
+        wrapper.setModelScale(mapping.getModelScale());
 
         synchronized (debugStacks) {
             debugStacks.add(new DebugStack(wrapper, x, y, z, yaw, count, spacing));

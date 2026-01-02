@@ -3,10 +3,6 @@ package org.mybad.minecraft.event;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.util.ResourceLocation;
-import org.mybad.core.animation.Animation;
-import org.mybad.core.data.Model;
-import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.render.BedrockModelHandle;
@@ -43,32 +39,10 @@ final class EntityWrapperCache {
             }
         }
 
-        Model model = resourceLoader.loadModel(mapping.getModel());
-        if (model == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 无法加载模型: {} for entity: {}", mapping.getModel(), entityName);
+        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping, "entity: " + entityName);
+        if (wrapper == null) {
             return null;
         }
-
-        Animation animation = null;
-        if (mapping.getAnimation() != null && !mapping.getAnimation().isEmpty()) {
-            animation = resourceLoader.loadAnimation(mapping.getAnimation());
-        }
-
-        ResourceLocation texture = resourceLoader.getTextureLocation(mapping.getTexture());
-        ResourceLocation emissiveTexture = null;
-        if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
-            emissiveTexture = resourceLoader.getTextureLocation(mapping.getEmissive());
-        }
-
-        BedrockModelHandle wrapper = BedrockModelHandle.create(
-            model,
-            animation,
-            texture,
-            emissiveTexture,
-            mapping.isEnableCull(),
-            mapping.getModel(),
-            resourceLoader.getGeometryCache()
-        );
         wrapper.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
         wrapper.setModelScale(mapping.getModelScale());
