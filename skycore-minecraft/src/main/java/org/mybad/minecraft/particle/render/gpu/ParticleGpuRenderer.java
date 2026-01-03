@@ -22,9 +22,6 @@ import java.util.List;
  */
 public final class ParticleGpuRenderer {
     private static final Field LIGHTMAP_TEXTURE_FIELD = resolveLightmapField();
-    private static boolean loggedBatchInfo = false;
-    private static boolean loggedFallbackInfo = false;
-    private static boolean loggedCameraInfo = false;
 
     private final ParticleBatcher batcher = new ParticleBatcher();
     private final ParticleSsboBuffer ssboBuffer = new ParticleSsboBuffer();
@@ -45,43 +42,27 @@ public final class ParticleGpuRenderer {
         return GpuParticleSupport.isGpuParticleAvailable();
     }
 
-    public boolean render(List<ActiveParticle> particles,
-                          Minecraft mc,
-                          double camX,
-                          double camY,
-                          double camZ,
-                          float partialTicks) {
+    public void render(List<ActiveParticle> particles,
+                       Minecraft mc,
+                       double camX,
+                       double camY,
+                       double camZ,
+                       float partialTicks) {
         if (particles.isEmpty()) {
-            return false;
+            return;
         }
         if (!isAvailable()) {
-            return false;
+            return;
         }
 
         ensureReady();
         if (!ready) {
-            return false;
+            return;
         }
 
         ParticleBatcher.Result result = batcher.build(particles, partialTicks);
         if (result.particleCount <= 0 || result.batches.isEmpty()) {
-            if (!loggedFallbackInfo) {
-                loggedFallbackInfo = true;
-                org.mybad.minecraft.SkyCoreMod.LOGGER.warn("[SkyCore] GPU particles: no batches built (count={}, batches={})",
-                    result.particleCount, result.batches.size());
-            }
-            return false;
-        }
-        if (!loggedBatchInfo) {
-            loggedBatchInfo = true;
-            ParticleBatcher.Batch first = result.batches.get(0);
-            org.mybad.minecraft.SkyCoreMod.LOGGER.info("[SkyCore] GPU particles: count={}, batches={}, first=tex={}, blend={}, mode={}, lit={}",
-                result.particleCount,
-                result.batches.size(),
-                first.key.texture,
-                first.key.blendMode,
-                first.key.cameraMode,
-                first.key.lit);
+            return;
         }
 
         int particleBytes = result.particleBuffer.remaining() * Float.BYTES;
@@ -91,7 +72,7 @@ public final class ParticleGpuRenderer {
 
         FloatBuffer viewProj = buildViewProj();
         if (viewProj == null) {
-            return false;
+            return;
         }
 
         float[] cameraAxes = computeCameraAxes(mc);
@@ -102,20 +83,6 @@ public final class ParticleGpuRenderer {
         float upY = cameraAxes[4];
         float upZ = cameraAxes[5];
         float[] cameraOffset = extractCameraOffset(camX, camY, camZ);
-        if (loggedBatchInfo && !loggedCameraInfo) {
-            loggedCameraInfo = true;
-            org.mybad.minecraft.SkyCoreMod.LOGGER.info("[SkyCore] GPU particles: cam=({},{},{}), camOffset=({},{},{}), viewTrans=({},{},{})",
-                camX, camY, camZ,
-                cameraOffset[0], cameraOffset[1], cameraOffset[2],
-                modelTmp[12], modelTmp[13], modelTmp[14]);
-            if (!particles.isEmpty()) {
-                ActiveParticle p0 = particles.get(0);
-                org.mybad.minecraft.SkyCoreMod.LOGGER.info("[SkyCore] GPU particles: firstPos=({}, {}, {}), size=({}, {})",
-                    p0.getX(), p0.getY(), p0.getZ(),
-                    result.particleBuffer.get(4), result.particleBuffer.get(5));
-                result.particleBuffer.rewind();
-            }
-        }
 
         FogState fog = captureFogState();
         int lightmapId = getLightmapTextureId(mc);
@@ -131,7 +98,6 @@ public final class ParticleGpuRenderer {
         BedrockParticleSystem.BlendMode currentBlend = null;
         ResourceLocation currentTexture = null;
 
-        boolean drew = false;
         for (ParticleBatcher.Batch batch : result.batches) {
             ParticleBatcher.BatchKey key = batch.key;
             ParticleShader shader = (key.lit && lightmapAvailable) ? shaderLit : shaderUnlit;
@@ -166,7 +132,6 @@ public final class ParticleGpuRenderer {
             }
 
             GL31.glDrawElementsInstanced(GL11.GL_TRIANGLES, 6, GL11.GL_UNSIGNED_INT, 0, batch.count);
-            drew = true;
         }
 
         if (currentShader != null) {
@@ -177,7 +142,6 @@ public final class ParticleGpuRenderer {
         ssboBuffer.unbind();
 
         restoreRenderState();
-        return drew;
     }
 
     private void ensureReady() {
