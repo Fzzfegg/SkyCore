@@ -171,6 +171,8 @@ public final class ParticleGpuRenderer {
     }
 
     private void restoreRenderState() {
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.depthMask(true);
         GlStateManager.enableCull();
         GlStateManager.disableBlend();
@@ -206,15 +208,16 @@ public final class ParticleGpuRenderer {
     }
 
     private float[] computeCameraAxes(Minecraft mc) {
-        float[] axes = extractCameraAxesFromModelView();
-        if (axes != null) {
-            return axes;
-        }
         float yaw = 0.0f;
         float pitch = 0.0f;
         if (mc != null && mc.getRenderManager() != null) {
             yaw = mc.getRenderManager().playerViewY;
             pitch = mc.getRenderManager().playerViewX;
+        } else {
+            float[] axes = extractCameraAxesFromModelView();
+            if (axes != null) {
+                return axes;
+            }
         }
         float yawRad = (float) Math.toRadians(-yaw);
         float pitchRad = (float) Math.toRadians(pitch);
