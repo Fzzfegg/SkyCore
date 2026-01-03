@@ -2,11 +2,11 @@ package org.mybad.minecraft.render.entity;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
-import org.mybad.minecraft.render.entity.AnimationEventParams.ParticleTargetMode;
-import org.mybad.minecraft.particle.EmitterTransform;
-import org.mybad.minecraft.particle.EmitterTransformProvider;
+import org.mybad.minecraft.render.entity.AnimationEventArgsParser.ParticleTargetMode;
+import org.mybad.minecraft.particle.transform.EmitterTransform;
+import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import org.mybad.minecraft.render.BedrockModelHandle;
-import org.mybad.minecraft.render.LocatorTransform;
+import org.mybad.minecraft.render.transform.LocatorTransform;
 
 final class AnimationEventTransformProvider implements EmitterTransformProvider {
     private final EntityLivingBase entity;
@@ -48,9 +48,9 @@ final class AnimationEventTransformProvider implements EmitterTransformProvider 
 
     @Override
     public void fill(EmitterTransform transform, float deltaSeconds) {
-        float positionYaw = AnimationEventMath.resolveHeadYaw(entity);
-        float emitterYaw = AnimationEventMath.resolveEmitterYaw(entity, mode, yawOffset, initialEmitterYaw);
-        if (wrapper != null && locatorName != null && wrapper.getLocatorTransform(locatorName, locatorTransform)) {
+        float positionYaw = AnimationEventMathUtil.resolveHeadYaw(entity);
+        float emitterYaw = AnimationEventMathUtil.resolveEmitterYaw(entity, mode, yawOffset, initialEmitterYaw);
+        if (wrapper != null && locatorName != null && wrapper.resolveLocatorTransform(locatorName, locatorTransform)) {
             float scale = wrapper.getModelScale();
             float lx = locatorTransform.position[0] * scale;
             float ly = locatorTransform.position[1] * scale;
@@ -106,7 +106,7 @@ final class AnimationEventTransformProvider implements EmitterTransformProvider 
             transform.scale = 1.0f;
             return;
         }
-        double[] pos = AnimationEventMath.resolveEventPositionNow(entity, wrapper, locatorName, positionYaw);
+        double[] pos = AnimationEventMathUtil.resolveEventPositionNow(entity, wrapper, locatorName, positionYaw);
         transform.x = pos[0];
         transform.y = pos[1];
         transform.z = pos[2];

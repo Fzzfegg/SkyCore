@@ -14,7 +14,7 @@ final class EntityWrapperEntry {
     final String mappingName;
     long lastSeenTick;
     List<EntityAnimationController.OverlayState> overlayStates = Collections.emptyList();
-    final OverlayEventCursorMap overlayCursors = new OverlayEventCursorMap();
+    final OverlayEventCursorCache overlayCursors = new OverlayEventCursorCache();
     final AnimationEventState renderState = new AnimationEventState();
 
     EntityWrapperEntry(BedrockModelHandle wrapper, EntityAnimationController controller, UUID entityUuid, String mappingName, long lastSeenTick) {

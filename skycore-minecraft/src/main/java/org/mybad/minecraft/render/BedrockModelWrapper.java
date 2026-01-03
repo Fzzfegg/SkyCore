@@ -8,6 +8,11 @@ import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.core.data.Model;
+import org.mybad.minecraft.render.geometry.GeometryCache;
+import org.mybad.minecraft.render.geometry.ModelGeometryBuilder;
+import org.mybad.minecraft.render.skinning.SkinningPipeline;
+import org.mybad.minecraft.render.transform.LocatorResolver;
+import org.mybad.minecraft.render.transform.LocatorTransform;
 
 import java.util.List;
 
@@ -147,12 +152,12 @@ class BedrockModelWrapper {
         return model;
     }
 
-    float[] getLocatorPosition(String locatorName) {
-        return LocatorResolver.getLocatorPosition(model, locatorName);
+    float[] resolveLocatorPosition(String locatorName) {
+        return LocatorResolver.resolveLocatorPosition(model, locatorName);
     }
 
-    boolean getLocatorTransform(String locatorName, LocatorTransform out) {
-        return LocatorResolver.getLocatorTransform(model, locatorName, out);
+    boolean resolveLocatorTransform(String locatorName, LocatorTransform out) {
+        return LocatorResolver.resolveLocatorTransform(model, locatorName, out);
     }
 
     void setPrimaryFadeDuration(float seconds) {

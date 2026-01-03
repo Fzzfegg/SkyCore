@@ -3,6 +3,9 @@ package org.mybad.minecraft.render;
 import net.minecraft.util.ResourceLocation;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
+import org.mybad.minecraft.render.geometry.GeometryCache;
+import org.mybad.minecraft.render.geometry.ModelGeometryBuilder;
+import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
 final class ModelWrapperFactory {
     private static final GeometryCache FALLBACK_GEOMETRY_CACHE = new GeometryCache();

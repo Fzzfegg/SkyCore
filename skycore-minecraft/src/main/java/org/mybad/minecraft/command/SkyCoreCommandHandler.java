@@ -12,7 +12,7 @@ import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
-import org.mybad.minecraft.render.GeometryCache;
+import org.mybad.minecraft.render.geometry.GeometryCache;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 /**

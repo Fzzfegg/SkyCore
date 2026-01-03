@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
 final class ModelRenderPipeline {
     void render(Entity entity,

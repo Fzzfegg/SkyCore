@@ -11,13 +11,13 @@ import org.mybad.minecraft.resource.ResourceLoader;
 @SideOnly(Side.CLIENT)
 public final class EntityRenderDispatcher {
     private final EntityWrapperCache wrapperCache;
-    private final ForcedAnimationRegistry forcedAnimations;
+    private final ForcedAnimationCache forcedAnimations;
     private final AnimationEventDispatcher eventDispatcher;
     private final EntityRenderPipeline renderPipeline;
 
     public EntityRenderDispatcher(ResourceLoader resourceLoader) {
         this.wrapperCache = new EntityWrapperCache(resourceLoader);
-        this.forcedAnimations = new ForcedAnimationRegistry();
+        this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
         this.renderPipeline = new EntityRenderPipeline(eventDispatcher);
     }

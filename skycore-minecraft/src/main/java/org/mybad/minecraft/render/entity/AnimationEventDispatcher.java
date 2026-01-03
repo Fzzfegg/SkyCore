@@ -6,7 +6,7 @@ import net.minecraft.util.SoundCategory;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
-import org.mybad.minecraft.particle.BedrockParticleSystem;
+import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.BedrockModelHandle;
 
 import java.util.List;
@@ -102,8 +102,8 @@ final class AnimationEventDispatcher {
         if (event.getType() == Animation.Event.Type.PARTICLE) {
             spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), partialTicks);
         } else {
-            float positionYaw = AnimationEventMath.resolveHeadYaw(entity, partialTicks);
-            double[] pos = AnimationEventMath.resolveEventPosition(entity, wrapper, event.getLocator(), positionYaw, partialTicks);
+            float positionYaw = AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks);
+            double[] pos = AnimationEventMathUtil.resolveEventPosition(entity, wrapper, event.getLocator(), positionYaw, partialTicks);
             playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
         }
     }
@@ -116,7 +116,7 @@ final class AnimationEventDispatcher {
         if (effect == null || effect.isEmpty()) {
             return;
         }
-        AnimationEventParams.ParticleParams params = AnimationEventParams.parseParticle(effect);
+        AnimationEventArgsParser.ParticleParams params = AnimationEventArgsParser.parseParticle(effect);
         if (params == null || params.path == null || params.path.isEmpty()) {
             return;
         }
@@ -124,9 +124,9 @@ final class AnimationEventDispatcher {
         if (system == null) {
             return;
         }
-        float positionYaw = AnimationEventMath.resolveHeadYaw(entity, partialTicks);
-        float emitterYaw = AnimationEventMath.resolveEmitterYaw(entity, partialTicks, params);
-        double[] initialPos = AnimationEventMath.resolveEventPosition(entity, wrapper, locatorName, positionYaw, partialTicks);
+        float positionYaw = AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks);
+        float emitterYaw = AnimationEventMathUtil.resolveEmitterYaw(entity, partialTicks, params);
+        double[] initialPos = AnimationEventMathUtil.resolveEventPosition(entity, wrapper, locatorName, positionYaw, partialTicks);
         if (entity == null) {
             double[] pos = initialPos != null ? initialPos : new double[]{0.0, 0.0, 0.0};
             system.spawn(params.path, pos[0], pos[1], pos[2], params.count);
@@ -143,7 +143,7 @@ final class AnimationEventDispatcher {
         if (effect == null || effect.isEmpty()) {
             return;
         }
-        AnimationEventParams.SoundParams params = AnimationEventParams.parseSound(effect);
+        AnimationEventArgsParser.SoundParams params = AnimationEventArgsParser.parseSound(effect);
         if (params == null || params.soundEvent == null) {
             return;
         }

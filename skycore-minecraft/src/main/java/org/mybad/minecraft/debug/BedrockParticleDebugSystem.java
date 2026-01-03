@@ -1,7 +1,7 @@
 package org.mybad.minecraft.debug;
 
-import org.mybad.minecraft.particle.BedrockParticleSystem;
-import org.mybad.minecraft.particle.EmitterTransformProvider;
+import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
+import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import org.mybad.minecraft.resource.ResourceLoader;
 
 /**

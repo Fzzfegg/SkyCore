@@ -6,6 +6,8 @@ import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.animation.EntityAnimationController;
+import org.mybad.minecraft.render.geometry.GeometryCache;
+import org.mybad.minecraft.render.transform.LocatorTransform;
 
 import java.util.List;
 
@@ -54,12 +56,12 @@ public final class BedrockModelHandle {
         wrapper.clearOverlayStates();
     }
 
-    public float[] getLocatorPosition(String locatorName) {
-        return wrapper.getLocatorPosition(locatorName);
+    public float[] resolveLocatorPosition(String locatorName) {
+        return wrapper.resolveLocatorPosition(locatorName);
     }
 
-    public boolean getLocatorTransform(String locatorName, LocatorTransform out) {
-        return wrapper.getLocatorTransform(locatorName, out);
+    public boolean resolveLocatorTransform(String locatorName, LocatorTransform out) {
+        return wrapper.resolveLocatorTransform(locatorName, out);
     }
 
     public void setPrimaryFadeDuration(float seconds) {

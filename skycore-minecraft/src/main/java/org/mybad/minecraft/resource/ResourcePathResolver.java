@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
  */
 final class ResourcePathResolver {
 
-    ResourceLocation resolve(String path) {
+    ResourceLocation resolveResourceLocation(String path) {
         int colonIndex = path.indexOf(':');
         if (colonIndex > 0) {
             String namespace = path.substring(0, colonIndex);
@@ -26,8 +26,8 @@ final class ResourcePathResolver {
         return new ResourceLocation(SkyCoreMod.MOD_ID, path);
     }
 
-    String loadAsString(String path) {
-        ResourceLocation location = resolve(path);
+    String readResourceAsString(String path) {
+        ResourceLocation location = resolveResourceLocation(path);
         try {
             IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
             try (InputStream is = resource.getInputStream();

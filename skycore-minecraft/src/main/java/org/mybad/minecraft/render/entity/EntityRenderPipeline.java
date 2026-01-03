@@ -17,7 +17,7 @@ final class EntityRenderPipeline {
             return;
         }
         BedrockModelHandle wrapper = entry.wrapper;
-        float entityYaw = AnimationEventMath.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
+        float entityYaw = AnimationEventMathUtil.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
         eventDispatcher.dispatchAnimationEvents(entity, entry, wrapper, partialTicks);

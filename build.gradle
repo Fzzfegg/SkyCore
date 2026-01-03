@@ -56,14 +56,14 @@ tasks.register('copyBuiltMods') {
             modsDir.mkdirs()
         }
         copy {
-            from('skycore-core/build/libs') {
-                include '*.jar'
-                exclude '*-sources.jar'
-            }
-            from('skycore-bedrockparticle/build/libs') {
-                include '*.jar'
-                exclude '*-sources.jar'
-            }
+//            from('skycore-core/build/libs') {
+//                include '*.jar'
+//                exclude '*-sources.jar'
+//            }
+//            from('skycore-bedrockparticle/build/libs') {
+//                include '*.jar'
+//                exclude '*-sources.jar'
+//            }
             from('skycore-minecraft/build/libs') {
                 include '*.jar'
                 exclude '*-sources.jar'

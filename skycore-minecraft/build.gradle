@@ -30,6 +30,9 @@ dependencies {
 jar {
     archiveBaseName = 'skycore-minecraft'
     archiveVersion = projectVersion
+    from(project(':skycore-core').sourceSets.main.output)
+    from(project(':skycore-bedrockparticle').sourceSets.main.output)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     manifest {
         attributes([
