@@ -80,17 +80,17 @@ public class MolangBytecodeEnvironment {
         method.visitLdcInsn(name);
         method.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "gg/moonflower/molangcompiler/api/object/MolangObject",
+                "org/mybad/bedrockparticle/molangcompiler/api/object/MolangObject",
                 "get",
-                "(Ljava/lang/String;)Lgg/moonflower/molangcompiler/api/MolangExpression;",
+                "(Ljava/lang/String;)Lorg/mybad/bedrockparticle/molangcompiler/api/MolangExpression;",
                 true
         );
 
         method.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                 "resolve",
-                "(Lgg/moonflower/molangcompiler/api/MolangExpression;)F",
+                "(Lorg/mybad/bedrockparticle/molangcompiler/api/MolangExpression;)F",
                 true
         );
 
@@ -136,38 +136,38 @@ public class MolangBytecodeEnvironment {
         if ("context".equalsIgnoreCase(object) || "c".equalsIgnoreCase(object)) {
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "getContext",
-                    "()Lgg/moonflower/molangcompiler/api/object/MolangObject;",
+                    "()Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;",
                     true);
         } else if ("query".equalsIgnoreCase(object) || "q".equalsIgnoreCase(object)) {
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "getQuery",
-                    "()Lgg/moonflower/molangcompiler/api/object/MolangObject;",
+                    "()Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;",
                     true);
         } else if ("global".equalsIgnoreCase(object)) {
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "getGlobal",
-                    "()Lgg/moonflower/molangcompiler/api/object/MolangObject;",
+                    "()Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;",
                     true);
         } else if ("variable".equalsIgnoreCase(object) || "v".equalsIgnoreCase(object)) {
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "getVariable",
-                    "()Lgg/moonflower/molangcompiler/api/object/MolangObject;",
+                    "()Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;",
                     true);
         } else {
             method.visitLdcInsn(object);
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "get",
-                    "(Ljava/lang/String;)Lgg/moonflower/molangcompiler/api/object/MolangObject;",
+                    "(Ljava/lang/String;)Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;",
                     true);
         }
         method.visitVarInsn(Opcodes.ASTORE, index);
@@ -202,7 +202,7 @@ public class MolangBytecodeEnvironment {
         method.visitLdcInsn(name);
         method.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "gg/moonflower/molangcompiler/api/object/MolangObject",
+                "org/mybad/bedrockparticle/molangcompiler/api/object/MolangObject",
                 "has",
                 "(Ljava/lang/String;)Z",
                 true
@@ -250,9 +250,9 @@ public class MolangBytecodeEnvironment {
             method.visitVarInsn(Opcodes.FLOAD, index);
             method.visitMethodInsn(
                     Opcodes.INVOKESTATIC,
-                    "gg/moonflower/molangcompiler/impl/MolangUtil",
+                    "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil",
                     "setValue",
-                    "(Lgg/moonflower/molangcompiler/api/object/MolangObject;Ljava/lang/String;F)V",
+                    "(Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;Ljava/lang/String;F)V",
                     false
             );
         }

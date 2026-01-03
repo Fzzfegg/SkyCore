@@ -40,7 +40,7 @@ public class ThisNode implements Node {
             method.visitVarInsn(Opcodes.ALOAD, BytecodeCompiler.RUNTIME_INDEX);
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "getThis",
                     "()F",
                     true

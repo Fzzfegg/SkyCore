@@ -17,6 +17,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
+import org.mybad.minecraft.particle.render.gpu.ParticleGpuRenderer;
 import org.mybad.bedrockparticle.pinwheel.particle.BedrockResourceLocation;
 import org.mybad.minecraft.resource.ResourceLoader;
 import org.lwjgl.opengl.GL11;
@@ -44,6 +45,7 @@ public class BedrockParticleSystem {
     private final List<ActiveParticle> pendingParticles;
     private final List<ActiveEmitter> pendingEmitters;
     private final Random random;
+    private final ParticleGpuRenderer gpuRenderer;
     private int pooledParticles;
     private boolean ticking;
 
@@ -54,6 +56,7 @@ public class BedrockParticleSystem {
         this.pendingParticles = new ArrayList<>();
         this.pendingEmitters = new ArrayList<>();
         this.random = new Random();
+        this.gpuRenderer = new ParticleGpuRenderer();
         this.ticking = false;
     }
 
@@ -207,6 +210,10 @@ public class BedrockParticleSystem {
             for (ActiveEmitter emitter : emitters) {
                 emitter.render(partialTicks);
             }
+        }
+        if (gpuRenderer.isAvailable()) {
+            gpuRenderer.render(particles, mc, camX, camY, camZ, partialTicks);
+            return;
         }
 
         GlStateManager.disableLighting();

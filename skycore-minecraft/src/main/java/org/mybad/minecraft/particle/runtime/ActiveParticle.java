@@ -43,6 +43,11 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
     private final Map<String, ParticleData.Curve> curves;
     private final Map<String, Float> curveValues;
     private final ParticleRenderer renderer;
+    private final ParticleAppearanceBillboardComponent billboard;
+    private final ParticleAppearanceTintingComponent tint;
+    private final ParticleAppearanceLightingComponent lighting;
+    private final ResourceLocation texture;
+    private final BedrockParticleSystem.BlendMode blendMode;
     private final ParticleInitialSpeedComponent speed;
     private final ParticleInitialSpinComponent initialSpin;
     private final ParticleMotionDynamicComponent motionDynamic;
@@ -122,12 +127,17 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             this.expireNotInBlocks = BedrockParticleSystem.getComponent(data, "particle_expire_if_not_in_blocks");
             this.particleInitialization = BedrockParticleSystem.getComponent(data, "particle_initialization");
             ParticleAppearanceLightingComponent lighting = BedrockParticleSystem.getComponent(data, "particle_appearance_lighting");
+            this.billboard = billboard;
+            this.tint = tint;
+            this.lighting = lighting;
+            this.texture = texture;
             this.age = 0.0f;
             this.emitter = emitter;
             this.localPosition = emitter != null && emitter.isLocalPosition();
             this.localRotation = emitter != null && emitter.isLocalRotation();
             this.localVelocity = emitter != null && emitter.isLocalVelocity();
             BedrockParticleSystem.BlendMode blendMode = system.resolveBlendMode(data);
+            this.blendMode = blendMode;
             this.expireInBlockIds = system.resolveBlocks(expireInBlocks);
             this.expireNotInBlockIds = system.resolveBlocks(expireNotInBlocks);
             this.blockPos = new BlockPos.MutableBlockPos();
@@ -359,12 +369,16 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
         }
 
         void render(Minecraft mc, double camX, double camY, double camZ, float partialTicks) {
+            prepareRender(partialTicks);
+            renderer.render(this, mc, camX, camY, camZ, partialTicks);
+        }
+
+        public void prepareRender(float partialTicks) {
             float renderAge = this.age + partialTicks * BedrockParticleSystem.TICK_SECONDS;
             updateContext(renderAge);
             if (particleInitialization != null && particleInitialization.renderExpression() != null) {
                 environment.safeResolve(particleInitialization.renderExpression());
             }
-            renderer.render(this, mc, camX, camY, camZ, partialTicks);
         }
 
         @Override
@@ -380,6 +394,26 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
         @Override
         public MolangEnvironment getEnvironment() {
             return environment;
+        }
+
+        public ParticleAppearanceBillboardComponent getBillboard() {
+            return billboard;
+        }
+
+        public ParticleAppearanceTintingComponent getTint() {
+            return tint;
+        }
+
+        public ParticleAppearanceLightingComponent getLighting() {
+            return lighting;
+        }
+
+        public ResourceLocation getTexture() {
+            return texture;
+        }
+
+        public BedrockParticleSystem.BlendMode getBlendMode() {
+            return blendMode;
         }
 
         private void runEvent(String name) {

@@ -75,8 +75,8 @@ public class BytecodeCompiler extends ClassLoader {
             ensureInstructions(method);
             method.access = Opcodes.ACC_PUBLIC;
             method.name = "get";
-            method.desc = "(Lgg/moonflower/molangcompiler/api/MolangEnvironment;)F";
-            method.exceptions = java.util.Collections.singletonList("gg/moonflower/molangcompiler/api/exception/MolangRuntimeException");
+            method.desc = "(Lorg/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment;)F";
+            method.exceptions = java.util.Collections.singletonList("org/mybad/bedrockparticle/molangcompiler/api/exception/MolangRuntimeException");
             node.writeBytecode(method, environment, null, null);
             classNode.methods.add(method);
 
@@ -91,7 +91,7 @@ public class BytecodeCompiler extends ClassLoader {
             equals.desc = "(Ljava/lang/Object;)Z";
 
             equals.visitVarInsn(Opcodes.ALOAD, 1);
-            equals.visitTypeInsn(Opcodes.INSTANCEOF, "gg/moonflower/molangcompiler/api/MolangExpression");
+            equals.visitTypeInsn(Opcodes.INSTANCEOF, "org/mybad/bedrockparticle/molangcompiler/api/MolangExpression");
             equals.visitJumpInsn(Opcodes.IFEQ, equalsFail); // if !(obj instanceof MolangExpression) goto equalsFail
 
             equals.visitLdcInsn(compiledSource);

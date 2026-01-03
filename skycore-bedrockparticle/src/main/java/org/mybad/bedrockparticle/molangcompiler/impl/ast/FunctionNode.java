@@ -72,9 +72,9 @@ public class FunctionNode implements Node  {
         method.visitLdcInsn(this.function + "$" + this.arguments.length);
         method.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
-                "gg/moonflower/molangcompiler/impl/MolangUtil",
+                "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil",
                 "getFunction",
-                "(Lgg/moonflower/molangcompiler/api/object/MolangObject;Ljava/lang/String;Ljava/lang/String;)Lgg/moonflower/molangcompiler/api/MolangExpression;",
+                "(Lorg/mybad/bedrockparticle/molangcompiler/api/object/MolangObject;Ljava/lang/String;Ljava/lang/String;)Lorg/mybad/bedrockparticle/molangcompiler/api/MolangExpression;",
                 false
         );
         int expressionIndex = environment.allocateVariable(this.object + "." + this.function + "$" + this.arguments.length);
@@ -95,7 +95,7 @@ public class FunctionNode implements Node  {
             }
             method.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                    "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                     "loadParameter",
                     "(F)V",
                     true
@@ -107,9 +107,9 @@ public class FunctionNode implements Node  {
         method.visitVarInsn(Opcodes.ALOAD, BytecodeCompiler.RUNTIME_INDEX);
         method.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "gg/moonflower/molangcompiler/api/MolangExpression",
+                "org/mybad/bedrockparticle/molangcompiler/api/MolangExpression",
                 "resolve",
-                "(Lgg/moonflower/molangcompiler/api/MolangEnvironment;)F",
+                "(Lorg/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment;)F",
                 true
         );
 
@@ -117,7 +117,7 @@ public class FunctionNode implements Node  {
         method.visitVarInsn(Opcodes.ALOAD, BytecodeCompiler.RUNTIME_INDEX);
         method.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "gg/moonflower/molangcompiler/api/MolangEnvironment",
+                "org/mybad/bedrockparticle/molangcompiler/api/MolangEnvironment",
                 "clearParameters",
                 "()V",
                 true

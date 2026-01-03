@@ -240,7 +240,7 @@ private static final float RADIANS_TO_DEGREES = (float) (180 / Math.PI);
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[2].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "clamp", "(FFF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "clamp", "(FFF)F", false);
                 break;
             }
             case DIE_ROLL: {
@@ -248,7 +248,7 @@ private static final float RADIANS_TO_DEGREES = (float) (180 / Math.PI);
                 method.visitInsn(Opcodes.F2I);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[2].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "dieRoll", "(IFF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "dieRoll", "(IFF)F", false);
                 break;
             }
             case DIE_ROLL_INTEGER: {
@@ -260,38 +260,38 @@ private static final float RADIANS_TO_DEGREES = (float) (180 / Math.PI);
                 this.arguments[2].writeBytecode(method, env, breakLabel, continueLabel);
                 method.visitInsn(Opcodes.F2I);
                 method.visitInsn(Opcodes.I2F);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "dieRoll", "(IFF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "dieRoll", "(IFF)F", false);
                 method.visitInsn(Opcodes.I2F);
                 break;
             }
             case HERMITE_BLEND: {
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "hermiteBlend", "(F)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "hermiteBlend", "(F)F", false);
                 break;
             }
             case LERP: {
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[2].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "lerp", "(FFF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "lerp", "(FFF)F", false);
                 break;
             }
             case LERPROTATE: {
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[2].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "lerpRotate", "(FFF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "lerpRotate", "(FFF)F", false);
                 break;
             }
             case MIN_ANGLE: {
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "wrapDegrees", "(F)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "wrapDegrees", "(F)F", false);
                 break;
             }
             case RANDOM: {
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "random", "(FF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "random", "(FF)F", false);
                 break;
             }
             case RANDOM_INTEGER: {
@@ -301,7 +301,7 @@ private static final float RADIANS_TO_DEGREES = (float) (180 / Math.PI);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
                 method.visitInsn(Opcodes.F2I);
                 method.visitInsn(Opcodes.I2F);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "random", "(FF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "random", "(FF)F", false);
                 method.visitInsn(Opcodes.F2I);
                 method.visitInsn(Opcodes.I2F);
                 break;
@@ -314,7 +314,7 @@ private static final float RADIANS_TO_DEGREES = (float) (180 / Math.PI);
             case TRIANGLE_WAVE: {
                 this.arguments[0].writeBytecode(method, env, breakLabel, continueLabel);
                 this.arguments[1].writeBytecode(method, env, breakLabel, continueLabel);
-                method.visitMethodInsn(Opcodes.INVOKESTATIC, "gg/moonflower/molangcompiler/impl/MolangUtil", "triangleWave", "(FF)F", false);
+                method.visitMethodInsn(Opcodes.INVOKESTATIC, "org/mybad/bedrockparticle/molangcompiler/impl/MolangUtil", "triangleWave", "(FF)F", false);
                 break;
             }
         }
