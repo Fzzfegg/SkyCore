@@ -34,6 +34,76 @@ public class SkyCoreCommandHandler {
             }
             return;
         }
+        if (message.startsWith("/skycore reload ")) {
+            if (SkyCoreMod.instance == null) {
+                return;
+            }
+            String[] parts = message.trim().split("\\s+");
+            if (parts.length < 3) {
+                return;
+            }
+            String target = parts[2].toLowerCase();
+            String path = parts.length >= 4 ? parts[3] : null;
+            ResourceLoader loader = SkyCoreMod.instance.getResourceLoader();
+            EntityRenderEventHandler renderHandler = SkyCoreMod.getEntityRenderEventHandler();
+            BedrockParticleDebugSystem particleDebug = SkyCoreMod.getParticleDebugSystem();
+            if (loader == null) {
+                return;
+            }
+            if (target.equals("all")) {
+                SkyCoreMod.instance.reload();
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentString("\u00a7a[SkyCore] \u5168\u90e8\u8d44\u6e90\u5df2\u91cd\u8f7d")
+                );
+                return;
+            }
+            if (target.equals("model")) {
+                if (path != null) {
+                    loader.invalidateModel(path);
+                } else {
+                    loader.clearModelCache();
+                }
+                if (renderHandler != null) {
+                    renderHandler.clearCache();
+                }
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentString("\u00a7a[SkyCore] \u6a21\u578b\u7f13\u5b58\u5df2\u91cd\u8f7d" + (path != null ? (": " + path) : ""))
+                );
+                return;
+            }
+            if (target.equals("anim") || target.equals("animation")) {
+                if (path != null) {
+                    loader.invalidateAnimation(path);
+                } else {
+                    loader.clearAnimationCache();
+                }
+                if (renderHandler != null) {
+                    renderHandler.clearCache();
+                }
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentString("\u00a7a[SkyCore] \u52a8\u753b\u7f13\u5b58\u5df2\u91cd\u8f7d" + (path != null ? (": " + path) : ""))
+                );
+                return;
+            }
+            if (target.equals("particle")) {
+                if (path != null) {
+                    loader.invalidateParticle(path);
+                } else {
+                    loader.clearParticleCache();
+                }
+                if (particleDebug != null) {
+                    particleDebug.clear();
+                }
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentString("\u00a7a[SkyCore] \u7c92\u5b50\u7f13\u5b58\u5df2\u91cd\u8f7d" + (path != null ? (": " + path) : ""))
+                );
+                return;
+            }
+            Minecraft.getMinecraft().player.sendMessage(
+                new TextComponentString("[SkyCore] \u7528\u6cd5: /skycore reload <model|anim|particle|all> [path]")
+            );
+            return;
+        }
 
         if (message.equalsIgnoreCase("/skycore geomstats")) {
             if (SkyCoreMod.instance != null) {

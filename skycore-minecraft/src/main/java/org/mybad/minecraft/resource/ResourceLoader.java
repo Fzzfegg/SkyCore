@@ -92,6 +92,22 @@ public class ResourceLoader {
         SkyCoreMod.LOGGER.info("[SkyCore] 资源缓存已清空");
     }
 
+    public void clearModelCache() {
+        modelCache.clear();
+    }
+
+    public void clearAnimationCache() {
+        animationCache.clear();
+    }
+
+    public void clearParticleCache() {
+        particleCache.clear();
+    }
+
+    public void clearGeometryCache() {
+        geometryCache.clear();
+    }
+
     public GeometryCache getGeometryCache() {
         return geometryCache;
     }
