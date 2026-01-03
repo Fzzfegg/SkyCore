@@ -1,9 +1,9 @@
 package org.mybad.minecraft.particle.molang;
 
-import org.mybad.bedrockparticle.molangcompiler.api.MolangEnvironmentBuilder;
-import org.mybad.bedrockparticle.molangcompiler.api.MolangExpression;
-import org.mybad.bedrockparticle.molangcompiler.api.MolangRuntime;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleData;
+import org.mybad.bedrockparticle.molang.api.MolangEnvironmentBuilder;
+import org.mybad.bedrockparticle.molang.api.MolangExpression;
+import org.mybad.bedrockparticle.molang.api.MolangRuntime;
+import org.mybad.bedrockparticle.particle.ParticleData;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

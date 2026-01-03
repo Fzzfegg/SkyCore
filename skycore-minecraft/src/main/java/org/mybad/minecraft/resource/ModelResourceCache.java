@@ -17,27 +17,28 @@ final class ModelResourceCache {
     }
 
     Model loadModel(String path) {
-        Model cached = modelCache.get(path);
+        String key = owner.normalizePath(path);
+        Model cached = modelCache.get(key);
         if (cached != null) {
             return cached;
         }
         try {
-            String jsonContent = owner.readResourceAsString(path);
+            String jsonContent = owner.readResourceAsString(key);
             if (jsonContent == null) {
-                reporter.missing(path);
+                reporter.missing(key);
                 return null;
             }
             Model model = modelParser.parse(jsonContent);
-            modelCache.put(path, model);
+            modelCache.put(key, model);
             return model;
         } catch (Exception e) {
-            reporter.parseFailed(path, e);
+            reporter.parseFailed(key, e);
             return null;
         }
     }
 
     void invalidateModel(String path) {
-        modelCache.remove(path);
+        modelCache.remove(owner.normalizePath(path));
     }
 
     int getCachedModelCount() {

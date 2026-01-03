@@ -1,8 +1,8 @@
 package org.mybad.minecraft.particle.runtime;
 
-import org.mybad.bedrockparticle.molangcompiler.api.MolangEnvironment;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleInstance;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleEmitterShape;
+import org.mybad.bedrockparticle.molang.api.MolangEnvironment;
+import org.mybad.bedrockparticle.particle.ParticleInstance;
+import org.mybad.bedrockparticle.particle.component.ParticleEmitterShape;
 
 import java.util.Random;
 
@@ -31,7 +31,7 @@ final class EmitterShapeSpawner implements ParticleEmitterShape.Spawner {
     }
 
     @Override
-    public org.mybad.bedrockparticle.pinwheel.particle.ParticleSourceObject getEntity() {
+    public org.mybad.bedrockparticle.particle.ParticleSourceObject getEntity() {
         return null;
     }
 

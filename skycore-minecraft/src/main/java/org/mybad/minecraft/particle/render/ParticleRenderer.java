@@ -1,9 +1,9 @@
 package org.mybad.minecraft.particle.render;
 
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceBillboardComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceLightingComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceTintingComponent;
-import org.mybad.bedrockparticle.pollen.particle.QuadRenderProperties;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceBillboardComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceLightingComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceTintingComponent;
+import org.mybad.bedrockparticle.particle.render.QuadRenderProperties;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;

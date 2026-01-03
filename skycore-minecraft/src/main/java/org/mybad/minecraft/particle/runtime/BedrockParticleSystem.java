@@ -1,8 +1,8 @@
 package org.mybad.minecraft.particle.runtime;
 
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleData;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleExpireInBlocksComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleExpireNotInBlocksComponent;
+import org.mybad.bedrockparticle.particle.ParticleData;
+import org.mybad.bedrockparticle.particle.component.ParticleExpireInBlocksComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleExpireNotInBlocksComponent;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
@@ -18,7 +18,7 @@ import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import org.mybad.minecraft.particle.render.gpu.ParticleGpuRenderer;
-import org.mybad.bedrockparticle.pinwheel.particle.BedrockResourceLocation;
+import org.mybad.bedrockparticle.particle.BedrockResourceLocation;
 import org.mybad.minecraft.resource.ResourceLoader;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.BufferUtils;
@@ -245,11 +245,11 @@ public class BedrockParticleSystem {
         if (data == null) {
             return null;
         }
-        Map<String, org.mybad.bedrockparticle.pinwheel.particle.component.ParticleComponent> components = data.components();
+        Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components = data.components();
         if (components == null || components.isEmpty()) {
             return null;
         }
-        org.mybad.bedrockparticle.pinwheel.particle.component.ParticleComponent component = components.get("minecraft:" + name);
+        org.mybad.bedrockparticle.particle.component.ParticleComponent component = components.get("minecraft:" + name);
         if (component == null) {
             component = components.get(name);
         }

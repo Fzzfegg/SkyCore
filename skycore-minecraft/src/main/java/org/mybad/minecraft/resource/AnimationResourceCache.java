@@ -18,13 +18,14 @@ final class AnimationResourceCache {
     }
 
     Animation loadAnimation(String path) {
-        Animation cached = animationCache.get(path);
+        String key = owner.normalizePath(path);
+        Animation cached = animationCache.get(key);
         if (cached != null) {
             return cached;
         }
         Animation animation = loadAnimation(path, null);
         if (animation != null) {
-            animationCache.put(path, animation);
+            animationCache.put(key, animation);
         }
         return animation;
     }
@@ -45,28 +46,30 @@ final class AnimationResourceCache {
     }
 
     Map<String, Animation> loadAnimationSet(String path) {
-        Map<String, Animation> cached = animationSetCache.get(path);
+        String key = owner.normalizePath(path);
+        Map<String, Animation> cached = animationSetCache.get(key);
         if (cached != null) {
             return cached;
         }
         try {
-            String jsonContent = owner.readResourceAsString(path);
+            String jsonContent = owner.readResourceAsString(key);
             if (jsonContent == null) {
-                reporter.missing(path);
+                reporter.missing(key);
                 return null;
             }
             Map<String, Animation> animations = animationParser.parseAllToAnimations(jsonContent);
-            animationSetCache.put(path, animations);
+            animationSetCache.put(key, animations);
             return animations;
         } catch (Exception e) {
-            reporter.parseFailed(path, e);
+            reporter.parseFailed(key, e);
             return null;
         }
     }
 
     void invalidateAnimation(String path) {
-        animationCache.remove(path);
-        animationSetCache.remove(path);
+        String key = owner.normalizePath(path);
+        animationCache.remove(key);
+        animationSetCache.remove(key);
     }
 
     int getCachedAnimationCount() {

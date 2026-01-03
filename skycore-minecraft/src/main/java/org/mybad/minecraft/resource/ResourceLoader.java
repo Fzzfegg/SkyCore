@@ -3,7 +3,7 @@ package org.mybad.minecraft.resource;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleData;
+import org.mybad.bedrockparticle.particle.ParticleData;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
@@ -66,6 +66,13 @@ public class ResourceLoader {
      */
     public ResourceLocation resolveResourceLocation(String path) {
         return pathResolver.resolveResourceLocation(path);
+    }
+
+    String normalizePath(String path) {
+        if (path == null) {
+            return null;
+        }
+        return resolveResourceLocation(path).toString();
     }
     /**
      * 从 assets 加载资源文件为字符串

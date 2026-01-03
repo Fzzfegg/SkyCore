@@ -3,10 +3,10 @@ package org.mybad.minecraft.resource;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleData;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleParser;
+import org.mybad.bedrockparticle.particle.ParticleData;
+import org.mybad.bedrockparticle.particle.ParticleParser;
 import net.minecraft.util.ResourceLocation;
-import org.mybad.bedrockparticle.pinwheel.particle.BedrockResourceLocation;
+import org.mybad.bedrockparticle.particle.BedrockResourceLocation;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,29 +21,30 @@ final class ParticleResourceCache {
     }
 
     ParticleData loadParticle(String path) {
-        ParticleData cached = particleCache.get(path);
+        String key = owner.normalizePath(path);
+        ParticleData cached = particleCache.get(key);
         if (cached != null) {
             return cached;
         }
         try {
-            String jsonContent = owner.readResourceAsString(path);
+            String jsonContent = owner.readResourceAsString(key);
             if (jsonContent == null) {
-                reporter.missing(path);
+                reporter.missing(key);
                 return null;
             }
             JsonElement root = new JsonParser().parse(jsonContent);
             ParticleData data = ParticleParser.parseParticle(root);
-            patchParticleTextureNamespace(path, root, data);
-            particleCache.put(path, data);
+            patchParticleTextureNamespace(key, root, data);
+            particleCache.put(key, data);
             return data;
         } catch (Exception e) {
-            reporter.parseFailed(path, e);
+            reporter.parseFailed(key, e);
             return null;
         }
     }
 
     void invalidateParticle(String path) {
-        particleCache.remove(path);
+        particleCache.remove(owner.normalizePath(path));
     }
 
     int getCachedParticleCount() {

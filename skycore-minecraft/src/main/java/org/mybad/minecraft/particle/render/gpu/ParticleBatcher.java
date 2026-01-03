@@ -1,11 +1,11 @@
 package org.mybad.minecraft.particle.render.gpu;
 
-import org.mybad.bedrockparticle.molangcompiler.api.MolangEnvironment;
-import org.mybad.bedrockparticle.molangcompiler.api.MolangExpression;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceBillboardComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceLightingComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceTintingComponent;
-import org.mybad.bedrockparticle.pollen.particle.QuadRenderProperties;
+import org.mybad.bedrockparticle.molang.api.MolangEnvironment;
+import org.mybad.bedrockparticle.molang.api.MolangExpression;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceBillboardComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceLightingComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceTintingComponent;
+import org.mybad.bedrockparticle.particle.render.QuadRenderProperties;
 import net.minecraft.util.ResourceLocation;
 import org.mybad.minecraft.particle.runtime.ActiveEmitter;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;

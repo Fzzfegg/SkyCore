@@ -1,0 +1,91 @@
+package org.mybad.bedrockparticle.molang.impl.ast;
+
+import org.mybad.bedrockparticle.molang.api.exception.MolangException;
+import org.mybad.bedrockparticle.molang.impl.compiler.MolangBytecodeEnvironment;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.MethodNode;
+
+/**
+ * Performs an "if" check on the specified value and executes the branch if it passes.
+ *
+ * @param value  The value to check. If not zero it is considered <code>true</code>
+ * @param branch The value to use when the check passes
+ * @author Buddy
+ */
+@ApiStatus.Internal
+public class BinaryConditionalNode implements Node  {
+
+    private final Node value;
+
+    private final Node branch;
+
+    public BinaryConditionalNode(Node value, Node branch) {
+        this.value = value;
+        this.branch = branch;
+    }
+
+    public Node value() {
+        return this.value;
+    }
+
+    public Node branch() {
+        return this.branch;
+    }
+
+@Override
+    public String toString() {
+        return this.value + " ? " + this.branch;
+    }
+
+    @Override
+    public boolean isConstant() {
+        return this.value.isConstant();
+    }
+
+    @Override
+    public boolean hasValue() {
+        return false;
+    }
+
+    @Override
+    public float evaluate(MolangBytecodeEnvironment environment) throws MolangException {
+        return this.value.evaluate(environment) != 0.0F ? this.branch.evaluate(environment) : 0.0F;
+    }
+
+    @Override
+    public void writeBytecode(MethodNode method, MolangBytecodeEnvironment environment, @Nullable Label breakLabel, @Nullable Label continueLabel) throws MolangException {
+        Label label_end = new Label();
+
+        if (environment.optimize() && this.value.isConstant()) {
+            if (this.value.evaluate(environment) != 0.0F) {
+                this.branch.writeBytecode(method, environment, breakLabel, continueLabel);
+            }
+            return;
+        }
+
+        this.value.writeBytecode(method, environment, breakLabel, continueLabel);
+        method.visitInsn(Opcodes.FCONST_0);
+        method.visitInsn(Opcodes.FCMPL);
+        method.visitJumpInsn(Opcodes.IFEQ, label_end);
+        this.branch.writeBytecode(method, environment, breakLabel, continueLabel);
+        method.visitLabel(label_end);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof BinaryConditionalNode)) return false;
+        BinaryConditionalNode that = (BinaryConditionalNode) o;
+        if (!java.util.Objects.equals(this.value, that.value)) return false;
+        if (!java.util.Objects.equals(this.branch, that.branch)) return false;
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(value, branch);
+    }
+
+}

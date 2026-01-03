@@ -1,23 +1,23 @@
 package org.mybad.minecraft.particle.runtime;
 
-import org.mybad.bedrockparticle.molangcompiler.api.MolangEnvironment;
-import org.mybad.bedrockparticle.molangcompiler.api.MolangExpression;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleData;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleContext;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterInitializationComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterLifetimeExpressionComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterLifetimeLoopingComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterLifetimeOnceComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterLocalSpaceComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterRateInstantComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.EmitterRateSteadyComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceBillboardComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleAppearanceTintingComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleEmitterShape;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleInitialSpeedComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleLifetimeExpressionComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.component.ParticleLifetimeEventComponent;
-import org.mybad.bedrockparticle.pinwheel.particle.event.ParticleEvent;
+import org.mybad.bedrockparticle.molang.api.MolangEnvironment;
+import org.mybad.bedrockparticle.molang.api.MolangExpression;
+import org.mybad.bedrockparticle.particle.ParticleData;
+import org.mybad.bedrockparticle.particle.ParticleContext;
+import org.mybad.bedrockparticle.particle.component.EmitterInitializationComponent;
+import org.mybad.bedrockparticle.particle.component.EmitterLifetimeExpressionComponent;
+import org.mybad.bedrockparticle.particle.component.EmitterLifetimeLoopingComponent;
+import org.mybad.bedrockparticle.particle.component.EmitterLifetimeOnceComponent;
+import org.mybad.bedrockparticle.particle.component.EmitterLocalSpaceComponent;
+import org.mybad.bedrockparticle.particle.component.EmitterRateInstantComponent;
+import org.mybad.bedrockparticle.particle.component.EmitterRateSteadyComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceBillboardComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleAppearanceTintingComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleEmitterShape;
+import org.mybad.bedrockparticle.particle.component.ParticleInitialSpeedComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleLifetimeExpressionComponent;
+import org.mybad.bedrockparticle.particle.component.ParticleLifetimeEventComponent;
+import org.mybad.bedrockparticle.particle.event.ParticleEvent;
 import net.minecraft.util.ResourceLocation;
 import org.mybad.minecraft.particle.molang.ParticleCurveEvaluator;
 import org.mybad.minecraft.particle.molang.ParticleMolangBindings;
@@ -736,7 +736,7 @@ public class ActiveEmitter implements ParticleContext {
                 return shape;
             }
             if (data != null && data.components() != null) {
-                for (org.mybad.bedrockparticle.pinwheel.particle.component.ParticleComponent component : data.components().values()) {
+                for (org.mybad.bedrockparticle.particle.component.ParticleComponent component : data.components().values()) {
                     if (component instanceof ParticleEmitterShape) {
                         return (ParticleEmitterShape) component;
                     }

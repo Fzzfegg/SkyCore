@@ -1,7 +1,7 @@
 package org.mybad.minecraft.particle.molang;
 
-import org.mybad.bedrockparticle.molangcompiler.api.MolangEnvironment;
-import org.mybad.bedrockparticle.pinwheel.particle.ParticleData;
+import org.mybad.bedrockparticle.molang.api.MolangEnvironment;
+import org.mybad.bedrockparticle.particle.ParticleData;
 
 public final class ParticleCurveEvaluator {
     private ParticleCurveEvaluator() {
