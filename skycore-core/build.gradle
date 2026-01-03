@@ -13,11 +13,7 @@ dependencies {
     // 注解支持
     implementation 'org.jetbrains:annotations:20.1.0'
 
-    // 测试依赖 - JUnit 4 + JUnit 5
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
-    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
-    testImplementation 'org.junit.vintage:junit-vintage-engine:5.8.2'
+    // 测试依赖已移除
 }
 
 // 配置 JAR 包
