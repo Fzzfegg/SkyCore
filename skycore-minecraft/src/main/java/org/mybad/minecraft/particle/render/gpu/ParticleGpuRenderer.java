@@ -165,12 +165,11 @@ public final class ParticleGpuRenderer {
         GlStateManager.enableBlend();
         GlStateManager.disableCull();
         GlStateManager.depthMask(false);
-        GlStateManager.enableAlpha();
         applyBlendMode(BedrockParticleSystem.BlendMode.ALPHA);
-        GL11.glDisable(GL11.GL_CULL_FACE);
     }
 
     private void restoreRenderState() {
+        OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.depthMask(true);

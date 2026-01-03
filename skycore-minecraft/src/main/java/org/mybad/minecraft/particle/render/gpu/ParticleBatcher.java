@@ -109,7 +109,6 @@ final class ParticleBatcher {
             double px = particle.getPrevX() + (particle.getX() - particle.getPrevX()) * partialTicks;
             double py = particle.getPrevY() + (particle.getY() - particle.getPrevY()) * partialTicks;
             double pz = particle.getPrevZ() + (particle.getZ() - particle.getPrevZ()) * partialTicks;
-            // Match CPU path: push particles slightly above surfaces to avoid Z-fighting.
             py += 0.01;
 
             float lightU = 0.0f;
