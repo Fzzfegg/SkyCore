@@ -68,7 +68,7 @@ public final class ParticleGpuRenderer {
             return;
         }
 
-        float[] cameraAxes = extractCameraAxes();
+        float[] cameraAxes = computeCameraAxes(mc);
         float rightX = cameraAxes[0];
         float rightY = cameraAxes[1];
         float rightZ = cameraAxes[2];
@@ -199,32 +199,60 @@ public final class ParticleGpuRenderer {
         return out;
     }
 
-    private float[] extractCameraAxes() {
+    private float[] computeCameraAxes(Minecraft mc) {
+        float[] axes = extractCameraAxesFromModelView();
+        if (axes != null) {
+            return axes;
+        }
+        float yaw = 0.0f;
+        float pitch = 0.0f;
+        if (mc != null && mc.getRenderManager() != null) {
+            yaw = mc.getRenderManager().playerViewY;
+            pitch = mc.getRenderManager().playerViewX;
+        }
+        float yawRad = (float) Math.toRadians(-yaw);
+        float pitchRad = (float) Math.toRadians(pitch);
+        float cosY = (float) Math.cos(yawRad);
+        float sinY = (float) Math.sin(yawRad);
+        float cosP = (float) Math.cos(pitchRad);
+        float sinP = (float) Math.sin(pitchRad);
+
+        float rightX = cosY;
+        float rightY = 0.0f;
+        float rightZ = -sinY;
+
+        float upX = sinY * sinP;
+        float upY = cosP;
+        float upZ = cosY * sinP;
+
+        return new float[]{rightX, rightY, rightZ, upX, upY, upZ};
+    }
+
+    private float[] extractCameraAxesFromModelView() {
         FloatBuffer modelBuffer = BufferUtils.createFloatBuffer(16);
         GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelBuffer);
         modelBuffer.rewind();
         float[] m = new float[16];
         modelBuffer.get(m);
-        // row 0/1 from column-major matrix
-        float rx = m[0];
-        float ry = m[4];
-        float rz = m[8];
-        float ux = m[1];
-        float uy = m[5];
-        float uz = m[9];
-        float rLen = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
-        float uLen = (float) Math.sqrt(ux * ux + uy * uy + uz * uz);
-        if (rLen > 0.0f) {
-            rx /= rLen;
-            ry /= rLen;
-            rz /= rLen;
+        // Column-major: row0 = (m0, m4, m8), row1 = (m1, m5, m9)
+        float rightX = m[0];
+        float rightY = m[4];
+        float rightZ = m[8];
+        float upX = m[1];
+        float upY = m[5];
+        float upZ = m[9];
+        float rightLen = (float) Math.sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
+        float upLen = (float) Math.sqrt(upX * upX + upY * upY + upZ * upZ);
+        if (rightLen < 1.0e-6f || upLen < 1.0e-6f) {
+            return null;
         }
-        if (uLen > 0.0f) {
-            ux /= uLen;
-            uy /= uLen;
-            uz /= uLen;
-        }
-        return new float[]{rx, ry, rz, ux, uy, uz};
+        rightX /= rightLen;
+        rightY /= rightLen;
+        rightZ /= rightLen;
+        upX /= upLen;
+        upY /= upLen;
+        upZ /= upLen;
+        return new float[]{rightX, rightY, rightZ, upX, upY, upZ};
     }
 
     private float[] extractCameraOffset(double camX, double camY, double camZ) {

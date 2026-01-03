@@ -63,7 +63,7 @@ public final class GpuParticleSupport {
         boolean hasGl43 = caps.OpenGL43;
         boolean hasSsboExt = caps.GL_ARB_shader_storage_buffer_object;
         boolean hasMemoryBarrierExt = caps.GL_ARB_shader_image_load_store || caps.OpenGL42 || caps.OpenGL43;
-        boolean hasInstancing = caps.OpenGL31 || caps.GL_ARB_draw_instanced;
+        boolean hasInstancing = caps.OpenGL31;
         return (hasGl43 || (hasSsboExt && hasMemoryBarrierExt)) && hasInstancing;
     }
 }

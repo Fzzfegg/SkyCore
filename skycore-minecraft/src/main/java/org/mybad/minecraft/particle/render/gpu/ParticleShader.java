@@ -361,13 +361,13 @@ final class ParticleShader {
             + "    right = r2;\n"
             + "    up = u2;\n"
             + "\n"
-            + "    vec3 worldPos = pos + right * (a_corner.x * size.x) + up * (a_corner.y * size.y);\n"
-            + "    gl_Position = u_viewProj * vec4(worldPos, 1.0);\n"
+            + "    vec3 finalPos = pos + right * (a_corner.x * size.x) + up * (a_corner.y * size.y);\n"
+            + "    gl_Position = u_viewProj * vec4(finalPos, 1.0);\n"
             + "\n"
             + "    v_uv = mix(p.uv.xy, p.uv.zw, a_uv);\n"
             + "    v_color = p.color;\n"
             + "    v_lightUV = p.extra.xy;\n"
-            + "    v_fogDist = length(u_cameraPos - worldPos);\n"
+            + "    v_fogDist = length(u_cameraPos - finalPos);\n"
             + "}\n";
     }
 

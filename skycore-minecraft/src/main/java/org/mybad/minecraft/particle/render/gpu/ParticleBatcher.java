@@ -83,7 +83,7 @@ final class ParticleBatcher {
                 dir = new float[]{0.0f, 0.0f, 0.0f};
             }
 
-            int camMode = billboard.cameraMode().ordinal();
+            int camMode = encodeCameraMode(billboard.cameraMode());
             ResourceLocation texture = particle.getTexture();
             BedrockParticleSystem.BlendMode blendMode = particle.getBlendMode();
 
@@ -109,6 +109,8 @@ final class ParticleBatcher {
             double px = particle.getPrevX() + (particle.getX() - particle.getPrevX()) * partialTicks;
             double py = particle.getPrevY() + (particle.getY() - particle.getPrevY()) * partialTicks;
             double pz = particle.getPrevZ() + (particle.getZ() - particle.getPrevZ()) * partialTicks;
+            // Match CPU path: push particles slightly above surfaces to avoid Z-fighting.
+            py += 0.01;
 
             float lightU = 0.0f;
             float lightV = 0.0f;
@@ -184,6 +186,37 @@ final class ParticleBatcher {
             || mode == ParticleAppearanceBillboardComponent.FaceCameraMode.DIRECTION_Y
             || mode == ParticleAppearanceBillboardComponent.FaceCameraMode.DIRECTION_Z
             || mode == ParticleAppearanceBillboardComponent.FaceCameraMode.LOOKAT_DIRECTION;
+    }
+
+    private static int encodeCameraMode(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
+        if (mode == null) {
+            return 0;
+        }
+        switch (mode) {
+            case ROTATE_Y:
+                return 1;
+            case LOOK_AT_XYZ:
+                return 2;
+            case LOOK_AT_Y:
+                return 3;
+            case DIRECTION_X:
+                return 4;
+            case DIRECTION_Y:
+                return 5;
+            case DIRECTION_Z:
+                return 6;
+            case LOOKAT_DIRECTION:
+                return 7;
+            case EMITTER_TRANSFORM_XY:
+                return 8;
+            case EMITTER_TRANSFORM_XZ:
+                return 9;
+            case EMITTER_TRANSFORM_YZ:
+                return 10;
+            case ROTATE_XYZ:
+            default:
+                return 0;
+        }
     }
 
     private static float[] resolveFacingDirection(ActiveParticle particle,
