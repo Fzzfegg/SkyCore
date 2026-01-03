@@ -18,6 +18,7 @@ final class ParticleShader {
     private int uCameraPos = -1;
     private int uCameraRight = -1;
     private int uCameraUp = -1;
+    private int uCameraOffset = -1;
     private int uFogColor = -1;
     private int uFogStart = -1;
     private int uFogEnd = -1;
@@ -54,6 +55,7 @@ final class ParticleShader {
         uCameraPos = GL20.glGetUniformLocation(programId, "u_cameraPos");
         uCameraRight = GL20.glGetUniformLocation(programId, "u_cameraRight");
         uCameraUp = GL20.glGetUniformLocation(programId, "u_cameraUp");
+        uCameraOffset = GL20.glGetUniformLocation(programId, "u_cameraOffset");
         uFogColor = GL20.glGetUniformLocation(programId, "u_fogColor");
         uFogStart = GL20.glGetUniformLocation(programId, "u_fogStart");
         uFogEnd = GL20.glGetUniformLocation(programId, "u_fogEnd");
@@ -108,6 +110,12 @@ final class ParticleShader {
         }
         if (uCameraUp != -1) {
             GL20.glUniform3f(uCameraUp, upX, upY, upZ);
+        }
+    }
+
+    void setCameraOffset(float x, float y, float z) {
+        if (uCameraOffset != -1) {
+            GL20.glUniform3f(uCameraOffset, x, y, z);
         }
     }
 
@@ -177,6 +185,7 @@ final class ParticleShader {
             + "uniform vec3 u_cameraPos;\n"
             + "uniform vec3 u_cameraRight;\n"
             + "uniform vec3 u_cameraUp;\n"
+            + "uniform vec3 u_cameraOffset;\n"
             + "uniform int u_instanceOffset;\n"
             + "\n"
             + "out vec2 v_uv;\n"
@@ -253,7 +262,8 @@ final class ParticleShader {
             + "\n"
             + "void main() {\n"
             + "    ParticleData p = particles[gl_InstanceID + u_instanceOffset];\n"
-            + "    vec3 pos = p.pos_roll.xyz;\n"
+            + "    vec3 worldPos = p.pos_roll.xyz;\n"
+            + "    vec3 pos = worldPos - u_cameraOffset;\n"
             + "    float rollRad = radians(p.pos_roll.w);\n"
             + "    vec2 size = p.size_mode.xy;\n"
             + "    int mode = int(p.size_mode.z + 0.5);\n"
@@ -262,24 +272,30 @@ final class ParticleShader {
             + "    vec3 right = vec3(1.0, 0.0, 0.0);\n"
             + "    vec3 up = vec3(0.0, 1.0, 0.0);\n"
             + "    vec3 normal = vec3(0.0, 0.0, 1.0);\n"
+            + "    vec3 camRight = safeNormalize(u_cameraRight);\n"
+            + "    vec3 camUp = safeNormalize(u_cameraUp);\n"
+            + "    vec3 camForward = safeNormalize(cross(camRight, camUp));\n"
             + "\n"
             + "    if (mode == MODE_ROTATE_XYZ) {\n"
-            + "        right = safeNormalize(u_cameraRight);\n"
-            + "        up = safeNormalize(u_cameraUp);\n"
-            + "        normal = safeNormalize(cross(right, up));\n"
+            + "        right = camRight;\n"
+            + "        up = camUp;\n"
+            + "        normal = camForward;\n"
             + "    } else if (mode == MODE_ROTATE_Y) {\n"
-            + "        vec3 toCam = vec3(u_cameraPos.x - pos.x, 0.0, u_cameraPos.z - pos.z);\n"
-            + "        normal = safeNormalize(toCam);\n"
+            + "        vec3 fwd = vec3(camForward.x, 0.0, camForward.z);\n"
+            + "        normal = safeNormalize(fwd);\n"
             + "        if (length(normal) < 1e-6) {\n"
             + "            normal = vec3(0.0, 0.0, 1.0);\n"
             + "        }\n"
-            + "        right = safeNormalize(cross(vec3(0.0, 1.0, 0.0), normal));\n"
+            + "        right = safeNormalize(vec3(camRight.x, 0.0, camRight.z));\n"
+            + "        if (length(right) < 1e-6) {\n"
+            + "            right = safeNormalize(cross(vec3(0.0, 1.0, 0.0), normal));\n"
+            + "        }\n"
             + "        up = vec3(0.0, 1.0, 0.0);\n"
             + "    } else if (mode == MODE_LOOK_AT_XYZ) {\n"
-            + "        normal = safeNormalize(u_cameraPos - pos);\n"
+            + "        normal = safeNormalize(u_cameraPos - worldPos);\n"
             + "        buildFacingFromNormal(normal, right, up);\n"
             + "    } else if (mode == MODE_LOOK_AT_Y) {\n"
-            + "        vec3 toCam = vec3(u_cameraPos.x - pos.x, 0.0, u_cameraPos.z - pos.z);\n"
+            + "        vec3 toCam = vec3(u_cameraPos.x - worldPos.x, 0.0, u_cameraPos.z - worldPos.z);\n"
             + "        normal = safeNormalize(toCam);\n"
             + "        buildFacingFromNormal(normal, right, up);\n"
             + "    } else if (mode == MODE_DIRECTION_X || mode == MODE_DIRECTION_Y || mode == MODE_DIRECTION_Z) {\n"
@@ -303,7 +319,7 @@ final class ParticleShader {
             + "        float pitch = getPitch(ndir);\n"
             + "        mat3 rot = rotY(yaw) * rotX(pitch + radians(90.0));\n"
             + "        vec3 baseZ = rot * vec3(0.0, 0.0, 1.0);\n"
-            + "        vec3 camDir = safeNormalize(u_cameraPos - pos);\n"
+            + "        vec3 camDir = safeNormalize(u_cameraPos - worldPos);\n"
             + "        vec3 proj = camDir - ndir * dot(camDir, ndir);\n"
             + "        proj = safeNormalize(proj);\n"
             + "        float dotp = clamp(dot(proj, baseZ), -1.0, 1.0);\n"
@@ -351,7 +367,7 @@ final class ParticleShader {
             + "    v_uv = mix(p.uv.xy, p.uv.zw, a_uv);\n"
             + "    v_color = p.color;\n"
             + "    v_lightUV = p.extra.xy;\n"
-            + "    v_fogDist = length(u_cameraPos - pos);\n"
+            + "    v_fogDist = length(u_cameraPos - worldPos);\n"
             + "}\n";
     }
 

@@ -75,6 +75,7 @@ public final class ParticleGpuRenderer {
         float upX = cameraAxes[3];
         float upY = cameraAxes[4];
         float upZ = cameraAxes[5];
+        float[] cameraOffset = extractCameraOffset(camX, camY, camZ);
 
         FogState fog = FogState.capture();
         int lightmapId = getLightmapTextureId(mc);
@@ -99,6 +100,7 @@ public final class ParticleGpuRenderer {
                 shader.use();
                 shader.setViewProj(viewProj);
                 shader.setCamera((float) camX, (float) camY, (float) camZ, rightX, rightY, rightZ, upX, upY, upZ);
+                shader.setCameraOffset(cameraOffset[0], cameraOffset[1], cameraOffset[2]);
                 shader.setFog(fog.r, fog.g, fog.b, fog.start, fog.end, fog.enabled);
                 currentShader = shader;
             }
@@ -225,6 +227,22 @@ public final class ParticleGpuRenderer {
         return new float[]{rx, ry, rz, ux, uy, uz};
     }
 
+    private float[] extractCameraOffset(double camX, double camY, double camZ) {
+        FloatBuffer modelBuffer = BufferUtils.createFloatBuffer(16);
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelBuffer);
+        modelBuffer.rewind();
+        float[] m = new float[16];
+        modelBuffer.get(m);
+        float tx = m[12];
+        float ty = m[13];
+        float tz = m[14];
+        float mag = Math.abs(tx) + Math.abs(ty) + Math.abs(tz);
+        if (mag > 1.0e-4f) {
+            return new float[]{0.0f, 0.0f, 0.0f};
+        }
+        return new float[]{(float) camX, (float) camY, (float) camZ};
+    }
+
     private static float[] multiplyMat4(float[] a, float[] b) {
         float[] out = new float[16];
         for (int row = 0; row < 4; row++) {
@@ -259,7 +277,7 @@ public final class ParticleGpuRenderer {
             boolean enabled = GL11.glIsEnabled(GL11.GL_FOG);
             float start = GL11.glGetFloat(GL11.GL_FOG_START);
             float end = GL11.glGetFloat(GL11.GL_FOG_END);
-            FloatBuffer fogColor = BufferUtils.createFloatBuffer(4);
+            FloatBuffer fogColor = BufferUtils.createFloatBuffer(16);
             GL11.glGetFloat(GL11.GL_FOG_COLOR, fogColor);
             fogColor.rewind();
             float r = fogColor.get();
