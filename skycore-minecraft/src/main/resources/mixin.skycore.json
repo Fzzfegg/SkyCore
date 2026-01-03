@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_8",
+  "package": "org.mybad.minecraft.mixin",
+  "refmap": "skycore.mixins.refmap.json",
+  "mixins": [],
+  "client": [
+    "ui.MixinGuiMainMenu"
+  ],
+  "server": []
+}
