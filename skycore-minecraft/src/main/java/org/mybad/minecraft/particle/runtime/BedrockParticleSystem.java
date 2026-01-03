@@ -212,8 +212,9 @@ public class BedrockParticleSystem {
             }
         }
         if (gpuRenderer.isAvailable()) {
-            gpuRenderer.render(particles, mc, camX, camY, camZ, partialTicks);
-            return;
+            if (gpuRenderer.render(particles, mc, camX, camY, camZ, partialTicks)) {
+                return;
+            }
         }
 
         GlStateManager.disableLighting();

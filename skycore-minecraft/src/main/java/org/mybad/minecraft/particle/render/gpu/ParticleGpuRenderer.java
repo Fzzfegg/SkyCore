@@ -22,12 +22,22 @@ import java.util.List;
  */
 public final class ParticleGpuRenderer {
     private static final Field LIGHTMAP_TEXTURE_FIELD = resolveLightmapField();
+    private static boolean loggedBatchInfo = false;
+    private static boolean loggedFallbackInfo = false;
+    private static boolean loggedCameraInfo = false;
 
     private final ParticleBatcher batcher = new ParticleBatcher();
     private final ParticleSsboBuffer ssboBuffer = new ParticleSsboBuffer();
     private final ParticleQuadMesh quadMesh = new ParticleQuadMesh();
     private final ParticleShader shaderLit = new ParticleShader(true);
     private final ParticleShader shaderUnlit = new ParticleShader(false);
+    private final FloatBuffer projBuffer = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer modelBuffer = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer viewProjBuffer = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer fogColorBuffer = BufferUtils.createFloatBuffer(16);
+    private final float[] projTmp = new float[16];
+    private final float[] modelTmp = new float[16];
+    private final float[] viewProjTmp = new float[16];
 
     private boolean ready;
 
@@ -35,27 +45,43 @@ public final class ParticleGpuRenderer {
         return GpuParticleSupport.isGpuParticleAvailable();
     }
 
-    public void render(List<ActiveParticle> particles,
-                       Minecraft mc,
-                       double camX,
-                       double camY,
-                       double camZ,
-                       float partialTicks) {
+    public boolean render(List<ActiveParticle> particles,
+                          Minecraft mc,
+                          double camX,
+                          double camY,
+                          double camZ,
+                          float partialTicks) {
         if (particles.isEmpty()) {
-            return;
+            return false;
         }
         if (!isAvailable()) {
-            return;
+            return false;
         }
 
         ensureReady();
         if (!ready) {
-            return;
+            return false;
         }
 
         ParticleBatcher.Result result = batcher.build(particles, partialTicks);
         if (result.particleCount <= 0 || result.batches.isEmpty()) {
-            return;
+            if (!loggedFallbackInfo) {
+                loggedFallbackInfo = true;
+                org.mybad.minecraft.SkyCoreMod.LOGGER.warn("[SkyCore] GPU particles: no batches built (count={}, batches={})",
+                    result.particleCount, result.batches.size());
+            }
+            return false;
+        }
+        if (!loggedBatchInfo) {
+            loggedBatchInfo = true;
+            ParticleBatcher.Batch first = result.batches.get(0);
+            org.mybad.minecraft.SkyCoreMod.LOGGER.info("[SkyCore] GPU particles: count={}, batches={}, first=tex={}, blend={}, mode={}, lit={}",
+                result.particleCount,
+                result.batches.size(),
+                first.key.texture,
+                first.key.blendMode,
+                first.key.cameraMode,
+                first.key.lit);
         }
 
         int particleBytes = result.particleBuffer.remaining() * Float.BYTES;
@@ -65,7 +91,7 @@ public final class ParticleGpuRenderer {
 
         FloatBuffer viewProj = buildViewProj();
         if (viewProj == null) {
-            return;
+            return false;
         }
 
         float[] cameraAxes = computeCameraAxes(mc);
@@ -76,12 +102,27 @@ public final class ParticleGpuRenderer {
         float upY = cameraAxes[4];
         float upZ = cameraAxes[5];
         float[] cameraOffset = extractCameraOffset(camX, camY, camZ);
+        if (loggedBatchInfo && !loggedCameraInfo) {
+            loggedCameraInfo = true;
+            org.mybad.minecraft.SkyCoreMod.LOGGER.info("[SkyCore] GPU particles: cam=({},{},{}), camOffset=({},{},{}), viewTrans=({},{},{})",
+                camX, camY, camZ,
+                cameraOffset[0], cameraOffset[1], cameraOffset[2],
+                modelTmp[12], modelTmp[13], modelTmp[14]);
+            if (!particles.isEmpty()) {
+                ActiveParticle p0 = particles.get(0);
+                org.mybad.minecraft.SkyCoreMod.LOGGER.info("[SkyCore] GPU particles: firstPos=({}, {}, {}), size=({}, {})",
+                    p0.getX(), p0.getY(), p0.getZ(),
+                    result.particleBuffer.get(4), result.particleBuffer.get(5));
+                result.particleBuffer.rewind();
+            }
+        }
 
-        FogState fog = FogState.capture();
+        FogState fog = captureFogState();
         int lightmapId = getLightmapTextureId(mc);
         boolean lightmapAvailable = lightmapId != 0;
 
         setupRenderState();
+        OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
 
         ssboBuffer.bind();
         quadMesh.bind();
@@ -90,6 +131,7 @@ public final class ParticleGpuRenderer {
         BedrockParticleSystem.BlendMode currentBlend = null;
         ResourceLocation currentTexture = null;
 
+        boolean drew = false;
         for (ParticleBatcher.Batch batch : result.batches) {
             ParticleBatcher.BatchKey key = batch.key;
             ParticleShader shader = (key.lit && lightmapAvailable) ? shaderLit : shaderUnlit;
@@ -124,6 +166,7 @@ public final class ParticleGpuRenderer {
             }
 
             GL31.glDrawElementsInstanced(GL11.GL_TRIANGLES, 6, GL11.GL_UNSIGNED_INT, 0, batch.count);
+            drew = true;
         }
 
         if (currentShader != null) {
@@ -134,6 +177,7 @@ public final class ParticleGpuRenderer {
         ssboBuffer.unbind();
 
         restoreRenderState();
+        return drew;
     }
 
     private void ensureReady() {
@@ -183,20 +227,18 @@ public final class ParticleGpuRenderer {
     }
 
     private FloatBuffer buildViewProj() {
-        FloatBuffer projBuffer = BufferUtils.createFloatBuffer(16);
-        FloatBuffer modelBuffer = BufferUtils.createFloatBuffer(16);
+        projBuffer.clear();
+        modelBuffer.clear();
         GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, projBuffer);
         GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelBuffer);
         projBuffer.rewind();
         modelBuffer.rewind();
-        float[] proj = new float[16];
-        float[] model = new float[16];
-        projBuffer.get(proj);
-        modelBuffer.get(model);
-        float[] viewProj = multiplyMat4(proj, model);
-        FloatBuffer out = BufferUtils.createFloatBuffer(16);
-        out.put(viewProj).flip();
-        return out;
+        projBuffer.get(projTmp);
+        modelBuffer.get(modelTmp);
+        multiplyMat4(projTmp, modelTmp, viewProjTmp);
+        viewProjBuffer.clear();
+        viewProjBuffer.put(viewProjTmp).flip();
+        return viewProjBuffer;
     }
 
     private float[] computeCameraAxes(Minecraft mc) {
@@ -229,18 +271,17 @@ public final class ParticleGpuRenderer {
     }
 
     private float[] extractCameraAxesFromModelView() {
-        FloatBuffer modelBuffer = BufferUtils.createFloatBuffer(16);
+        modelBuffer.clear();
         GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelBuffer);
         modelBuffer.rewind();
-        float[] m = new float[16];
-        modelBuffer.get(m);
+        modelBuffer.get(modelTmp);
         // Column-major: row0 = (m0, m4, m8), row1 = (m1, m5, m9)
-        float rightX = m[0];
-        float rightY = m[4];
-        float rightZ = m[8];
-        float upX = m[1];
-        float upY = m[5];
-        float upZ = m[9];
+        float rightX = modelTmp[0];
+        float rightY = modelTmp[4];
+        float rightZ = modelTmp[8];
+        float upX = modelTmp[1];
+        float upY = modelTmp[5];
+        float upZ = modelTmp[9];
         float rightLen = (float) Math.sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
         float upLen = (float) Math.sqrt(upX * upX + upY * upY + upZ * upZ);
         if (rightLen < 1.0e-6f || upLen < 1.0e-6f) {
@@ -256,23 +297,25 @@ public final class ParticleGpuRenderer {
     }
 
     private float[] extractCameraOffset(double camX, double camY, double camZ) {
-        FloatBuffer modelBuffer = BufferUtils.createFloatBuffer(16);
+        modelBuffer.clear();
         GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelBuffer);
         modelBuffer.rewind();
-        float[] m = new float[16];
-        modelBuffer.get(m);
-        float tx = m[12];
-        float ty = m[13];
-        float tz = m[14];
-        float mag = Math.abs(tx) + Math.abs(ty) + Math.abs(tz);
-        if (mag > 1.0e-4f) {
+        modelBuffer.get(modelTmp);
+        float tx = modelTmp[12];
+        float ty = modelTmp[13];
+        float tz = modelTmp[14];
+        double dx = tx + camX;
+        double dy = ty + camY;
+        double dz = tz + camZ;
+        double diffSq = dx * dx + dy * dy + dz * dz;
+        // If modelview translation already matches -camera, avoid double-subtracting.
+        if (diffSq < 1.0e-2) {
             return new float[]{0.0f, 0.0f, 0.0f};
         }
         return new float[]{(float) camX, (float) camY, (float) camZ};
     }
 
-    private static float[] multiplyMat4(float[] a, float[] b) {
-        float[] out = new float[16];
+    private static void multiplyMat4(float[] a, float[] b, float[] out) {
         for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 4; col++) {
                 out[col * 4 + row] = a[0 * 4 + row] * b[col * 4 + 0]
@@ -281,7 +324,6 @@ public final class ParticleGpuRenderer {
                     + a[3 * 4 + row] * b[col * 4 + 3];
             }
         }
-        return out;
     }
 
     private static final class FogState {
@@ -301,18 +343,19 @@ public final class ParticleGpuRenderer {
             this.end = end;
         }
 
-        static FogState capture() {
-            boolean enabled = GL11.glIsEnabled(GL11.GL_FOG);
-            float start = GL11.glGetFloat(GL11.GL_FOG_START);
-            float end = GL11.glGetFloat(GL11.GL_FOG_END);
-            FloatBuffer fogColor = BufferUtils.createFloatBuffer(16);
-            GL11.glGetFloat(GL11.GL_FOG_COLOR, fogColor);
-            fogColor.rewind();
-            float r = fogColor.get();
-            float g = fogColor.get();
-            float b = fogColor.get();
-            return new FogState(enabled, r, g, b, start, end);
-        }
+    }
+
+    private FogState captureFogState() {
+        boolean enabled = GL11.glIsEnabled(GL11.GL_FOG);
+        float start = GL11.glGetFloat(GL11.GL_FOG_START);
+        float end = GL11.glGetFloat(GL11.GL_FOG_END);
+        fogColorBuffer.clear();
+        GL11.glGetFloat(GL11.GL_FOG_COLOR, fogColorBuffer);
+        fogColorBuffer.rewind();
+        float r = fogColorBuffer.get();
+        float g = fogColorBuffer.get();
+        float b = fogColorBuffer.get();
+        return new FogState(enabled, r, g, b, start, end);
     }
 
     private static Field resolveLightmapField() {

@@ -367,7 +367,7 @@ final class ParticleShader {
             + "    v_uv = mix(p.uv.xy, p.uv.zw, a_uv);\n"
             + "    v_color = p.color;\n"
             + "    v_lightUV = p.extra.xy;\n"
-            + "    v_fogDist = length(u_cameraPos - finalPos);\n"
+            + "    v_fogDist = length(u_cameraPos - worldPos);\n"
             + "}\n";
     }
 
