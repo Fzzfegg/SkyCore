@@ -189,8 +189,12 @@ public final class BloomRenderer {
         GlStateManager.depthMask(true);
         GlStateManager.enableDepth();
         GL11.glDepthFunc(GL11.GL_LEQUAL);
+        // Restore lightmap coords and active texture unit.
+        net.minecraft.client.renderer.OpenGlHelper.setLightmapTextureCoords(
+            net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit,
+            (float) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessX,
+            (float) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessY);
         net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL20.glUseProgram(0);
 
