@@ -7,12 +7,14 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 /**
  * Minimal bloom pipeline for model-only glow mask.
@@ -43,8 +45,11 @@ public final class BloomRenderer {
     private int uBlitTex;
 
     private boolean usedThisFrame;
+    private final GlStateSnapshot state = new GlStateSnapshot();
     private long lastTick = Long.MIN_VALUE;
     private float lastPartial = Float.NaN;
+    private int savedLightX;
+    private int savedLightY;
 
     private BloomRenderer() {
     }
@@ -89,24 +94,29 @@ public final class BloomRenderer {
 
         usedThisFrame = true;
 
+        state.capture();
         Framebuffer main = Minecraft.getMinecraft().getFramebuffer();
+        try {
         maskFbo.bindFramebuffer(true);
 
         GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.enableDepth();
+        GlStateManager.depthMask(true);
+        GL11.glDepthFunc(GL11.GL_LEQUAL);
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
-        GlStateManager.disableBlend();
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GL11.glDepthFunc(GL11.GL_LEQUAL);
         GlStateManager.enableAlpha();
         GL11.glAlphaFunc(GL11.GL_GREATER, 0.01f);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
+        savedLightX = (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessX;
+        savedLightY = (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessY;
         int fullBright = 240;
         net.minecraft.client.renderer.OpenGlHelper.setLightmapTextureCoords(
             net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
 
+        net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
         Minecraft.getMinecraft().getTextureManager().bindTexture(bloomTexture);
 
         float remaining = bloomStrength;
@@ -118,21 +128,18 @@ public final class BloomRenderer {
         }
 
         net.minecraft.client.renderer.OpenGlHelper.setLightmapTextureCoords(
-            net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+            net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit, (float) savedLightX, (float) savedLightY);
 
-        GlStateManager.depthMask(true);
         GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GL11.glAlphaFunc(GL11.GL_GREATER, 0.1f);
-        GlStateManager.enableColorMaterial();
-        GlStateManager.enableLighting();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
-        net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
 
         maskFbo.unbindFramebuffer();
         if (main != null) {
             main.bindFramebuffer(true);
+        }
+        } finally {
+            state.restore();
         }
     }
 
@@ -140,6 +147,8 @@ public final class BloomRenderer {
         if (!usedThisFrame) {
             return;
         }
+        state.capture();
+        try {
         ensureBuffers();
         if (maskFbo == null || blurPing == null || blurPong == null) {
             return;
@@ -178,27 +187,12 @@ public final class BloomRenderer {
         GlStateManager.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
         useBlit(blurPong.framebufferTexture);
         drawFullscreenQuad();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.disableBlend();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableAlpha();
-        GlStateManager.enableCull();
-        GlStateManager.enableLighting();
-        GlStateManager.enableColorMaterial();
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GL11.glDepthFunc(GL11.GL_LEQUAL);
-        // Restore lightmap coords and active texture unit.
-        net.minecraft.client.renderer.OpenGlHelper.setLightmapTextureCoords(
-            net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit,
-            (float) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessX,
-            (float) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessY);
-        net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL20.glUseProgram(0);
 
-        usedThisFrame = false;
+        } finally {
+            state.restore();
+            usedThisFrame = false;
+        }
     }
 
     private void ensureBuffers() {
@@ -275,7 +269,6 @@ public final class BloomRenderer {
     private void useBlit(int textureId) {
         GL20.glUseProgram(blitProgram);
         GL20.glUniform1i(uBlitTex, 0);
-        net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
     }
 
@@ -285,7 +278,6 @@ public final class BloomRenderer {
         GL20.glUniform2f(uBlurDir, dirX, dirY);
         GL20.glUniform2f(uBlurSize, (float) width, (float) height);
         GL20.glUniform1i(uBlurRadius, radius);
-        net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
     }
 
@@ -377,4 +369,102 @@ public final class BloomRenderer {
             + "  fragColor = vec4(diffuseSum/weightSum, 1.0);\n"
             + "}\n";
     }
+    private static final class GlStateSnapshot {
+        private final FloatBuffer colorBuf = BufferUtils.createFloatBuffer(16);
+        private final IntBuffer viewportBuf = BufferUtils.createIntBuffer(16);
+        private int activeTex;
+        private int boundTex0;
+        private int boundTex1;
+        private int blendSrc;
+        private int blendDst;
+        private int depthFunc;
+        private int alphaFunc;
+        private float alphaRef;
+        private boolean blend;
+        private boolean depthTest;
+        private boolean alphaTest;
+        private boolean cull;
+        private boolean lighting;
+        private boolean colorMaterial;
+        private boolean texture2d;
+        private boolean depthMask;
+        private float r;
+        private float g;
+        private float b;
+        private float a;
+        private int lightX;
+        private int lightY;
+        private int vpX;
+        private int vpY;
+        private int vpW;
+        private int vpH;
+
+        void capture() {
+            blend = GL11.glIsEnabled(GL11.GL_BLEND);
+            depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+            alphaTest = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+            cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+            lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
+            colorMaterial = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
+            texture2d = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+            depthMask = GL11.glGetInteger(GL11.GL_DEPTH_WRITEMASK) != 0;
+            depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+            alphaFunc = GL11.glGetInteger(GL11.GL_ALPHA_TEST_FUNC);
+            alphaRef = GL11.glGetFloat(GL11.GL_ALPHA_TEST_REF);
+            blendSrc = GL11.glGetInteger(GL11.GL_BLEND_SRC);
+            blendDst = GL11.glGetInteger(GL11.GL_BLEND_DST);
+
+            activeTex = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
+            boundTex0 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit);
+            boundTex1 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(activeTex);
+
+            colorBuf.clear();
+            GL11.glGetFloat(GL11.GL_CURRENT_COLOR, colorBuf);
+            r = colorBuf.get(0);
+            g = colorBuf.get(1);
+            b = colorBuf.get(2);
+            a = colorBuf.get(3);
+
+            viewportBuf.clear();
+            GL11.glGetInteger(GL11.GL_VIEWPORT, viewportBuf);
+            vpX = viewportBuf.get(0);
+            vpY = viewportBuf.get(1);
+            vpW = viewportBuf.get(2);
+            vpH = viewportBuf.get(3);
+
+            lightX = (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessX;
+            lightY = (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessY;
+        }
+
+        void restore() {
+            if (blend) GlStateManager.enableBlend(); else GlStateManager.disableBlend();
+            GlStateManager.blendFunc(blendSrc, blendDst);
+
+            if (depthTest) GlStateManager.enableDepth(); else GlStateManager.disableDepth();
+            GL11.glDepthFunc(depthFunc);
+            GlStateManager.depthMask(depthMask);
+
+            if (alphaTest) GlStateManager.enableAlpha(); else GlStateManager.disableAlpha();
+            GL11.glAlphaFunc(alphaFunc, alphaRef);
+            if (cull) GlStateManager.enableCull(); else GlStateManager.disableCull();
+            if (lighting) GlStateManager.enableLighting(); else GlStateManager.disableLighting();
+            if (colorMaterial) GlStateManager.enableColorMaterial(); else GlStateManager.disableColorMaterial();
+            if (texture2d) GlStateManager.enableTexture2D(); else GlStateManager.disableTexture2D();
+
+            GlStateManager.color(r, g, b, a);
+            GL11.glViewport(vpX, vpY, vpW, vpH);
+
+            net.minecraft.client.renderer.OpenGlHelper.setLightmapTextureCoords(
+                net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundTex0);
+            net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundTex1);
+            net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(activeTex);
+        }
+    }
+
+
 }
