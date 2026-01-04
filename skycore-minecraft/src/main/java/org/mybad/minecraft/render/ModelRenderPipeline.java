@@ -20,6 +20,9 @@ final class ModelRenderPipeline {
                 float emissiveStrength,
                 ResourceLocation bloomTexture,
                 float bloomStrength,
+                int bloomRadius,
+                int bloomDownsample,
+                float bloomThreshold,
                 SkinningPipeline skinningPipeline) {
         if (skinningPipeline == null) {
             return;
@@ -70,7 +73,7 @@ final class ModelRenderPipeline {
             renderEmissivePass(emissiveTexture, emissiveStrength, lightX, lightY, skinningPipeline, texture);
         }
         if (bloomTexture != null) {
-            BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, lightX, lightY, skinningPipeline, texture);
+            BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, bloomRadius, bloomDownsample, bloomThreshold, lightX, lightY, skinningPipeline, texture);
         }
 
         GlStateManager.popMatrix();

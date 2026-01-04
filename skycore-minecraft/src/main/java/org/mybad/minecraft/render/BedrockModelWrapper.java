@@ -40,6 +40,9 @@ class BedrockModelWrapper {
     private final ResourceLocation bloomTexture;
     private float emissiveStrength = 1.0f;
     private float bloomStrength = 0.0f;
+    private int bloomRadius = 8;
+    private int bloomDownsample = 2;
+    private float bloomThreshold = 0.0f;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -118,6 +121,9 @@ class BedrockModelWrapper {
             emissiveStrength,
             bloomTexture,
             bloomStrength,
+            bloomRadius,
+            bloomDownsample,
+            bloomThreshold,
             skinningPipeline
         );
     }
@@ -194,6 +200,34 @@ class BedrockModelWrapper {
             strength = 0f;
         }
         this.bloomStrength = strength;
+    }
+
+    void setBloomRadius(int radius) {
+        if (radius <= 0) {
+            this.bloomRadius = 1;
+            return;
+        }
+        this.bloomRadius = Math.min(radius, 32);
+    }
+
+    void setBloomDownsample(int downsample) {
+        if (downsample <= 0) {
+            this.bloomDownsample = 1;
+            return;
+        }
+        this.bloomDownsample = Math.min(downsample, 4);
+    }
+
+    void setBloomThreshold(float threshold) {
+        if (Float.isNaN(threshold)) {
+            return;
+        }
+        if (threshold < 0f) {
+            threshold = 0f;
+        } else if (threshold > 1f) {
+            threshold = 1f;
+        }
+        this.bloomThreshold = threshold;
     }
 
     void setModelScale(float scale) {

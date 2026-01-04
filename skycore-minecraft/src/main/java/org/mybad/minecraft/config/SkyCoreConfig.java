@@ -140,6 +140,9 @@ public class SkyCoreConfig {
         example.setEmissiveStrength(1.0f);
         example.setBloom("textures/example_bloom.png");
         example.setBloomStrength(0.0f);
+        example.setBloomRadius(8);
+        example.setBloomDownsample(2);
+        example.setBloomThreshold(0.0f);
         example.setEnableCull(true);
         example.setModelScale(1.0f);
         example.setPrimaryFadeSeconds(0.12f);
@@ -156,6 +159,9 @@ public class SkyCoreConfig {
         example.setEmissiveStrength(1.0f);
         example.setBloom("textures/billboard_bloom.png");
         example.setBloomStrength(0.0f);
+        example.setBloomRadius(8);
+        example.setBloomDownsample(2);
+        example.setBloomThreshold(0.0f);
         example.setEnableCull(false);
         example.setModelScale(1.0f);
         example.setPrimaryFadeSeconds(0.12f);

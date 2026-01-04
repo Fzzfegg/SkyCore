@@ -42,6 +42,7 @@ public final class BloomRenderer {
     private int uBlurDir;
     private int uBlurSize;
     private int uBlurRadius;
+    private int uBlurThreshold;
     private int uBlitTex;
 
     private boolean usedThisFrame;
@@ -50,6 +51,10 @@ public final class BloomRenderer {
     private float lastPartial = Float.NaN;
     private int savedLightX;
     private int savedLightY;
+    private boolean frameParamsLocked;
+    private int frameRadius = 8;
+    private float frameThreshold = 0.0f;
+    private int downsample = 1;
 
     private BloomRenderer() {
     }
@@ -73,18 +78,42 @@ public final class BloomRenderer {
             maskFbo.unbindFramebuffer();
         }
         usedThisFrame = false;
+        frameParamsLocked = false;
+        frameRadius = 0;
+        frameThreshold = 1.0f;
     }
 
     public void renderBloomMask(Entity entity,
                                 float partialTicks,
                                 ResourceLocation bloomTexture,
                                 float bloomStrength,
+                                int bloomRadius,
+                                int bloomDownsample,
+                                float bloomThreshold,
                                 int lightX,
                                 int lightY,
                                 SkinningPipeline skinningPipeline,
                                 ResourceLocation baseTexture) {
         if (bloomTexture == null || bloomStrength <= 0f || skinningPipeline == null) {
             return;
+        }
+        if (!frameParamsLocked) {
+            if (bloomDownsample > 0) {
+                int ds = Math.max(1, Math.min(bloomDownsample, 4));
+                if (ds != downsample) {
+                    downsample = ds;
+                    // force reallocate on first call with new downsample
+                    width = 0;
+                    height = 0;
+                }
+            }
+            frameParamsLocked = true;
+        }
+        if (bloomRadius > 0) {
+            frameRadius = Math.max(frameRadius, Math.min(bloomRadius, 32));
+        }
+        if (bloomThreshold >= 0f) {
+            frameThreshold = Math.min(frameThreshold, bloomThreshold);
         }
         beginFrame(entity, partialTicks);
         ensureBuffers();
@@ -158,20 +187,21 @@ public final class BloomRenderer {
             return;
         }
 
-        int radius = 8;
+        int radius = frameRadius > 0 ? frameRadius : 8;
+        float threshold = frameThreshold < 1.0f ? frameThreshold : 0.0f;
 
         // Blur X
         blurPing.bindFramebuffer(true);
         GL11.glViewport(0, 0, width, height);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDisable(GL11.GL_BLEND);
-        useBlur(maskFbo.framebufferTexture, 1f, 0f, radius);
+        useBlur(maskFbo.framebufferTexture, 1f, 0f, radius, threshold);
         drawFullscreenQuad();
 
         // Blur Y
         blurPong.bindFramebuffer(true);
         GL11.glViewport(0, 0, width, height);
-        useBlur(blurPing.framebufferTexture, 0f, 1f, radius);
+        useBlur(blurPing.framebufferTexture, 0f, 1f, radius, threshold);
         drawFullscreenQuad();
 
         // Composite
@@ -200,8 +230,9 @@ public final class BloomRenderer {
         if (mc == null) {
             return;
         }
-        int w = mc.displayWidth;
-        int h = mc.displayHeight;
+        int ds = Math.max(1, downsample);
+        int w = Math.max(1, (mc.displayWidth + ds - 1) / ds);
+        int h = Math.max(1, (mc.displayHeight + ds - 1) / ds);
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -264,6 +295,7 @@ public final class BloomRenderer {
         uBlurDir = GL20.glGetUniformLocation(blurProgram, "BlurDir");
         uBlurSize = GL20.glGetUniformLocation(blurProgram, "OutSize");
         uBlurRadius = GL20.glGetUniformLocation(blurProgram, "Radius");
+        uBlurThreshold = GL20.glGetUniformLocation(blurProgram, "Threshold");
     }
 
     private void useBlit(int textureId) {
@@ -272,12 +304,13 @@ public final class BloomRenderer {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
     }
 
-    private void useBlur(int textureId, float dirX, float dirY, int radius) {
+    private void useBlur(int textureId, float dirX, float dirY, int radius, float threshold) {
         GL20.glUseProgram(blurProgram);
         GL20.glUniform1i(uBlurTex, 0);
         GL20.glUniform2f(uBlurDir, dirX, dirY);
         GL20.glUniform2f(uBlurSize, (float) width, (float) height);
         GL20.glUniform1i(uBlurRadius, radius);
+        GL20.glUniform1f(uBlurThreshold, threshold);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
     }
 
@@ -347,6 +380,7 @@ public final class BloomRenderer {
             + "uniform vec2 OutSize;\n"
             + "uniform vec2 BlurDir;\n"
             + "uniform int Radius;\n"
+            + "uniform float Threshold;\n"
             + "in vec2 v_uv;\n"
             + "out vec4 fragColor;\n"
             + "float gaussianPdf(in float x, in float sigma) {\n"
@@ -356,13 +390,17 @@ public final class BloomRenderer {
             + "  vec2 invSize = 1.0 / OutSize;\n"
             + "  float fSigma = float(Radius);\n"
             + "  float weightSum = gaussianPdf(0.0, fSigma);\n"
-            + "  vec3 diffuseSum = texture(DiffuseSampler, v_uv).rgb * weightSum;\n"
+            + "  vec3 base = texture(DiffuseSampler, v_uv).rgb;\n"
+            + "  base = max(base - vec3(Threshold), vec3(0.0));\n"
+            + "  vec3 diffuseSum = base * weightSum;\n"
             + "  for(int i = 1; i < Radius; i++){\n"
             + "    float x = float(i);\n"
             + "    float w = gaussianPdf(x, fSigma);\n"
             + "    vec2 uvOffset = BlurDir * invSize * x;\n"
             + "    vec3 s1 = texture(DiffuseSampler, v_uv + uvOffset).rgb;\n"
             + "    vec3 s2 = texture(DiffuseSampler, v_uv - uvOffset).rgb;\n"
+            + "    s1 = max(s1 - vec3(Threshold), vec3(0.0));\n"
+            + "    s2 = max(s2 - vec3(Threshold), vec3(0.0));\n"
             + "    diffuseSum += (s1 + s2) * w;\n"
             + "    weightSum += 2.0 * w;\n"
             + "  }\n"

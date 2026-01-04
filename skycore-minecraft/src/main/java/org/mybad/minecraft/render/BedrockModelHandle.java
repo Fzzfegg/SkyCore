@@ -78,6 +78,18 @@ public final class BedrockModelHandle {
         wrapper.setBloomStrength(strength);
     }
 
+    public void setBloomRadius(int radius) {
+        wrapper.setBloomRadius(radius);
+    }
+
+    public void setBloomDownsample(int downsample) {
+        wrapper.setBloomDownsample(downsample);
+    }
+
+    public void setBloomThreshold(float threshold) {
+        wrapper.setBloomThreshold(threshold);
+    }
+
     public void setModelScale(float scale) {
         wrapper.setModelScale(scale);
     }

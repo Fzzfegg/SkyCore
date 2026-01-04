@@ -30,6 +30,12 @@ public class EntityModelMapping {
     private String bloom;
     /** 泛光强度，默认 0（关闭） */
     private float bloomStrength = 0.0f;
+    /** 泛光模糊半径（默认: 8） */
+    private int bloomRadius = 8;
+    /** 泛光降采样倍率（1/2/4，默认: 2） */
+    private int bloomDownsample = 2;
+    /** 泛光阈值（0~1，默认: 0） */
+    private float bloomThreshold = 0.0f;
 
     /** 是否启用背面剔除 (默认: true) */
     private boolean enableCull = true;
@@ -57,6 +63,9 @@ public class EntityModelMapping {
     public float getEmissiveStrength() { return emissiveStrength; }
     public String getBloom() { return bloom; }
     public float getBloomStrength() { return bloomStrength; }
+    public int getBloomRadius() { return bloomRadius; }
+    public int getBloomDownsample() { return bloomDownsample; }
+    public float getBloomThreshold() { return bloomThreshold; }
     public boolean isEnableCull() { return enableCull; }
     public float getModelScale() { return modelScale; }
     public float getPrimaryFadeSeconds() { return primaryFadeSeconds; }
@@ -70,6 +79,9 @@ public class EntityModelMapping {
     public void setEmissiveStrength(float emissiveStrength) { this.emissiveStrength = emissiveStrength; }
     public void setBloom(String bloom) { this.bloom = bloom; }
     public void setBloomStrength(float bloomStrength) { this.bloomStrength = bloomStrength; }
+    public void setBloomRadius(int bloomRadius) { this.bloomRadius = bloomRadius; }
+    public void setBloomDownsample(int bloomDownsample) { this.bloomDownsample = bloomDownsample; }
+    public void setBloomThreshold(float bloomThreshold) { this.bloomThreshold = bloomThreshold; }
     public void setEnableCull(boolean enableCull) { this.enableCull = enableCull; }
     public void setModelScale(float modelScale) { this.modelScale = modelScale; }
     public void setPrimaryFadeSeconds(float primaryFadeSeconds) { this.primaryFadeSeconds = primaryFadeSeconds; }
@@ -85,6 +97,9 @@ public class EntityModelMapping {
                 ", emissiveStrength=" + emissiveStrength +
                 ", bloom='" + bloom + '\'' +
                 ", bloomStrength=" + bloomStrength +
+                ", bloomRadius=" + bloomRadius +
+                ", bloomDownsample=" + bloomDownsample +
+                ", bloomThreshold=" + bloomThreshold +
                 ", enableCull=" + enableCull +
                 ", modelScale=" + modelScale +
                 ", primaryFadeSeconds=" + primaryFadeSeconds +
