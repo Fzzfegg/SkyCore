@@ -44,6 +44,7 @@ public class EntityRenderEventHandler {
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
         debugStackManager.onRenderWorldLast(event);
+        org.mybad.minecraft.render.post.BloomRenderer.get().endFrame();
     }
 
     /**

@@ -48,6 +48,7 @@ final class EntityWrapperCache {
         }
         wrapper.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
+        wrapper.setBloomStrength(mapping.getBloomStrength());
         wrapper.setModelScale(mapping.getModelScale());
 
         EntityAnimationController controller = buildController(mapping);

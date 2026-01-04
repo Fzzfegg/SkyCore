@@ -73,6 +73,7 @@ public final class DebugStackManager {
             return false;
         }
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
+        wrapper.setBloomStrength(mapping.getBloomStrength());
         wrapper.setModelScale(mapping.getModelScale());
 
         synchronized (debugStacks) {

@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import org.mybad.minecraft.render.post.BloomRenderer;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
 final class ModelRenderPipeline {
@@ -17,6 +18,8 @@ final class ModelRenderPipeline {
                 ResourceLocation texture,
                 ResourceLocation emissiveTexture,
                 float emissiveStrength,
+                ResourceLocation bloomTexture,
+                float bloomStrength,
                 SkinningPipeline skinningPipeline) {
         if (skinningPipeline == null) {
             return;
@@ -66,6 +69,9 @@ final class ModelRenderPipeline {
         if (emissiveTexture != null) {
             renderEmissivePass(emissiveTexture, emissiveStrength, lightX, lightY, skinningPipeline, texture);
         }
+        if (bloomTexture != null) {
+            BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, lightX, lightY, skinningPipeline, texture);
+        }
 
         GlStateManager.popMatrix();
 
@@ -106,4 +112,6 @@ final class ModelRenderPipeline {
         GlStateManager.enableLighting();
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
     }
+
+    // bloom pass moved to BloomRenderer
 }

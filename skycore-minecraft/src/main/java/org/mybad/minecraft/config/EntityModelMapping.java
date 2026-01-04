@@ -25,6 +25,12 @@ public class EntityModelMapping {
     /** 发光强度 [0,1]，默认 1.0 */
     private float emissiveStrength = 1.0f;
 
+    /** 泛光遮罩贴图路径 (如: skycore/textures/zombie_bloom.png) */
+    @SerializedName(value = "bloom", alternate = {"bloomTexture"})
+    private String bloom;
+    /** 泛光强度，默认 0（关闭） */
+    private float bloomStrength = 0.0f;
+
     /** 是否启用背面剔除 (默认: true) */
     private boolean enableCull = true;
     /** 模型缩放（默认: 1.0） */
@@ -49,6 +55,8 @@ public class EntityModelMapping {
     public String getTexture() { return texture; }
     public String getEmissive() { return emissive; }
     public float getEmissiveStrength() { return emissiveStrength; }
+    public String getBloom() { return bloom; }
+    public float getBloomStrength() { return bloomStrength; }
     public boolean isEnableCull() { return enableCull; }
     public float getModelScale() { return modelScale; }
     public float getPrimaryFadeSeconds() { return primaryFadeSeconds; }
@@ -60,6 +68,8 @@ public class EntityModelMapping {
     public void setTexture(String texture) { this.texture = texture; }
     public void setEmissive(String emissive) { this.emissive = emissive; }
     public void setEmissiveStrength(float emissiveStrength) { this.emissiveStrength = emissiveStrength; }
+    public void setBloom(String bloom) { this.bloom = bloom; }
+    public void setBloomStrength(float bloomStrength) { this.bloomStrength = bloomStrength; }
     public void setEnableCull(boolean enableCull) { this.enableCull = enableCull; }
     public void setModelScale(float modelScale) { this.modelScale = modelScale; }
     public void setPrimaryFadeSeconds(float primaryFadeSeconds) { this.primaryFadeSeconds = primaryFadeSeconds; }
@@ -73,6 +83,8 @@ public class EntityModelMapping {
                 ", texture='" + texture + '\'' +
                 ", emissive='" + emissive + '\'' +
                 ", emissiveStrength=" + emissiveStrength +
+                ", bloom='" + bloom + '\'' +
+                ", bloomStrength=" + bloomStrength +
                 ", enableCull=" + enableCull +
                 ", modelScale=" + modelScale +
                 ", primaryFadeSeconds=" + primaryFadeSeconds +

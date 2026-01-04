@@ -22,6 +22,7 @@ public final class BedrockModelHandle {
                                             Animation animation,
                                             ResourceLocation texture,
                                             ResourceLocation emissiveTexture,
+                                            ResourceLocation bloomTexture,
                                             boolean enableCull,
                                             String modelId,
                                             GeometryCache geometryCache) {
@@ -30,6 +31,7 @@ public final class BedrockModelHandle {
             animation,
             texture,
             emissiveTexture,
+            bloomTexture,
             enableCull,
             modelId,
             geometryCache
@@ -70,6 +72,10 @@ public final class BedrockModelHandle {
 
     public void setEmissiveStrength(float strength) {
         wrapper.setEmissiveStrength(strength);
+    }
+
+    public void setBloomStrength(float strength) {
+        wrapper.setBloomStrength(strength);
     }
 
     public void setModelScale(float scale) {

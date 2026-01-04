@@ -17,11 +17,12 @@ final class ModelWrapperFactory {
                            Animation animation,
                            ResourceLocation texture,
                            ResourceLocation emissiveTexture,
+                           ResourceLocation bloomTexture,
                            boolean enableCull,
                            String modelId,
                            GeometryCache geometryCache) {
         if (model == null) {
-            return new BuildData(null, new ModelAnimationController(new AnimationBridge(animation)), texture, emissiveTexture, enableCull,
+            return new BuildData(null, new ModelAnimationController(new AnimationBridge(animation)), texture, emissiveTexture, bloomTexture, enableCull,
                 64, 64, null, null);
         }
         Model baseModel = model;
@@ -37,7 +38,7 @@ final class ModelWrapperFactory {
         geometryBuilder.generateAllQuads();
         SkinningPipeline skinningPipeline = new SkinningPipeline(instance, geometryBuilder, resolvedCache, resolvedKey);
 
-        return new BuildData(instance, animationController, texture, emissiveTexture, enableCull,
+        return new BuildData(instance, animationController, texture, emissiveTexture, bloomTexture, enableCull,
             texWidth, texHeight, geometryBuilder, skinningPipeline);
     }
 
@@ -78,6 +79,7 @@ final class ModelWrapperFactory {
         final ModelAnimationController animationController;
         final ResourceLocation texture;
         final ResourceLocation emissiveTexture;
+        final ResourceLocation bloomTexture;
         final boolean enableCull;
         final int textureWidth;
         final int textureHeight;
@@ -88,6 +90,7 @@ final class ModelWrapperFactory {
                           ModelAnimationController animationController,
                           ResourceLocation texture,
                           ResourceLocation emissiveTexture,
+                          ResourceLocation bloomTexture,
                           boolean enableCull,
                           int textureWidth,
                           int textureHeight,
@@ -97,6 +100,7 @@ final class ModelWrapperFactory {
             this.animationController = animationController;
             this.texture = texture;
             this.emissiveTexture = emissiveTexture;
+            this.bloomTexture = bloomTexture;
             this.enableCull = enableCull;
             this.textureWidth = textureWidth;
             this.textureHeight = textureHeight;

@@ -37,7 +37,9 @@ class BedrockModelWrapper {
     /** 纹理位置 */
     private final ResourceLocation texture;
     private final ResourceLocation emissiveTexture;
+    private final ResourceLocation bloomTexture;
     private float emissiveStrength = 1.0f;
+    private float bloomStrength = 0.0f;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -64,11 +66,15 @@ class BedrockModelWrapper {
     }
 
     BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
-        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, enableCull, modelId, geometryCache));
+        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, null, enableCull, modelId, geometryCache));
+    }
+
+    BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, ResourceLocation bloomTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
+        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, bloomTexture, enableCull, modelId, geometryCache));
     }
 
     BedrockModelWrapper(ModelWrapperFactory.BuildData data) {
-        this(data.model, data.animationController, data.texture, data.emissiveTexture, data.enableCull,
+        this(data.model, data.animationController, data.texture, data.emissiveTexture, data.bloomTexture, data.enableCull,
             data.textureWidth, data.textureHeight, data.geometryBuilder, data.skinningPipeline);
     }
 
@@ -76,6 +82,7 @@ class BedrockModelWrapper {
                         ModelAnimationController animationController,
                         ResourceLocation texture,
                         ResourceLocation emissiveTexture,
+                        ResourceLocation bloomTexture,
                         boolean enableCull,
                         int textureWidth,
                         int textureHeight,
@@ -86,6 +93,7 @@ class BedrockModelWrapper {
         this.animationController = animationController != null ? animationController : new ModelAnimationController(null);
         this.texture = texture;
         this.emissiveTexture = emissiveTexture;
+        this.bloomTexture = bloomTexture;
         this.textureWidth = textureWidth;
         this.textureHeight = textureHeight;
         this.geometryBuilder = geometryBuilder;
@@ -108,6 +116,8 @@ class BedrockModelWrapper {
             texture,
             emissiveTexture,
             emissiveStrength,
+            bloomTexture,
+            bloomStrength,
             skinningPipeline
         );
     }
@@ -174,6 +184,16 @@ class BedrockModelWrapper {
             strength = 1f;
         }
         this.emissiveStrength = strength;
+    }
+
+    void setBloomStrength(float strength) {
+        if (Float.isNaN(strength)) {
+            return;
+        }
+        if (strength < 0f) {
+            strength = 0f;
+        }
+        this.bloomStrength = strength;
     }
 
     void setModelScale(float scale) {

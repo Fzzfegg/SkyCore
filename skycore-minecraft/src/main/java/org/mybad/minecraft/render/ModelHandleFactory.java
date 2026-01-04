@@ -29,12 +29,17 @@ public final class ModelHandleFactory {
         if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
             emissiveTexture = resourceLoader.resolveResourceLocation(mapping.getEmissive());
         }
+        ResourceLocation bloomTexture = null;
+        if (mapping.getBloom() != null && !mapping.getBloom().isEmpty()) {
+            bloomTexture = resourceLoader.resolveResourceLocation(mapping.getBloom());
+        }
 
         return BedrockModelHandle.create(
             model,
             animation,
             texture,
             emissiveTexture,
+            bloomTexture,
             mapping.isEnableCull(),
             mapping.getModel(),
             resourceLoader.getGeometryCache()
