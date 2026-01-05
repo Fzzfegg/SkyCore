@@ -23,6 +23,8 @@ public final class ParticleRenderer {
     private final ParticleAppearanceTintingComponent tint;
     private final ParticleAppearanceLightingComponent lighting;
     private final ResourceLocation texture;
+    private final ResourceLocation emissiveTexture;
+    private final float emissiveStrength;
     private final BedrockParticleSystem.BlendMode blendMode;
     private final QuadRenderProperties renderProps;
     private final float[] tempDir;
@@ -40,11 +42,15 @@ public final class ParticleRenderer {
                      ParticleAppearanceTintingComponent tint,
                      ParticleAppearanceLightingComponent lighting,
                      ResourceLocation texture,
+                     ResourceLocation emissiveTexture,
+                     float emissiveStrength,
                      BedrockParticleSystem.BlendMode blendMode) {
         this.billboard = billboard;
         this.tint = tint;
         this.lighting = lighting;
         this.texture = texture;
+        this.emissiveTexture = emissiveTexture;
+        this.emissiveStrength = emissiveStrength;
         this.blendMode = blendMode;
         this.renderProps = new QuadRenderProperties();
         this.tempDir = new float[3];
@@ -183,10 +189,49 @@ public final class ParticleRenderer {
         buffer.pos(halfW, halfH, 0.0).tex(u1, v0).color(cr, cg, cb, ca).endVertex();
         buffer.pos(-halfW, halfH, 0.0).tex(u0, v0).color(cr, cg, cb, ca).endVertex();
         Tessellator.getInstance().draw();
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
+        if (emissiveTexture != null && emissiveStrength > 0.0f) {
+            renderEmissivePass(mc, halfW, halfH, u0, v0, u1, v1, cr, cg, cb, ca, prevLightX, prevLightY);
+        } else {
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
+        }
 
         GlStateManager.popMatrix();
         resetBlendMode();
+    }
+
+    private void renderEmissivePass(Minecraft mc,
+                                    float halfW, float halfH,
+                                    float u0, float v0, float u1, float v1,
+                                    int cr, int cg, int cb, int ca,
+                                    int prevLightX, int prevLightY) {
+        mc.getTextureManager().bindTexture(emissiveTexture);
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, emissiveStrength);
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        GlStateManager.depthMask(false);
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+
+        int fullBright = 240;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
+
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+        buffer.pos(-halfW, -halfH, 0.0).tex(u0, v1).color(cr, cg, cb, ca).endVertex();
+        buffer.pos(halfW, -halfH, 0.0).tex(u1, v1).color(cr, cg, cb, ca).endVertex();
+        buffer.pos(halfW, halfH, 0.0).tex(u1, v0).color(cr, cg, cb, ca).endVertex();
+        buffer.pos(-halfW, halfH, 0.0).tex(u0, v0).color(cr, cg, cb, ca).endVertex();
+        Tessellator.getInstance().draw();
+
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
+        GlStateManager.depthMask(true);
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        mc.getTextureManager().bindTexture(texture);
     }
 
     private boolean applyLookAt(ActiveParticle particle, double camX, double camY, double camZ,

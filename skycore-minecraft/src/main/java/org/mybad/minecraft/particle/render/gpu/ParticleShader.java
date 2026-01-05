@@ -23,6 +23,7 @@ final class ParticleShader {
     private int uFogStart = -1;
     private int uFogEnd = -1;
     private int uFogEnabled = -1;
+    private int uEmissivePass = -1;
     private int uTexture = -1;
     private int uLightmap = -1;
     private int uInstanceOffset = -1;
@@ -60,6 +61,7 @@ final class ParticleShader {
         uFogStart = GL20.glGetUniformLocation(programId, "u_fogStart");
         uFogEnd = GL20.glGetUniformLocation(programId, "u_fogEnd");
         uFogEnabled = GL20.glGetUniformLocation(programId, "u_fogEnabled");
+        uEmissivePass = GL20.glGetUniformLocation(programId, "u_emissivePass");
         uTexture = GL20.glGetUniformLocation(programId, "u_texture");
         uLightmap = GL20.glGetUniformLocation(programId, "u_lightmap");
         uInstanceOffset = GL20.glGetUniformLocation(programId, "u_instanceOffset");
@@ -73,6 +75,9 @@ final class ParticleShader {
         }
         if (uInstanceOffset != -1) {
             GL20.glUniform1i(uInstanceOffset, 0);
+        }
+        if (uEmissivePass != -1) {
+            GL20.glUniform1i(uEmissivePass, 0);
         }
         GL20.glUseProgram(0);
     }
@@ -134,6 +139,12 @@ final class ParticleShader {
         }
     }
 
+    void setEmissivePass(boolean emissivePass) {
+        if (uEmissivePass != -1) {
+            GL20.glUniform1i(uEmissivePass, emissivePass ? 1 : 0);
+        }
+    }
+
     void setInstanceOffset(int offset) {
         if (uInstanceOffset != -1) {
             GL20.glUniform1i(uInstanceOffset, offset);
@@ -191,6 +202,7 @@ final class ParticleShader {
             + "out vec2 v_uv;\n"
             + "out vec4 v_color;\n"
             + "out vec2 v_lightUV;\n"
+            + "out float v_emissive;\n"
             + "out float v_fogDist;\n"
             + "\n"
             + "const int MODE_ROTATE_XYZ = 0;\n"
@@ -372,6 +384,7 @@ final class ParticleShader {
             + "    v_uv = mix(p.uv.xy, p.uv.zw, uv);\n"
             + "    v_color = p.color;\n"
             + "    v_lightUV = p.extra.xy;\n"
+            + "    v_emissive = p.extra.z;\n"
             + "    v_fogDist = length(u_cameraPos - worldPos);\n"
             + "}\n";
     }
@@ -382,6 +395,7 @@ final class ParticleShader {
         sb.append("in vec2 v_uv;\n");
         sb.append("in vec4 v_color;\n");
         sb.append("in vec2 v_lightUV;\n");
+        sb.append("in float v_emissive;\n");
         sb.append("in float v_fogDist;\n");
         sb.append("\n");
         sb.append("uniform sampler2D u_texture;\n");
@@ -392,11 +406,15 @@ final class ParticleShader {
         sb.append("uniform float u_fogStart;\n");
         sb.append("uniform float u_fogEnd;\n");
         sb.append("uniform int u_fogEnabled;\n");
+        sb.append("uniform int u_emissivePass;\n");
         sb.append("\n");
         sb.append("out vec4 fragColor;\n\n");
         sb.append("void main() {\n");
         sb.append("    vec4 tex = texture(u_texture, v_uv);\n");
         sb.append("    vec4 color = tex * v_color;\n");
+        sb.append("    if (u_emissivePass != 0) {\n");
+        sb.append("        color *= v_emissive;\n");
+        sb.append("    }\n");
         if (lit) {
             sb.append("    vec4 light = texture(u_lightmap, v_lightUV);\n");
             sb.append("    color.rgb *= light.rgb;\n");

@@ -240,6 +240,13 @@ public class BedrockParticleSystem {
         return new ResourceLocation(tex.getNamespace(), tex.getPath());
     }
 
+    ResourceLocation toMinecraft(BedrockResourceLocation tex) {
+        if (tex == null) {
+            return null;
+        }
+        return new ResourceLocation(tex.getNamespace(), tex.getPath());
+    }
+
     @SuppressWarnings("unchecked")
     static <T> T getComponent(ParticleData data, String name) {
         if (data == null) {

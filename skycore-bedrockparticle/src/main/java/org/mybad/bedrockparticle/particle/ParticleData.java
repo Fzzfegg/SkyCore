@@ -57,7 +57,12 @@ public final class ParticleData {
     }
 
     public void setTexture(BedrockResourceLocation resourceLocation){
-        this.description = new Description(description.getIdentifier(), resourceLocation, description.getMaterial(), description.isBloom());
+        this.description = new Description(description.getIdentifier(),
+            resourceLocation,
+            description.getMaterial(),
+            description.isBloom(),
+            description.getEmissiveTexture(),
+            description.getEmissiveStrength());
     }
 
     public Description description() {
@@ -79,7 +84,7 @@ public final class ParticleData {
 
 
     private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
-    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false, null, 0f), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
 
     /**
      * The different types of curves for calculating particle variables.
@@ -102,12 +107,21 @@ public final class ParticleData {
         private final BedrockResourceLocation texture;
         private final String material;
         private final boolean bloom;
+        private final BedrockResourceLocation emissiveTexture;
+        private final float emissiveStrength;
 
-        public Description(String identifier, BedrockResourceLocation texture, @Nullable String material, boolean bloom) {
+        public Description(String identifier,
+                           BedrockResourceLocation texture,
+                           @Nullable String material,
+                           boolean bloom,
+                           @Nullable BedrockResourceLocation emissiveTexture,
+                           float emissiveStrength) {
             this.identifier = identifier;
             this.texture = texture;
             this.material = material;
             this.bloom = bloom;
+            this.emissiveTexture = emissiveTexture;
+            this.emissiveStrength = emissiveStrength;
         }
 
         public String getIdentifier() {
@@ -125,6 +139,15 @@ public final class ParticleData {
 
         public boolean isBloom() {
             return bloom;
+        }
+
+        @Nullable
+        public BedrockResourceLocation getEmissiveTexture() {
+            return emissiveTexture;
+        }
+
+        public float getEmissiveStrength() {
+            return emissiveStrength;
         }
 
         public static class Deserializer implements JsonDeserializer<Description> {
@@ -150,8 +173,23 @@ public final class ParticleData {
                 }
                 String material = ParticleGsonHelper.getAsString(basicRenderParams, "material", null);
                 boolean bloom = ParticleGsonHelper.getAsBoolean(basicRenderParams, "bloom", false);
+                BedrockResourceLocation emissiveTexture = null;
+                if (basicRenderParams.has("emissive_texture")) {
+                    String emissiveText = ParticleGsonHelper.getAsString(basicRenderParams, "emissive_texture");
+                    if (!emissiveText.endsWith(".png")) {
+                        emissiveText += ".png";
+                    }
+                    emissiveTexture = BedrockResourceLocation.tryParse(emissiveText);
+                } else if (basicRenderParams.has("emissive")) {
+                    String emissiveText = ParticleGsonHelper.getAsString(basicRenderParams, "emissive");
+                    if (!emissiveText.endsWith(".png")) {
+                        emissiveText += ".png";
+                    }
+                    emissiveTexture = BedrockResourceLocation.tryParse(emissiveText);
+                }
+                float emissiveStrength = ParticleGsonHelper.getAsFloat(basicRenderParams, "emissive_strength", 1.0f);
 
-                return new Description(identifier, texture, material, bloom);
+                return new Description(identifier, texture, material, bloom, emissiveTexture, emissiveStrength);
             }
         }
     }

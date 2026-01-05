@@ -52,6 +52,8 @@ public class ActiveEmitter implements ParticleContext {
     private final ParticleLifetimeEventComponent lifetimeEvents;
     private final EmitterInitializationComponent emitterInitialization;
     private final ResourceLocation texture;
+    private final ResourceLocation emissiveTexture;
+    private final float emissiveStrength;
     private final int overrideCount;
     private final EmitterTransformProvider transformProvider;
     private final EmitterTransform currentTransform;
@@ -150,6 +152,8 @@ public class ActiveEmitter implements ParticleContext {
             this.lifetimeEvents = BedrockParticleSystem.getComponent(data, "emitter_lifetime_events");
             this.emitterInitialization = BedrockParticleSystem.getComponent(data, "emitter_initialization");
             this.texture = system.toMinecraft(data);
+            this.emissiveTexture = resolveEmissiveTexture(system, data);
+            this.emissiveStrength = resolveEmissiveStrength(data);
             this.age = 0.0f;
             this.lifetime = Float.MAX_VALUE;
             this.instantEmitted = false;
@@ -679,6 +683,8 @@ public class ActiveEmitter implements ParticleContext {
                 tint,
                 speed,
                 texture,
+                emissiveTexture,
+                emissiveStrength,
                 particleLifetimeComponent
             );
         }
@@ -756,5 +762,23 @@ public class ActiveEmitter implements ParticleContext {
         void onParticleSpawned() {
             activeParticles++;
             spawnedAny = true;
+        }
+
+        private static ResourceLocation resolveEmissiveTexture(BedrockParticleSystem system, ParticleData data) {
+            if (data == null || data.description() == null) {
+                return null;
+            }
+            return system.toMinecraft(data.description().getEmissiveTexture());
+        }
+
+        private static float resolveEmissiveStrength(ParticleData data) {
+            if (data == null || data.description() == null) {
+                return 0.0f;
+            }
+            float strength = data.description().getEmissiveStrength();
+            if (strength < 0.0f) {
+                return 0.0f;
+            }
+            return strength;
         }
     }

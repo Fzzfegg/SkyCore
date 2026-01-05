@@ -47,6 +47,8 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
     private final ParticleAppearanceTintingComponent tint;
     private final ParticleAppearanceLightingComponent lighting;
     private final ResourceLocation texture;
+    private final ResourceLocation emissiveTexture;
+    private final float emissiveStrength;
     private final BedrockParticleSystem.BlendMode blendMode;
     private final boolean bloom;
     private final ParticleInitialSpeedComponent speed;
@@ -100,15 +102,17 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
         private boolean expireOnContact;
 
         ActiveParticle(BedrockParticleSystem system, ParticleData data,
-                               ActiveEmitter emitter,
-                               double x,
-                               double y,
-                               double z,
-                               ParticleAppearanceBillboardComponent billboard,
-                               ParticleAppearanceTintingComponent tint,
-                               ParticleInitialSpeedComponent speed,
-                               ResourceLocation texture,
-                               ParticleLifetimeExpressionComponent lifetimeComponent) {
+        ActiveEmitter emitter,
+        double x,
+        double y,
+        double z,
+        ParticleAppearanceBillboardComponent billboard,
+        ParticleAppearanceTintingComponent tint,
+        ParticleInitialSpeedComponent speed,
+        ResourceLocation texture,
+        ResourceLocation emissiveTexture,
+        float emissiveStrength,
+        ParticleLifetimeExpressionComponent lifetimeComponent) {
             this.system = system;
             this.data = data;
             this.x = x;
@@ -132,6 +136,8 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             this.tint = tint;
             this.lighting = lighting;
             this.texture = texture;
+            this.emissiveTexture = emissiveTexture;
+            this.emissiveStrength = emissiveStrength;
             this.age = 0.0f;
             this.emitter = emitter;
             this.localPosition = emitter != null && emitter.isLocalPosition();
@@ -163,7 +169,7 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             }
             this.lifetimeComponent = lifetimeComponent;
             this.lifetimeExpiration = lifetimeComponent != null ? lifetimeComponent.expirationExpression() : null;
-            this.renderer = new ParticleRenderer(billboard, tint, lighting, texture, blendMode);
+            this.renderer = new ParticleRenderer(billboard, tint, lighting, texture, emissiveTexture, emissiveStrength, blendMode);
             reset(x, y, z);
         }
 
@@ -410,9 +416,17 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             return lighting;
         }
 
-        public ResourceLocation getTexture() {
-            return texture;
-        }
+    public ResourceLocation getTexture() {
+        return texture;
+    }
+
+    public ResourceLocation getEmissiveTexture() {
+        return emissiveTexture;
+    }
+
+    public float getEmissiveStrength() {
+        return emissiveStrength;
+    }
 
     public BedrockParticleSystem.BlendMode getBlendMode() {
         return blendMode;

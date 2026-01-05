@@ -14,6 +14,9 @@ import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourcePackRegistrar;
+
+import java.io.File;
 
 /**
  * SkyCore Minecraft Mod 主类
@@ -47,6 +50,7 @@ public class SkyCoreMod {
     private BedrockParticleSystem particleSystem;
     @SideOnly(Side.CLIENT)
     private BedrockParticleDebugSystem particleDebugSystem;
+    private File gameDir;
 
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
@@ -54,7 +58,8 @@ public class SkyCoreMod {
         LOGGER.info("[SkyCore] PreInit - 初始化配置...");
 
         // 初始化配置
-        SkyCoreConfig.init(event.getModConfigurationDirectory());
+        this.gameDir = event.getModConfigurationDirectory().getParentFile();
+        SkyCoreConfig.init(ResourcePackRegistrar.getPackRoot(gameDir));
 
         // 初始化资源加载器
         resourceLoader = new ResourceLoader();
@@ -67,6 +72,10 @@ public class SkyCoreMod {
     public void init(FMLInitializationEvent event) {
         LOGGER.info("[SkyCore] Init - 注册事件处理器...");
 
+        // 注册虚拟资源包
+        if (gameDir != null) {
+            ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir));
+        }
         // 粒子系统（核心）
         particleSystem = new BedrockParticleSystem(resourceLoader);
         MinecraftForge.EVENT_BUS.register(particleSystem);

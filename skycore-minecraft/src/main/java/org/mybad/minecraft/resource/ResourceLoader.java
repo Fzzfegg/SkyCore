@@ -148,6 +148,8 @@ public class ResourceLoader {
         return particleCache.loadParticle(path);
     }
 
+    // ========== 新增：文件系统资源加载 ==========
+    
     public void invalidateParticle(String path) {
         particleCache.invalidateParticle(path);
     }

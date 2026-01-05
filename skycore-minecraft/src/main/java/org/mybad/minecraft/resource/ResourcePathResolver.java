@@ -1,18 +1,17 @@
 package org.mybad.minecraft.resource;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.IResource;
 import net.minecraft.util.ResourceLocation;
 import org.mybad.minecraft.SkyCoreMod;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
- * Resolves resource paths and loads raw content from Minecraft's resource manager.
+ * Resolves resource paths and loads raw content.
+ * Priority: resourcepacks/SkyCore/<namespace>/<path> → Minecraft resource manager
  */
 final class ResourcePathResolver {
 
@@ -27,20 +26,47 @@ final class ResourcePathResolver {
     }
 
     String readResourceAsString(String path) {
-        ResourceLocation location = resolveResourceLocation(path);
+        // 方案 1: 优先从 resourcepacks/SkyCore/<namespace>/<path> 读取
+        String content = readFromPackRoot(path);
+        return content;
+    }
+
+    /**
+     * 从 resourcepacks/SkyCore/<namespace>/<path> 目录读取
+     * 支持路径: models/player.geo.json, animations/walk.animation.json 等
+     */
+    private String readFromPackRoot(String path) {
         try {
-            IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
-            try (InputStream is = resource.getInputStream();
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
-                }
-                return sb.toString();
+            // 提取 namespace + 相对路径
+            String cleanPath = path;
+            String namespace = SkyCoreMod.MOD_ID;
+            int colonIndex = path.indexOf(':');
+            if (colonIndex > 0) {
+                namespace = path.substring(0, colonIndex);
+                cleanPath = path.substring(colonIndex + 1);
+            }
+
+            Path packRoot = resolvePackRoot();
+            if (packRoot == null) {
+                return null;
+            }
+            Path filePath = packRoot.resolve(namespace).resolve(cleanPath);
+            if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
+                return new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
+            // 文件不存在或读取失败，继续下一步
+        }
+        return null;
+    }
+    
+
+    private Path resolvePackRoot() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.gameDir == null) {
             return null;
         }
+        return mc.gameDir.toPath().resolve("resourcepacks").resolve("SkyCore");
     }
+    
 }

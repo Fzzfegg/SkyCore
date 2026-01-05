@@ -96,7 +96,7 @@ public final class ParticleGpuRenderer {
         ssboBuffer.bind();
         quadMesh.bind();
 
-        drawBatches(result.batches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false);
+        drawBatches(result.batches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, false);
 
         quadMesh.unbind();
         ssboBuffer.unbind();
@@ -115,12 +115,28 @@ public final class ParticleGpuRenderer {
                     () -> {
                         ssboBuffer.bind();
                         quadMesh.bind();
-                        drawBatches(bloomBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true);
+                        drawBatches(bloomBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true, false);
                         quadMesh.unbind();
                         ssboBuffer.unbind();
                     }
                 );
             }
+        }
+
+        if (result.emissiveCount > 0 && !result.emissiveBatches.isEmpty()) {
+            int emissiveBytes = result.emissiveParticleBuffer.remaining() * Float.BYTES;
+            if (emissiveBytes > 0) {
+                ssboBuffer.uploadParticles(result.emissiveParticleBuffer, emissiveBytes);
+            }
+
+            setupRenderState();
+            OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
+            ssboBuffer.bind();
+            quadMesh.bind();
+            drawBatches(result.emissiveBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, true);
+            quadMesh.unbind();
+            ssboBuffer.unbind();
+            restoreRenderState();
         }
     }
 
@@ -136,14 +152,15 @@ public final class ParticleGpuRenderer {
                              float[] cameraOffset,
                              int lightmapId,
                              boolean lightmapAvailable,
-                             boolean bloomPass) {
+                             boolean bloomPass,
+                             boolean emissivePass) {
         ParticleShader currentShader = null;
         BedrockParticleSystem.BlendMode currentBlend = null;
         ResourceLocation currentTexture = null;
 
         for (ParticleBatcher.Batch batch : batches) {
             ParticleBatcher.BatchKey key = batch.key;
-            ParticleShader shader = (bloomPass ? shaderUnlit : ((key.lit && lightmapAvailable) ? shaderLit : shaderUnlit));
+            ParticleShader shader = ((bloomPass || emissivePass) ? shaderUnlit : ((key.lit && lightmapAvailable) ? shaderLit : shaderUnlit));
             if (shader != currentShader) {
                 if (currentShader != null) {
                     currentShader.stop();
@@ -152,17 +169,18 @@ public final class ParticleGpuRenderer {
                 shader.setViewProj(viewProj);
                 shader.setCamera((float) camX, (float) camY, (float) camZ, rightX, rightY, rightZ, upX, upY, upZ);
                 shader.setCameraOffset(cameraOffset[0], cameraOffset[1], cameraOffset[2]);
-                if (bloomPass) {
+                if (bloomPass || emissivePass) {
                     shader.setFog(0f, 0f, 0f, 0f, 0f, false);
                 } else {
                     shader.setFog(fog.r, fog.g, fog.b, fog.start, fog.end, fog.enabled);
                 }
+                shader.setEmissivePass(emissivePass);
                 currentShader = shader;
             }
 
             shader.setInstanceOffset(batch.offset);
 
-            if (bloomPass) {
+            if (bloomPass || emissivePass) {
                 if (currentBlend != BedrockParticleSystem.BlendMode.ADD) {
                     applyBlendMode(BedrockParticleSystem.BlendMode.ADD);
                     currentBlend = BedrockParticleSystem.BlendMode.ADD;
@@ -179,7 +197,7 @@ public final class ParticleGpuRenderer {
                 currentTexture = key.texture;
             }
 
-            if (!bloomPass && key.lit && lightmapAvailable) {
+            if (!bloomPass && !emissivePass && key.lit && lightmapAvailable) {
                 OpenGlHelper.setActiveTexture(OpenGlHelper.lightmapTexUnit);
                 GlStateManager.bindTexture(lightmapId);
                 OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);

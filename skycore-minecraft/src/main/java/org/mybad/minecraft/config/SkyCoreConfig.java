@@ -5,10 +5,14 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import org.mybad.minecraft.SkyCoreMod;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -41,8 +45,8 @@ public class SkyCoreConfig {
         List<EntityModelMapping> entities = new ArrayList<>();
     }
 
-    private SkyCoreConfig(Path configDir) {
-        this.configPath = configDir.resolve("skycore.json");
+    private SkyCoreConfig(Path packRoot) {
+        this.configPath = packRoot.resolve("skycore.json");
         this.mappings = new ConcurrentHashMap<>();
         this.gson = new GsonBuilder()
                 .setPrettyPrinting()
@@ -52,10 +56,17 @@ public class SkyCoreConfig {
 
     /**
      * 初始化配置管理器
-     * @param configDir Minecraft config 目录
+     * @param packRoot SkyCore 资源包根目录
      */
-    public static void init(File configDir) {
-        instance = new SkyCoreConfig(configDir.toPath());
+    public static void init(Path packRoot) {
+        if (packRoot == null) {
+            throw new IllegalStateException("SkyCoreConfig 初始化失败，packRoot 为空");
+        }
+        try {
+            Files.createDirectories(packRoot);
+        } catch (IOException ignored) {
+        }
+        instance = new SkyCoreConfig(packRoot);
         instance.load();
     }
 
@@ -76,6 +87,11 @@ public class SkyCoreConfig {
         mappings.clear();
 
         ConfigFile file = readConfigFile();
+        if (file == null) {
+            renderConfig = new RenderConfig();
+            SkyCoreMod.LOGGER.info("[SkyCore] 未发现配置文件，使用默认配置");
+            return;
+        }
         if (file.render != null) {
             renderConfig = file.render;
         } else {

@@ -325,7 +325,7 @@ public class ModelParser {
         }
 
         if (!supported) {
-            System.out.println("警告：不支持的格式版本 " + version + "，尝试继续解析...");
+            // no-op: avoid noisy stdout in production
         }
     }
 }

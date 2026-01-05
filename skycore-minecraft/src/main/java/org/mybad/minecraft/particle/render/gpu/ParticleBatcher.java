@@ -30,9 +30,11 @@ final class ParticleBatcher {
         }
 
         Map<BatchKey, BatchBucket> buckets = new LinkedHashMap<>();
+        Map<BatchKey, BatchBucket> emissiveBuckets = new LinkedHashMap<>();
         Map<ActiveEmitter, Integer> emitterIndex = new IdentityHashMap<>();
 
         int totalParticles = 0;
+        int emissiveParticles = 0;
 
         for (ActiveParticle particle : particles) {
             particle.prepareRender(partialTicks);
@@ -87,6 +89,9 @@ final class ParticleBatcher {
             ResourceLocation texture = particle.getTexture();
             BedrockParticleSystem.BlendMode blendMode = particle.getBlendMode();
             boolean bloom = particle.isBloom();
+            ResourceLocation emissiveTexture = particle.getEmissiveTexture();
+            float emissiveStrength = particle.getEmissiveStrength();
+            boolean hasEmissive = emissiveTexture != null && emissiveStrength > 0.0f;
 
             BatchKey key = new BatchKey(texture, blendMode, camMode, lit, bloom);
             BatchBucket bucket = buckets.get(key);
@@ -127,9 +132,25 @@ final class ParticleBatcher {
                 r, g, b, a,
                 renderProps.getUMin(), renderProps.getVMin(), renderProps.getUMax(), renderProps.getVMax(),
                 dir[0], dir[1], dir[2], (float) emitterIdx,
-                lightU, lightV, 0.0f, 0.0f);
+                lightU, lightV, emissiveStrength, 0.0f);
 
             totalParticles++;
+
+            if (hasEmissive) {
+                BatchKey emissiveKey = new BatchKey(emissiveTexture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false);
+                BatchBucket emissiveBucket = emissiveBuckets.get(emissiveKey);
+                if (emissiveBucket == null) {
+                    emissiveBucket = new BatchBucket();
+                    emissiveBuckets.put(emissiveKey, emissiveBucket);
+                }
+                emissiveBucket.add((float) px, (float) py, (float) pz, roll,
+                    width, height, camMode, 0.0f,
+                    r, g, b, a,
+                    renderProps.getUMin(), renderProps.getVMin(), renderProps.getUMax(), renderProps.getVMax(),
+                    dir[0], dir[1], dir[2], (float) emitterIdx,
+                    lightU, lightV, emissiveStrength, 0.0f);
+                emissiveParticles++;
+            }
         }
 
         if (totalParticles == 0) {
@@ -178,7 +199,26 @@ final class ParticleBatcher {
         }
         particleBuffer.flip();
 
-        return new Result(particleBuffer, emitterBuffer, batches, totalParticles, emitterCount);
+        FloatBuffer emissiveBuffer = BufferUtilsHelper.emptyFloatBuffer();
+        List<Batch> emissiveBatches = new ArrayList<>();
+        if (emissiveParticles > 0) {
+            emissiveBuffer = BufferUtilsHelper.createFloatBuffer(emissiveParticles * FLOATS_PER_PARTICLE);
+            int emissiveOffset = 0;
+            for (Map.Entry<BatchKey, BatchBucket> entry : emissiveBuckets.entrySet()) {
+                BatchBucket bucket = entry.getValue();
+                int count = bucket.size() / FLOATS_PER_PARTICLE;
+                if (count <= 0) {
+                    continue;
+                }
+                emissiveBuffer.put(bucket.data, 0, bucket.size());
+                emissiveBatches.add(new Batch(entry.getKey(), emissiveOffset, count));
+                emissiveOffset += count;
+            }
+            emissiveBuffer.flip();
+        }
+
+        return new Result(particleBuffer, emitterBuffer, batches, totalParticles, emitterCount,
+            emissiveBuffer, emissiveBatches, emissiveParticles);
     }
 
     private static boolean isDirectionMode(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {
@@ -315,17 +355,31 @@ final class ParticleBatcher {
         final List<Batch> batches;
         final int particleCount;
         final int emitterCount;
+        final FloatBuffer emissiveParticleBuffer;
+        final List<Batch> emissiveBatches;
+        final int emissiveCount;
 
-        Result(FloatBuffer particleBuffer, FloatBuffer emitterBuffer, List<Batch> batches, int particleCount, int emitterCount) {
+        Result(FloatBuffer particleBuffer,
+               FloatBuffer emitterBuffer,
+               List<Batch> batches,
+               int particleCount,
+               int emitterCount,
+               FloatBuffer emissiveParticleBuffer,
+               List<Batch> emissiveBatches,
+               int emissiveCount) {
             this.particleBuffer = particleBuffer;
             this.emitterBuffer = emitterBuffer;
             this.batches = batches;
             this.particleCount = particleCount;
             this.emitterCount = emitterCount;
+            this.emissiveParticleBuffer = emissiveParticleBuffer;
+            this.emissiveBatches = emissiveBatches;
+            this.emissiveCount = emissiveCount;
         }
 
         static Result empty() {
-            return new Result(BufferUtilsHelper.emptyFloatBuffer(), BufferUtilsHelper.emptyFloatBuffer(), new ArrayList<>(), 0, 0);
+            return new Result(BufferUtilsHelper.emptyFloatBuffer(), BufferUtilsHelper.emptyFloatBuffer(), new ArrayList<>(), 0, 0,
+                BufferUtilsHelper.emptyFloatBuffer(), new ArrayList<>(), 0);
         }
     }
 
