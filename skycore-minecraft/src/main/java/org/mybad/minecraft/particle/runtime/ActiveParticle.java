@@ -48,6 +48,7 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
     private final ParticleAppearanceLightingComponent lighting;
     private final ResourceLocation texture;
     private final BedrockParticleSystem.BlendMode blendMode;
+    private final boolean bloom;
     private final ParticleInitialSpeedComponent speed;
     private final ParticleInitialSpinComponent initialSpin;
     private final ParticleMotionDynamicComponent motionDynamic;
@@ -138,6 +139,7 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             this.localVelocity = emitter != null && emitter.isLocalVelocity();
             BedrockParticleSystem.BlendMode blendMode = system.resolveBlendMode(data);
             this.blendMode = blendMode;
+            this.bloom = data.description() != null && data.description().isBloom();
             this.expireInBlockIds = system.resolveBlocks(expireInBlocks);
             this.expireNotInBlockIds = system.resolveBlocks(expireNotInBlocks);
             this.blockPos = new BlockPos.MutableBlockPos();
@@ -412,9 +414,13 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             return texture;
         }
 
-        public BedrockParticleSystem.BlendMode getBlendMode() {
-            return blendMode;
-        }
+    public BedrockParticleSystem.BlendMode getBlendMode() {
+        return blendMode;
+    }
+
+    public boolean isBloom() {
+        return bloom;
+    }
 
         private void runEvent(String name) {
             if (name == null || name.isEmpty()) {

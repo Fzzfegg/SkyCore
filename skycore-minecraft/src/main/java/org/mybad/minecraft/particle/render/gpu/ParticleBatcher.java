@@ -86,8 +86,9 @@ final class ParticleBatcher {
             int camMode = encodeCameraMode(billboard.cameraMode());
             ResourceLocation texture = particle.getTexture();
             BedrockParticleSystem.BlendMode blendMode = particle.getBlendMode();
+            boolean bloom = particle.isBloom();
 
-            BatchKey key = new BatchKey(texture, blendMode, camMode, lit);
+            BatchKey key = new BatchKey(texture, blendMode, camMode, lit, bloom);
             BatchBucket bucket = buckets.get(key);
             if (bucket == null) {
                 bucket = new BatchBucket();
@@ -259,12 +260,14 @@ final class ParticleBatcher {
         final BedrockParticleSystem.BlendMode blendMode;
         final int cameraMode;
         final boolean lit;
+        final boolean bloom;
 
-        BatchKey(ResourceLocation texture, BedrockParticleSystem.BlendMode blendMode, int cameraMode, boolean lit) {
+        BatchKey(ResourceLocation texture, BedrockParticleSystem.BlendMode blendMode, int cameraMode, boolean lit, boolean bloom) {
             this.texture = texture;
             this.blendMode = blendMode;
             this.cameraMode = cameraMode;
             this.lit = lit;
+            this.bloom = bloom;
         }
 
         @Override
@@ -278,6 +281,7 @@ final class ParticleBatcher {
             BatchKey other = (BatchKey) obj;
             return cameraMode == other.cameraMode
                 && lit == other.lit
+                && bloom == other.bloom
                 && blendMode == other.blendMode
                 && texture.equals(other.texture);
         }
@@ -288,6 +292,7 @@ final class ParticleBatcher {
             result = 31 * result + blendMode.hashCode();
             result = 31 * result + cameraMode;
             result = 31 * result + (lit ? 1 : 0);
+            result = 31 * result + (bloom ? 1 : 0);
             return result;
         }
     }

@@ -67,14 +67,14 @@ public class SkyCoreMod {
     public void init(FMLInitializationEvent event) {
         LOGGER.info("[SkyCore] Init - 注册事件处理器...");
 
-        // 创建并注册渲染事件处理器
-        renderEventHandler = new EntityRenderEventHandler(resourceLoader);
-        MinecraftForge.EVENT_BUS.register(renderEventHandler);
         // 粒子系统（核心）
         particleSystem = new BedrockParticleSystem(resourceLoader);
         MinecraftForge.EVENT_BUS.register(particleSystem);
         // 粒子调试包装
         particleDebugSystem = new BedrockParticleDebugSystem(particleSystem);
+        // 创建并注册渲染事件处理器
+        renderEventHandler = new EntityRenderEventHandler(resourceLoader);
+        MinecraftForge.EVENT_BUS.register(renderEventHandler);
 
         // 注册命令处理器
         MinecraftForge.EVENT_BUS.register(new SkyCoreCommandHandler());

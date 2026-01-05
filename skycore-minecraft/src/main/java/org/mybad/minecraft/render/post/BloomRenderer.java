@@ -198,6 +198,68 @@ public final class BloomRenderer {
         }
     }
 
+    public void renderParticleMask(Entity entity,
+                                   float partialTicks,
+                                   float bloomStrength,
+                                   int bloomRadius,
+                                   int bloomDownsample,
+                                   float bloomThreshold,
+                                   Runnable drawMask) {
+        if (drawMask == null || bloomStrength <= 0f) {
+            return;
+        }
+        beginFrame(entity, partialTicks);
+        if (!frameParamsLocked) {
+            if (bloomDownsample > 0) {
+                int ds = Math.max(1, Math.min(bloomDownsample, 4));
+                if (ds != downsample) {
+                    downsample = ds;
+                    width = 0;
+                    height = 0;
+                }
+            }
+            frameParamsLocked = true;
+        }
+        if (bloomRadius > 0) {
+            frameRadius = Math.max(frameRadius, Math.min(bloomRadius, 32));
+        }
+        if (bloomThreshold >= 0f) {
+            frameThreshold = Math.min(frameThreshold, bloomThreshold);
+        }
+        ensureBuffers();
+        if (maskFbo == null) {
+            return;
+        }
+
+        usedThisFrame = true;
+
+        state.capture();
+        Framebuffer main = Minecraft.getMinecraft().getFramebuffer();
+        try {
+            maskFbo.bindFramebuffer(true);
+            GL11.glViewport(0, 0, width, height);
+        GlStateManager.disableLighting();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        GlStateManager.disableCull();
+        GlStateManager.enableDepth();
+        GlStateManager.depthMask(false);
+        GL11.glDepthFunc(GL11.GL_LEQUAL);
+
+        float strength = Math.max(0f, bloomStrength);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, strength);
+        drawMask.run();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+
+            maskFbo.unbindFramebuffer();
+            if (main != null) {
+                main.bindFramebuffer(true);
+            }
+        } finally {
+            state.restore();
+        }
+    }
+
     public void endFrame() {
         if (!usedThisFrame) {
             return;

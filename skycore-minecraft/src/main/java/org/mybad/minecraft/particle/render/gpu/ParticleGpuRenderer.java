@@ -11,6 +11,8 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL31;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;
+import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.render.post.BloomRenderer;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 
 import java.lang.reflect.Field;
@@ -94,13 +96,54 @@ public final class ParticleGpuRenderer {
         ssboBuffer.bind();
         quadMesh.bind();
 
+        drawBatches(result.batches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false);
+
+        quadMesh.unbind();
+        ssboBuffer.unbind();
+
+        restoreRenderState();
+
+        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
+        if (renderConfig.bloomStrength > 0f) {
+            List<ParticleBatcher.Batch> bloomBatches = filterBloomBatches(result.batches);
+            if (!bloomBatches.isEmpty()) {
+                BloomRenderer.get().renderParticleMask(mc.player, partialTicks,
+                    renderConfig.bloomStrength,
+                    renderConfig.bloomRadius,
+                    renderConfig.bloomDownsample,
+                    renderConfig.bloomThreshold,
+                    () -> {
+                        ssboBuffer.bind();
+                        quadMesh.bind();
+                        drawBatches(bloomBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true);
+                        quadMesh.unbind();
+                        ssboBuffer.unbind();
+                    }
+                );
+            }
+        }
+    }
+
+    private void drawBatches(List<ParticleBatcher.Batch> batches,
+                             Minecraft mc,
+                             FloatBuffer viewProj,
+                             FogState fog,
+                             double camX,
+                             double camY,
+                             double camZ,
+                             float rightX, float rightY, float rightZ,
+                             float upX, float upY, float upZ,
+                             float[] cameraOffset,
+                             int lightmapId,
+                             boolean lightmapAvailable,
+                             boolean bloomPass) {
         ParticleShader currentShader = null;
         BedrockParticleSystem.BlendMode currentBlend = null;
         ResourceLocation currentTexture = null;
 
-        for (ParticleBatcher.Batch batch : result.batches) {
+        for (ParticleBatcher.Batch batch : batches) {
             ParticleBatcher.BatchKey key = batch.key;
-            ParticleShader shader = (key.lit && lightmapAvailable) ? shaderLit : shaderUnlit;
+            ParticleShader shader = (bloomPass ? shaderUnlit : ((key.lit && lightmapAvailable) ? shaderLit : shaderUnlit));
             if (shader != currentShader) {
                 if (currentShader != null) {
                     currentShader.stop();
@@ -109,15 +152,26 @@ public final class ParticleGpuRenderer {
                 shader.setViewProj(viewProj);
                 shader.setCamera((float) camX, (float) camY, (float) camZ, rightX, rightY, rightZ, upX, upY, upZ);
                 shader.setCameraOffset(cameraOffset[0], cameraOffset[1], cameraOffset[2]);
-                shader.setFog(fog.r, fog.g, fog.b, fog.start, fog.end, fog.enabled);
+                if (bloomPass) {
+                    shader.setFog(0f, 0f, 0f, 0f, 0f, false);
+                } else {
+                    shader.setFog(fog.r, fog.g, fog.b, fog.start, fog.end, fog.enabled);
+                }
                 currentShader = shader;
             }
 
             shader.setInstanceOffset(batch.offset);
 
-            if (key.blendMode != currentBlend) {
-                applyBlendMode(key.blendMode);
-                currentBlend = key.blendMode;
+            if (bloomPass) {
+                if (currentBlend != BedrockParticleSystem.BlendMode.ADD) {
+                    applyBlendMode(BedrockParticleSystem.BlendMode.ADD);
+                    currentBlend = BedrockParticleSystem.BlendMode.ADD;
+                }
+            } else {
+                if (key.blendMode != currentBlend) {
+                    applyBlendMode(key.blendMode);
+                    currentBlend = key.blendMode;
+                }
             }
 
             if (!key.texture.equals(currentTexture)) {
@@ -125,7 +179,7 @@ public final class ParticleGpuRenderer {
                 currentTexture = key.texture;
             }
 
-            if (key.lit && lightmapAvailable) {
+            if (!bloomPass && key.lit && lightmapAvailable) {
                 OpenGlHelper.setActiveTexture(OpenGlHelper.lightmapTexUnit);
                 GlStateManager.bindTexture(lightmapId);
                 OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
@@ -137,11 +191,16 @@ public final class ParticleGpuRenderer {
         if (currentShader != null) {
             currentShader.stop();
         }
+    }
 
-        quadMesh.unbind();
-        ssboBuffer.unbind();
-
-        restoreRenderState();
+    private List<ParticleBatcher.Batch> filterBloomBatches(List<ParticleBatcher.Batch> batches) {
+        List<ParticleBatcher.Batch> result = new java.util.ArrayList<>();
+        for (ParticleBatcher.Batch batch : batches) {
+            if (batch.key.bloom) {
+                result.add(batch);
+            }
+        }
+        return result;
     }
 
     private void ensureReady() {

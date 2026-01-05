@@ -57,7 +57,7 @@ public final class ParticleData {
     }
 
     public void setTexture(BedrockResourceLocation resourceLocation){
-        this.description = new Description(description.getIdentifier(), resourceLocation, description.getMaterial());
+        this.description = new Description(description.getIdentifier(), resourceLocation, description.getMaterial(), description.isBloom());
     }
 
     public Description description() {
@@ -79,7 +79,7 @@ public final class ParticleData {
 
 
     private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
-    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
 
     /**
      * The different types of curves for calculating particle variables.
@@ -101,11 +101,13 @@ public final class ParticleData {
         private final String identifier;
         private final BedrockResourceLocation texture;
         private final String material;
+        private final boolean bloom;
 
-        public Description(String identifier, BedrockResourceLocation texture, @Nullable String material) {
+        public Description(String identifier, BedrockResourceLocation texture, @Nullable String material, boolean bloom) {
             this.identifier = identifier;
             this.texture = texture;
             this.material = material;
+            this.bloom = bloom;
         }
 
         public String getIdentifier() {
@@ -119,6 +121,10 @@ public final class ParticleData {
         @Nullable
         public String getMaterial() {
             return material;
+        }
+
+        public boolean isBloom() {
+            return bloom;
         }
 
         public static class Deserializer implements JsonDeserializer<Description> {
@@ -143,8 +149,9 @@ public final class ParticleData {
                     texture = MISSING_TEXTURE;
                 }
                 String material = ParticleGsonHelper.getAsString(basicRenderParams, "material", null);
+                boolean bloom = ParticleGsonHelper.getAsBoolean(basicRenderParams, "bloom", false);
 
-                return new Description(identifier, texture, material);
+                return new Description(identifier, texture, material, bloom);
             }
         }
     }
