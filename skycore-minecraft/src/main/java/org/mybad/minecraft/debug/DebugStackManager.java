@@ -72,11 +72,12 @@ public final class DebugStackManager {
         if (wrapper == null) {
             return false;
         }
+        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
-        wrapper.setBloomStrength(mapping.getBloomStrength());
-        wrapper.setBloomRadius(mapping.getBloomRadius());
-        wrapper.setBloomDownsample(mapping.getBloomDownsample());
-        wrapper.setBloomThreshold(mapping.getBloomThreshold());
+        wrapper.setBloomStrength(renderConfig.bloomStrength);
+        wrapper.setBloomRadius(renderConfig.bloomRadius);
+        wrapper.setBloomDownsample(renderConfig.bloomDownsample);
+        wrapper.setBloomThreshold(renderConfig.bloomThreshold);
         wrapper.setModelScale(mapping.getModelScale());
 
         synchronized (debugStacks) {

@@ -27,8 +27,17 @@ public class SkyCoreConfig {
 
     /** Gson 实例 */
     private final Gson gson;
+    private RenderConfig renderConfig = new RenderConfig();
+
+    public static final class RenderConfig {
+        public float bloomStrength = 0.0f;
+        public int bloomRadius = 8;
+        public int bloomDownsample = 2;
+        public float bloomThreshold = 0.0f;
+    }
 
     private static final class ConfigFile {
+        RenderConfig render = new RenderConfig();
         List<EntityModelMapping> entities = new ArrayList<>();
     }
 
@@ -67,9 +76,10 @@ public class SkyCoreConfig {
         mappings.clear();
 
         ConfigFile file = readConfigFile();
-        if (file == null) {
-            createDefaultConfig();
-            return;
+        if (file.render != null) {
+            renderConfig = file.render;
+        } else {
+            renderConfig = new RenderConfig();
         }
         if (file.entities != null) {
             for (EntityModelMapping mapping : file.entities) {
@@ -90,19 +100,7 @@ public class SkyCoreConfig {
         load();
     }
     
-
-    /**
-     * 创建默认配置文件
-     */
-    private void createDefaultConfig() {
-        ConfigFile file = new ConfigFile();
-        file.entities.add(buildExampleMapping());
-        file.entities.add(buildBillboardExampleMapping());
-        if (writeConfigFile(file)) {
-            SkyCoreMod.LOGGER.info("[SkyCore] 已创建默认配置文件: {}", configPath);
-        }
-    }
-
+    
     private ConfigFile readConfigFile() {
         if (!Files.exists(configPath)) {
             return null;
@@ -117,57 +115,7 @@ public class SkyCoreConfig {
         return null;
     }
 
-    private boolean writeConfigFile(ConfigFile file) {
-        try {
-            Files.createDirectories(configPath.getParent());
-            try (Writer writer = Files.newBufferedWriter(configPath, StandardCharsets.UTF_8)) {
-                gson.toJson(file, writer);
-            }
-            return true;
-        } catch (IOException e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 创建默认配置文件失败", e);
-            return false;
-        }
-    }
-
-    private EntityModelMapping buildExampleMapping() {
-        EntityModelMapping example = new EntityModelMapping();
-        example.setName("ExampleEntity");
-        example.setModel("models/example.geo.json");
-        example.setAnimation("animations/example.animation.json");
-        example.setTexture("textures/example.png");
-        example.setEmissive("textures/example_emissive.png");
-        example.setEmissiveStrength(1.0f);
-        example.setBloom("textures/example_bloom.png");
-        example.setBloomStrength(0.0f);
-        example.setBloomRadius(8);
-        example.setBloomDownsample(2);
-        example.setBloomThreshold(0.0f);
-        example.setEnableCull(true);
-        example.setModelScale(1.0f);
-        example.setPrimaryFadeSeconds(0.12f);
-        return example;
-    }
-
-    private EntityModelMapping buildBillboardExampleMapping() {
-        EntityModelMapping example = new EntityModelMapping();
-        example.setName("BillboardEntity");
-        example.setModel("models/billboard.geo.json");
-        example.setAnimation("animations/billboard.animation.json");
-        example.setTexture("textures/billboard.png");
-        example.setEmissive("textures/billboard_emissive.png");
-        example.setEmissiveStrength(1.0f);
-        example.setBloom("textures/billboard_bloom.png");
-        example.setBloomStrength(0.0f);
-        example.setBloomRadius(8);
-        example.setBloomDownsample(2);
-        example.setBloomThreshold(0.0f);
-        example.setEnableCull(false);
-        example.setModelScale(1.0f);
-        example.setPrimaryFadeSeconds(0.12f);
-        return example;
-    }
-
+ 
     /**
      * 根据实体名字获取映射配置
      * @param entityName 实体的自定义名字
@@ -180,47 +128,11 @@ public class SkyCoreConfig {
         return mappings.get(entityName);
     }
 
-    /**
-     * 检查是否存在指定名字的映射
-     */
-    public boolean hasMapping(String entityName) {
-        return entityName != null && mappings.containsKey(entityName);
+    
+
+    public RenderConfig getRenderConfig() {
+        return renderConfig;
     }
 
-    /**
-     * 获取所有映射
-     */
-    public Collection<EntityModelMapping> getAllMappings() {
-        return Collections.unmodifiableCollection(mappings.values());
-    }
-
-    /**
-     * 获取映射数量
-     */
-    public int getMappingCount() {
-        return mappings.size();
-    }
-
-    /**
-     * 添加或更新映射
-     */
-    public void addMapping(EntityModelMapping mapping) {
-        if (mapping != null && mapping.getName() != null) {
-            mappings.put(mapping.getName(), mapping);
-        }
-    }
-
-    /**
-     * 移除映射
-     */
-    public void removeMapping(String entityName) {
-        mappings.remove(entityName);
-    }
-
-    /**
-     * 获取配置文件路径
-     */
-    public Path getConfigPath() {
-        return configPath;
-    }
+    
 }

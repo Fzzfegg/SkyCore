@@ -7,6 +7,7 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
+import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.resource.ResourceLoader;
@@ -46,12 +47,13 @@ final class EntityWrapperCache {
         if (wrapper == null) {
             return null;
         }
+        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
         wrapper.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
-        wrapper.setBloomStrength(mapping.getBloomStrength());
-        wrapper.setBloomRadius(mapping.getBloomRadius());
-        wrapper.setBloomDownsample(mapping.getBloomDownsample());
-        wrapper.setBloomThreshold(mapping.getBloomThreshold());
+        wrapper.setBloomStrength(renderConfig.bloomStrength);
+        wrapper.setBloomRadius(renderConfig.bloomRadius);
+        wrapper.setBloomDownsample(renderConfig.bloomDownsample);
+        wrapper.setBloomThreshold(renderConfig.bloomThreshold);
         wrapper.setModelScale(mapping.getModelScale());
 
         EntityAnimationController controller = buildController(mapping);

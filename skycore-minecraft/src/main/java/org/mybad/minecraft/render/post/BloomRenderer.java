@@ -8,6 +8,8 @@ import net.minecraft.util.ResourceLocation;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
@@ -44,6 +46,10 @@ public final class BloomRenderer {
     private int uBlurRadius;
     private int uBlurThreshold;
     private int uBlitTex;
+    private int uBlitSceneDepth;
+    private int uBlitMaskDepth;
+    private int uBlitUseDepth;
+    private int uBlitDepthBias;
 
     private boolean usedThisFrame;
     private final GlStateSnapshot state = new GlStateSnapshot();
@@ -55,6 +61,13 @@ public final class BloomRenderer {
     private int frameRadius = 8;
     private float frameThreshold = 0.0f;
     private int downsample = 1;
+    private int depthTexScene;
+    private int depthTexMask;
+    private int depthFboScene;
+    private int depthFboMask;
+    private int depthWidth;
+    private int depthHeight;
+    private boolean depthValid;
 
     private BloomRenderer() {
     }
@@ -97,6 +110,7 @@ public final class BloomRenderer {
         if (bloomTexture == null || bloomStrength <= 0f || skinningPipeline == null) {
             return;
         }
+        beginFrame(entity, partialTicks);
         if (!frameParamsLocked) {
             if (bloomDownsample > 0) {
                 int ds = Math.max(1, Math.min(bloomDownsample, 4));
@@ -115,7 +129,6 @@ public final class BloomRenderer {
         if (bloomThreshold >= 0f) {
             frameThreshold = Math.min(frameThreshold, bloomThreshold);
         }
-        beginFrame(entity, partialTicks);
         ensureBuffers();
         if (maskFbo == null) {
             return;
@@ -127,6 +140,7 @@ public final class BloomRenderer {
         Framebuffer main = Minecraft.getMinecraft().getFramebuffer();
         try {
         maskFbo.bindFramebuffer(true);
+        GL11.glViewport(0, 0, width, height);
 
         GlStateManager.enableTexture2D();
         GlStateManager.disableBlend();
@@ -167,8 +181,20 @@ public final class BloomRenderer {
         if (main != null) {
             main.bindFramebuffer(true);
         }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc != null) {
+            GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
+        }
         } finally {
             state.restore();
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null) {
+                Framebuffer fb = mc.getFramebuffer();
+                if (fb != null) {
+                    fb.bindFramebuffer(true);
+                    GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
+                }
+            }
         }
     }
 
@@ -186,6 +212,8 @@ public final class BloomRenderer {
         if (blurProgram == 0 || blitProgram == 0) {
             return;
         }
+        ensureDepthTargets();
+        captureDepths();
 
         int radius = frameRadius > 0 ? frameRadius : 8;
         float threshold = frameThreshold < 1.0f ? frameThreshold : 0.0f;
@@ -245,6 +273,7 @@ public final class BloomRenderer {
             maskFbo.deleteFramebuffer();
             blurPing.deleteFramebuffer();
             blurPong.deleteFramebuffer();
+            deleteDepthTargets();
         }
         maskFbo = new Framebuffer(w, h, true);
         blurPing = new Framebuffer(w, h, false);
@@ -291,6 +320,10 @@ public final class BloomRenderer {
         blitProgram = compileProgram(blitVertex(), blitFragment());
         blurProgram = compileProgram(blurVertex(), blurFragment());
         uBlitTex = GL20.glGetUniformLocation(blitProgram, "DiffuseSampler");
+        uBlitSceneDepth = GL20.glGetUniformLocation(blitProgram, "SceneDepth");
+        uBlitMaskDepth = GL20.glGetUniformLocation(blitProgram, "MaskDepth");
+        uBlitUseDepth = GL20.glGetUniformLocation(blitProgram, "UseDepth");
+        uBlitDepthBias = GL20.glGetUniformLocation(blitProgram, "DepthBias");
         uBlurTex = GL20.glGetUniformLocation(blurProgram, "DiffuseSampler");
         uBlurDir = GL20.glGetUniformLocation(blurProgram, "BlurDir");
         uBlurSize = GL20.glGetUniformLocation(blurProgram, "OutSize");
@@ -301,7 +334,22 @@ public final class BloomRenderer {
     private void useBlit(int textureId) {
         GL20.glUseProgram(blitProgram);
         GL20.glUniform1i(uBlitTex, 0);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+
+        if (depthValid) {
+            GL20.glUniform1i(uBlitUseDepth, 1);
+            GL20.glUniform1f(uBlitDepthBias, 0.0005f);
+            GL20.glUniform1i(uBlitSceneDepth, 1);
+            GL13.glActiveTexture(GL13.GL_TEXTURE1);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, depthTexScene);
+            GL20.glUniform1i(uBlitMaskDepth, 2);
+            GL13.glActiveTexture(GL13.GL_TEXTURE2);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, depthTexMask);
+            GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        } else {
+            GL20.glUniform1i(uBlitUseDepth, 0);
+        }
     }
 
     private void useBlur(int textureId, float dirX, float dirY, int radius, float threshold) {
@@ -363,9 +411,18 @@ public final class BloomRenderer {
     private String blitFragment() {
         return "#version 150\n"
             + "uniform sampler2D DiffuseSampler;\n"
+            + "uniform sampler2D SceneDepth;\n"
+            + "uniform sampler2D MaskDepth;\n"
+            + "uniform int UseDepth;\n"
+            + "uniform float DepthBias;\n"
             + "in vec2 v_uv;\n"
             + "out vec4 fragColor;\n"
             + "void main(){\n"
+            + "  if (UseDepth == 1) {\n"
+            + "    float sceneD = texture(SceneDepth, v_uv).r;\n"
+            + "    float maskD = texture(MaskDepth, v_uv).r;\n"
+            + "    if (sceneD + DepthBias < maskD) discard;\n"
+            + "  }\n"
             + "  fragColor = texture(DiffuseSampler, v_uv);\n"
             + "}\n";
     }
@@ -407,6 +464,88 @@ public final class BloomRenderer {
             + "  fragColor = vec4(diffuseSum/weightSum, 1.0);\n"
             + "}\n";
     }
+
+    private void ensureDepthTargets() {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        if (depthTexScene != 0 && depthTexMask != 0 && depthWidth == width && depthHeight == height) {
+            return;
+        }
+        deleteDepthTargets();
+        depthTexScene = createDepthTexture(width, height);
+        depthTexMask = createDepthTexture(width, height);
+        depthFboScene = createDepthFbo(depthTexScene);
+        depthFboMask = createDepthFbo(depthTexMask);
+        depthWidth = width;
+        depthHeight = height;
+    }
+
+    private int createDepthTexture(int w, int h) {
+        int tex = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL14.GL_DEPTH_COMPONENT24, w, h, 0, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, (java.nio.ByteBuffer) null);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        return tex;
+    }
+
+    private int createDepthFbo(int depthTex) {
+        int fbo = GL30.glGenFramebuffers();
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL11.GL_TEXTURE_2D, depthTex, 0);
+        GL11.glDrawBuffer(GL11.GL_NONE);
+        GL11.glReadBuffer(GL11.GL_NONE);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+        return fbo;
+    }
+
+    private void deleteDepthTargets() {
+        if (depthTexScene != 0) {
+            GL11.glDeleteTextures(depthTexScene);
+            depthTexScene = 0;
+        }
+        if (depthTexMask != 0) {
+            GL11.glDeleteTextures(depthTexMask);
+            depthTexMask = 0;
+        }
+        if (depthFboScene != 0) {
+            GL30.glDeleteFramebuffers(depthFboScene);
+            depthFboScene = 0;
+        }
+        if (depthFboMask != 0) {
+            GL30.glDeleteFramebuffers(depthFboMask);
+            depthFboMask = 0;
+        }
+        depthWidth = 0;
+        depthHeight = 0;
+        depthValid = false;
+    }
+
+    private void captureDepths() {
+        Framebuffer main = Minecraft.getMinecraft().getFramebuffer();
+        if (main == null || maskFbo == null || depthFboScene == 0 || depthFboMask == 0) {
+            depthValid = false;
+            return;
+        }
+        if (main.framebufferObject == 0) {
+            depthValid = false;
+            return;
+        }
+        int mainW = Minecraft.getMinecraft().displayWidth;
+        int mainH = Minecraft.getMinecraft().displayHeight;
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, main.framebufferObject);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, depthFboScene);
+        GL30.glBlitFramebuffer(0, 0, mainW, mainH, 0, 0, width, height, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, maskFbo.framebufferObject);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, depthFboMask);
+        GL30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+        depthValid = true;
+    }
     private static final class GlStateSnapshot {
         private final FloatBuffer colorBuf = BufferUtils.createFloatBuffer(16);
         private final IntBuffer viewportBuf = BufferUtils.createIntBuffer(16);
@@ -426,6 +565,11 @@ public final class BloomRenderer {
         private boolean colorMaterial;
         private boolean texture2d;
         private boolean depthMask;
+        private boolean scissorTest;
+        private int scissorX;
+        private int scissorY;
+        private int scissorW;
+        private int scissorH;
         private float r;
         private float g;
         private float b;
@@ -446,6 +590,7 @@ public final class BloomRenderer {
             colorMaterial = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
             texture2d = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
             depthMask = GL11.glGetInteger(GL11.GL_DEPTH_WRITEMASK) != 0;
+            scissorTest = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
             depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
             alphaFunc = GL11.glGetInteger(GL11.GL_ALPHA_TEST_FUNC);
             alphaRef = GL11.glGetFloat(GL11.GL_ALPHA_TEST_REF);
@@ -472,6 +617,14 @@ public final class BloomRenderer {
             vpY = viewportBuf.get(1);
             vpW = viewportBuf.get(2);
             vpH = viewportBuf.get(3);
+            if (scissorTest) {
+                viewportBuf.clear();
+                GL11.glGetInteger(GL11.GL_SCISSOR_BOX, viewportBuf);
+                scissorX = viewportBuf.get(0);
+                scissorY = viewportBuf.get(1);
+                scissorW = viewportBuf.get(2);
+                scissorH = viewportBuf.get(3);
+            }
 
             lightX = (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessX;
             lightY = (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessY;
@@ -491,13 +644,20 @@ public final class BloomRenderer {
             if (lighting) GlStateManager.enableLighting(); else GlStateManager.disableLighting();
             if (colorMaterial) GlStateManager.enableColorMaterial(); else GlStateManager.disableColorMaterial();
             if (texture2d) GlStateManager.enableTexture2D(); else GlStateManager.disableTexture2D();
+            if (scissorTest) {
+                GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                GL11.glScissor(scissorX, scissorY, scissorW, scissorH);
+            } else {
+                GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            }
 
             GlStateManager.color(r, g, b, a);
             GL11.glViewport(vpX, vpY, vpW, vpH);
 
             net.minecraft.client.renderer.OpenGlHelper.setLightmapTextureCoords(
                 net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundTex0);
+            net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.defaultTexUnit);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundTex0);
             net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(net.minecraft.client.renderer.OpenGlHelper.lightmapTexUnit);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundTex1);
             net.minecraft.client.renderer.OpenGlHelper.setActiveTexture(activeTex);
