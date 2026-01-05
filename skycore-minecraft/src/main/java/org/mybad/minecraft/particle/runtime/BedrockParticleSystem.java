@@ -436,9 +436,17 @@ public class BedrockParticleSystem {
         if (mc == null || mc.world == null) {
             return;
         }
+        String soundId = sound.trim();
+        if (soundId.endsWith(".ogg")) {
+            soundId = soundId.substring(0, soundId.length() - 4);
+        }
         ResourceLocation id;
         try {
-            id = new ResourceLocation(sound);
+            if (soundId.contains(":")) {
+                id = new ResourceLocation(soundId);
+            } else {
+                id = new ResourceLocation(SkyCoreMod.MOD_ID, soundId);
+            }
         } catch (Exception ex) {
             SkyCoreMod.LOGGER.warn("[SkyCore] 无效的声音ID: {}", sound);
             return;

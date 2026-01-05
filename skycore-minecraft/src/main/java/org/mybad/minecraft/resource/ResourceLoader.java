@@ -65,14 +65,59 @@ public class ResourceLoader {
      * 3. "minecraft:textures/entity/pig.png" → minecraft:textures/entity/pig.png (其他命名空间)
      */
     public ResourceLocation resolveResourceLocation(String path) {
-        return pathResolver.resolveResourceLocation(path);
+        if (path == null) {
+            return null;
+        }
+        String trimmed = path.trim();
+        if (trimmed.isEmpty()) {
+            return pathResolver.resolveResourceLocation(trimmed);
+        }
+        String normalized = normalizeKnownPrefixes(trimmed);
+        return pathResolver.resolveResourceLocation(normalized);
     }
 
     String normalizePath(String path) {
         if (path == null) {
             return null;
         }
-        return resolveResourceLocation(path).toString();
+        String trimmed = path.trim();
+        if (trimmed.isEmpty()) {
+            return trimmed;
+        }
+        String withPrefix = normalizeKnownPrefixes(trimmed);
+        return resolveResourceLocation(withPrefix).toString();
+    }
+
+    private String normalizeKnownPrefixes(String path) {
+        String trimmed = path;
+        int colonIndex = trimmed.indexOf(':');
+        String namespace = null;
+        if (colonIndex > 0) {
+            namespace = trimmed.substring(0, colonIndex);
+            trimmed = trimmed.substring(colonIndex + 1);
+        }
+        String lower = trimmed.toLowerCase();
+        if (lower.endsWith(".geo.json")) {
+            if (!lower.startsWith("models/")) {
+                trimmed = "models/" + trimmed;
+            }
+        } else if (lower.endsWith(".animation.json") || lower.endsWith(".anim.json")) {
+            if (!lower.startsWith("models/")) {
+                trimmed = "models/" + trimmed;
+            }
+        } else if (lower.endsWith(".json")) {
+            if (!lower.startsWith("particles/")) {
+                trimmed = "particles/" + trimmed;
+            }
+        } else if (lower.endsWith(".png")) {
+            if (!lower.startsWith("models/") && !lower.startsWith("textures/")) {
+                trimmed = "models/" + trimmed;
+            }
+        }
+        if (namespace != null) {
+            return namespace + ":" + trimmed;
+        }
+        return trimmed;
     }
     /**
      * 从 assets 加载资源文件为字符串

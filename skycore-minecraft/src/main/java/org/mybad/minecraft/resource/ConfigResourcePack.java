@@ -36,6 +36,25 @@ public final class ConfigResourcePack implements IResourcePack {
         if (file == null || !Files.isRegularFile(file)) {
             throw new FileNotFoundException(location.toString());
         }
+        if (location.getPath().endsWith(".ogg")) {
+            long size = -1L;
+            try {
+                size = Files.size(file);
+            } catch (IOException ignored) {
+            }
+            byte[] head = new byte[4];
+            try (InputStream headIn = Files.newInputStream(file)) {
+                int read = headIn.read(head);
+                if (read == 4) {
+                    String magic = String.format("%02X %02X %02X %02X", head[0], head[1], head[2], head[3]);
+                    System.out.println("[SkyCore][Sound] open " + location + " -> " + file + " size=" + size + " head=" + magic);
+                } else {
+                    System.out.println("[SkyCore][Sound] open " + location + " -> " + file + " size=" + size + " head=EOF");
+                }
+            } catch (IOException ex) {
+                System.out.println("[SkyCore][Sound] open " + location + " -> " + file + " failed: " + ex.getMessage());
+            }
+        }
         return Files.newInputStream(file);
     }
 
@@ -117,7 +136,8 @@ public final class ConfigResourcePack implements IResourcePack {
                     }
                     String rel = soundsDir.relativize(p).toString().replace(File.separatorChar, '/');
                     String id = rel.substring(0, rel.length() - 4); // strip .ogg
-                    soundMap.computeIfAbsent(id, k -> new ArrayList<>()).add(id);
+                    String fullId = namespace + ":" + id;
+                    soundMap.computeIfAbsent(id, k -> new ArrayList<>()).add(fullId);
                 });
             } catch (IOException ignored) {
             }
@@ -144,6 +164,7 @@ public final class ConfigResourcePack implements IResourcePack {
             sb.append("\n");
         }
         sb.append("}");
+        System.out.println("[SkyCore][Sound] sounds.json for " + namespace + ":\n" + sb);
         return sb.toString();
     }
 }

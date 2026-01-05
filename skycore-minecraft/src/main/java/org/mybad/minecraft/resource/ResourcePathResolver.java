@@ -26,7 +26,6 @@ final class ResourcePathResolver {
     }
 
     String readResourceAsString(String path) {
-        // 方案 1: 优先从 resourcepacks/SkyCore/<namespace>/<path> 读取
         String content = readFromPackRoot(path);
         return content;
     }
