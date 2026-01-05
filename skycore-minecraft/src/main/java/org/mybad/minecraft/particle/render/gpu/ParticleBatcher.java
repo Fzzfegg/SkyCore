@@ -93,7 +93,7 @@ final class ParticleBatcher {
             float emissiveStrength = particle.getEmissiveStrength();
             boolean hasEmissive = emissiveTexture != null && emissiveStrength > 0.0f;
 
-            BatchKey key = new BatchKey(texture, blendMode, camMode, lit, bloom);
+            BatchKey key = new BatchKey(texture, texture, blendMode, camMode, lit, bloom);
             BatchBucket bucket = buckets.get(key);
             if (bucket == null) {
                 bucket = new BatchBucket();
@@ -137,7 +137,7 @@ final class ParticleBatcher {
             totalParticles++;
 
             if (hasEmissive) {
-                BatchKey emissiveKey = new BatchKey(emissiveTexture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false);
+                BatchKey emissiveKey = new BatchKey(emissiveTexture, texture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false);
                 BatchBucket emissiveBucket = emissiveBuckets.get(emissiveKey);
                 if (emissiveBucket == null) {
                     emissiveBucket = new BatchBucket();
@@ -297,13 +297,20 @@ final class ParticleBatcher {
 
     static final class BatchKey {
         final ResourceLocation texture;
+        final ResourceLocation baseTexture;
         final BedrockParticleSystem.BlendMode blendMode;
         final int cameraMode;
         final boolean lit;
         final boolean bloom;
 
-        BatchKey(ResourceLocation texture, BedrockParticleSystem.BlendMode blendMode, int cameraMode, boolean lit, boolean bloom) {
+        BatchKey(ResourceLocation texture,
+                 ResourceLocation baseTexture,
+                 BedrockParticleSystem.BlendMode blendMode,
+                 int cameraMode,
+                 boolean lit,
+                 boolean bloom) {
             this.texture = texture;
+            this.baseTexture = baseTexture;
             this.blendMode = blendMode;
             this.cameraMode = cameraMode;
             this.lit = lit;
@@ -323,12 +330,14 @@ final class ParticleBatcher {
                 && lit == other.lit
                 && bloom == other.bloom
                 && blendMode == other.blendMode
-                && texture.equals(other.texture);
+                && texture.equals(other.texture)
+                && baseTexture.equals(other.baseTexture);
         }
 
         @Override
         public int hashCode() {
             int result = texture.hashCode();
+            result = 31 * result + baseTexture.hashCode();
             result = 31 * result + blendMode.hashCode();
             result = 31 * result + cameraMode;
             result = 31 * result + (lit ? 1 : 0);

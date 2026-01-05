@@ -25,6 +25,7 @@ final class ParticleShader {
     private int uFogEnabled = -1;
     private int uEmissivePass = -1;
     private int uTexture = -1;
+    private int uBaseTexture = -1;
     private int uLightmap = -1;
     private int uInstanceOffset = -1;
 
@@ -63,12 +64,16 @@ final class ParticleShader {
         uFogEnabled = GL20.glGetUniformLocation(programId, "u_fogEnabled");
         uEmissivePass = GL20.glGetUniformLocation(programId, "u_emissivePass");
         uTexture = GL20.glGetUniformLocation(programId, "u_texture");
+        uBaseTexture = GL20.glGetUniformLocation(programId, "u_baseTexture");
         uLightmap = GL20.glGetUniformLocation(programId, "u_lightmap");
         uInstanceOffset = GL20.glGetUniformLocation(programId, "u_instanceOffset");
 
         GL20.glUseProgram(programId);
         if (uTexture != -1) {
             GL20.glUniform1i(uTexture, 0);
+        }
+        if (uBaseTexture != -1) {
+            GL20.glUniform1i(uBaseTexture, 2);
         }
         if (uLightmap != -1) {
             GL20.glUniform1i(uLightmap, 1);
@@ -399,6 +404,7 @@ final class ParticleShader {
         sb.append("in float v_fogDist;\n");
         sb.append("\n");
         sb.append("uniform sampler2D u_texture;\n");
+        sb.append("uniform sampler2D u_baseTexture;\n");
         if (lit) {
             sb.append("uniform sampler2D u_lightmap;\n");
         }
@@ -411,10 +417,16 @@ final class ParticleShader {
         sb.append("out vec4 fragColor;\n\n");
         sb.append("void main() {\n");
         sb.append("    vec4 tex = texture(u_texture, v_uv);\n");
-        sb.append("    vec4 color = tex * v_color;\n");
+        sb.append("    float alpha = tex.a;\n");
         sb.append("    if (u_emissivePass != 0) {\n");
-        sb.append("        color *= v_emissive;\n");
+        sb.append("        float baseAlpha = texture(u_baseTexture, v_uv).a;\n");
+        sb.append("        alpha = min(alpha, baseAlpha);\n");
+        sb.append("        if (alpha <= 0.05) discard;\n");
+        sb.append("        vec3 rgb = tex.rgb * v_emissive;\n");
+        sb.append("        fragColor = vec4(rgb, alpha);\n");
+        sb.append("        return;\n");
         sb.append("    }\n");
+        sb.append("    vec4 color = tex * v_color;\n");
         if (lit) {
             sb.append("    vec4 light = texture(u_lightmap, v_lightUV);\n");
             sb.append("    color.rgb *= light.rgb;\n");

@@ -157,6 +157,7 @@ public final class ParticleGpuRenderer {
         ParticleShader currentShader = null;
         BedrockParticleSystem.BlendMode currentBlend = null;
         ResourceLocation currentTexture = null;
+        ResourceLocation currentBaseTexture = null;
 
         for (ParticleBatcher.Batch batch : batches) {
             ParticleBatcher.BatchKey key = batch.key;
@@ -197,7 +198,14 @@ public final class ParticleGpuRenderer {
                 currentTexture = key.texture;
             }
 
-            if (!bloomPass && !emissivePass && key.lit && lightmapAvailable) {
+            if (emissivePass) {
+                if (currentBaseTexture == null || !key.baseTexture.equals(currentBaseTexture)) {
+                    OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit + 2);
+                    mc.getTextureManager().bindTexture(key.baseTexture);
+                    OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
+                    currentBaseTexture = key.baseTexture;
+                }
+            } else if (!bloomPass && key.lit && lightmapAvailable) {
                 OpenGlHelper.setActiveTexture(OpenGlHelper.lightmapTexUnit);
                 GlStateManager.bindTexture(lightmapId);
                 OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);

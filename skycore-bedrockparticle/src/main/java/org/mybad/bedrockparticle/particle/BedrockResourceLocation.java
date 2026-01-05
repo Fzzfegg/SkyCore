@@ -17,7 +17,7 @@ public final class BedrockResourceLocation {
             this.namespace = emptyToDefault(trimmed.substring(0, idx));
             this.path = normalizePath(trimmed.substring(idx + 1));
         } else {
-            this.namespace = "minecraft";
+            this.namespace = "skycore";
             this.path = normalizePath(trimmed);
         }
         if (this.path.isEmpty()) {
@@ -58,7 +58,7 @@ public final class BedrockResourceLocation {
 
     private static String emptyToDefault(String namespace) {
         String ns = namespace == null ? "" : namespace.trim();
-        return ns.isEmpty() ? "minecraft" : ns;
+        return ns.isEmpty() ? "skycore" : ns;
     }
 
     private static String normalizePath(String path) {

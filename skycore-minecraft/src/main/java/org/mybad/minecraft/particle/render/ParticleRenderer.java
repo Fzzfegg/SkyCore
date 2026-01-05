@@ -206,10 +206,12 @@ public final class ParticleRenderer {
                                     int prevLightX, int prevLightY) {
         mc.getTextureManager().bindTexture(emissiveTexture);
         GlStateManager.enableTexture2D();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, emissiveStrength);
+        GlStateManager.color(emissiveStrength, emissiveStrength, emissiveStrength, 1.0f);
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
         GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
+        GL11.glAlphaFunc(GL11.GL_GREATER, 0.05f);
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         GlStateManager.depthMask(false);
         GlStateManager.depthFunc(GL11.GL_LEQUAL);
@@ -228,6 +230,7 @@ public final class ParticleRenderer {
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
         GlStateManager.depthMask(true);
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableAlpha();
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
