@@ -62,7 +62,34 @@ public final class ParticleData {
             description.getMaterial(),
             description.isBloom(),
             description.getEmissiveTexture(),
-            description.getEmissiveStrength());
+            description.getEmissiveStrength(),
+            description.getBlendTexture(),
+            description.getBlendMode(),
+            description.getBlendColor());
+    }
+
+    public void setEmissiveTexture(@Nullable BedrockResourceLocation resourceLocation) {
+        this.description = new Description(description.getIdentifier(),
+            description.getTexture(),
+            description.getMaterial(),
+            description.isBloom(),
+            resourceLocation,
+            description.getEmissiveStrength(),
+            description.getBlendTexture(),
+            description.getBlendMode(),
+            description.getBlendColor());
+    }
+
+    public void setBlendTexture(@Nullable BedrockResourceLocation resourceLocation) {
+        this.description = new Description(description.getIdentifier(),
+            description.getTexture(),
+            description.getMaterial(),
+            description.isBloom(),
+            description.getEmissiveTexture(),
+            description.getEmissiveStrength(),
+            resourceLocation,
+            description.getBlendMode(),
+            description.getBlendColor());
     }
 
     public Description description() {
@@ -84,7 +111,7 @@ public final class ParticleData {
 
 
     private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
-    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false, null, 0f), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false, null, 0f, null, "alpha", null), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
 
     /**
      * The different types of curves for calculating particle variables.
@@ -109,19 +136,28 @@ public final class ParticleData {
         private final boolean bloom;
         private final BedrockResourceLocation emissiveTexture;
         private final float emissiveStrength;
+        private final BedrockResourceLocation blendTexture;
+        private final String blendMode;
+        private final float[] blendColor;
 
         public Description(String identifier,
                            BedrockResourceLocation texture,
                            @Nullable String material,
                            boolean bloom,
                            @Nullable BedrockResourceLocation emissiveTexture,
-                           float emissiveStrength) {
+                           float emissiveStrength,
+                           @Nullable BedrockResourceLocation blendTexture,
+                           @Nullable String blendMode,
+                           @Nullable float[] blendColor) {
             this.identifier = identifier;
             this.texture = texture;
             this.material = material;
             this.bloom = bloom;
             this.emissiveTexture = emissiveTexture;
             this.emissiveStrength = emissiveStrength;
+            this.blendTexture = blendTexture;
+            this.blendMode = blendMode != null ? blendMode : "alpha";
+            this.blendColor = blendColor;
         }
 
         public String getIdentifier() {
@@ -148,6 +184,20 @@ public final class ParticleData {
 
         public float getEmissiveStrength() {
             return emissiveStrength;
+        }
+
+        @Nullable
+        public BedrockResourceLocation getBlendTexture() {
+            return blendTexture;
+        }
+
+        public String getBlendMode() {
+            return blendMode;
+        }
+
+        @Nullable
+        public float[] getBlendColor() {
+            return blendColor;
         }
 
         public static class Deserializer implements JsonDeserializer<Description> {
@@ -189,7 +239,48 @@ public final class ParticleData {
                 }
                 float emissiveStrength = ParticleGsonHelper.getAsFloat(basicRenderParams, "emissive_strength", 1.0f);
 
-                return new Description(identifier, texture, material, bloom, emissiveTexture, emissiveStrength);
+                BedrockResourceLocation blendTexture = null;
+                if (basicRenderParams.has("blendTexture")) {
+                    String blendText = ParticleGsonHelper.getAsString(basicRenderParams, "blendTexture");
+                    if (!blendText.endsWith(".png")) {
+                        blendText += ".png";
+                    }
+                    blendTexture = BedrockResourceLocation.tryParse(blendText);
+                } else if (basicRenderParams.has("blend_texture")) {
+                    String blendText = ParticleGsonHelper.getAsString(basicRenderParams, "blend_texture");
+                    if (!blendText.endsWith(".png")) {
+                        blendText += ".png";
+                    }
+                    blendTexture = BedrockResourceLocation.tryParse(blendText);
+                }
+                String blendMode = ParticleGsonHelper.getAsString(basicRenderParams, "blendMode", null);
+                if (blendMode == null || blendMode.isEmpty()) {
+                    blendMode = ParticleGsonHelper.getAsString(basicRenderParams, "blend_mode", "alpha");
+                }
+                float[] blendColor = null;
+                if (basicRenderParams.has("blendColor")) {
+                    blendColor = readColorArray(basicRenderParams.getAsJsonArray("blendColor"));
+                } else if (basicRenderParams.has("blend_color")) {
+                    blendColor = readColorArray(basicRenderParams.getAsJsonArray("blend_color"));
+                }
+
+                return new Description(identifier, texture, material, bloom, emissiveTexture, emissiveStrength, blendTexture, blendMode, blendColor);
+            }
+
+            private float[] readColorArray(JsonArray array) {
+                if (array == null || array.size() < 4) {
+                    return null;
+                }
+                float[] color = new float[4];
+                try {
+                    color[0] = array.get(0).getAsFloat();
+                    color[1] = array.get(1).getAsFloat();
+                    color[2] = array.get(2).getAsFloat();
+                    color[3] = array.get(3).getAsFloat();
+                } catch (Exception ex) {
+                    return null;
+                }
+                return color;
             }
         }
     }

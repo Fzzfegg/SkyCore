@@ -7,8 +7,12 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 import org.mybad.minecraft.render.ModelBlendMode;
+import org.lwjgl.BufferUtils;
+
+import java.nio.FloatBuffer;
 
 final class ModelRenderPipeline {
     void render(Entity entity,
@@ -154,7 +158,7 @@ final class ModelRenderPipeline {
                                  ResourceLocation baseTexture) {
         Minecraft.getMinecraft().getTextureManager().bindTexture(blendTexture);
         GlStateManager.enableTexture2D();
-        GlStateManager.color(blendR, blendG, blendB, blendA);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
         GlStateManager.enableBlend();
@@ -166,6 +170,7 @@ final class ModelRenderPipeline {
         int fullBright = 240;
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
 
+        applyMaskTextureEnv(blendR, blendG, blendB, blendA);
         applyBlendMode(blendMode);
         skinningPipeline.draw();
 
@@ -173,6 +178,7 @@ final class ModelRenderPipeline {
         GlStateManager.depthMask(true);
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        resetMaskTextureEnv();
         GlStateManager.disableAlpha();
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
@@ -185,6 +191,27 @@ final class ModelRenderPipeline {
         } else {
             GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         }
+    }
+
+    private static final FloatBuffer MASK_COLOR = BufferUtils.createFloatBuffer(4);
+
+    private void applyMaskTextureEnv(float r, float g, float b, float a) {
+        MASK_COLOR.clear();
+        MASK_COLOR.put(r).put(g).put(b).put(a).flip();
+        GL11.glTexEnv(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_COLOR, MASK_COLOR);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL13.GL_COMBINE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_REPLACE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL13.GL_CONSTANT);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_RGB, GL11.GL_SRC_COLOR);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_MODULATE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL11.GL_TEXTURE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_ALPHA, GL11.GL_SRC_ALPHA);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE1_ALPHA, GL13.GL_CONSTANT);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND1_ALPHA, GL11.GL_SRC_ALPHA);
+    }
+
+    private void resetMaskTextureEnv() {
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
     }
 
     // bloom pass moved to BloomRenderer

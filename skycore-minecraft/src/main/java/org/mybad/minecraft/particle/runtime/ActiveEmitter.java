@@ -28,6 +28,7 @@ import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
@@ -54,6 +55,12 @@ public class ActiveEmitter implements ParticleContext {
     private final ResourceLocation texture;
     private final ResourceLocation emissiveTexture;
     private final float emissiveStrength;
+    private final ResourceLocation blendTexture;
+    private final BedrockParticleSystem.BlendMode blendMode;
+    private final float blendR;
+    private final float blendG;
+    private final float blendB;
+    private final float blendA;
     private final int overrideCount;
     private final EmitterTransformProvider transformProvider;
     private final EmitterTransform currentTransform;
@@ -154,6 +161,20 @@ public class ActiveEmitter implements ParticleContext {
             this.texture = system.toMinecraft(data);
             this.emissiveTexture = resolveEmissiveTexture(system, data);
             this.emissiveStrength = resolveEmissiveStrength(data);
+            this.blendTexture = resolveBlendTexture(system, data);
+            this.blendMode = resolveBlendMode(data);
+            float[] blendColor = resolveBlendColor(data);
+            if (blendColor != null && blendColor.length >= 4) {
+                this.blendR = clamp01(blendColor[0]);
+                this.blendG = clamp01(blendColor[1]);
+                this.blendB = clamp01(blendColor[2]);
+                this.blendA = clamp01(blendColor[3]);
+            } else {
+                this.blendR = 1.0f;
+                this.blendG = 1.0f;
+                this.blendB = 1.0f;
+                this.blendA = 0.0f;
+            }
             this.age = 0.0f;
             this.lifetime = Float.MAX_VALUE;
             this.instantEmitted = false;
@@ -685,6 +706,12 @@ public class ActiveEmitter implements ParticleContext {
                 texture,
                 emissiveTexture,
                 emissiveStrength,
+                blendTexture,
+                blendMode,
+                blendR,
+                blendG,
+                blendB,
+                blendA,
                 particleLifetimeComponent
             );
         }
@@ -780,5 +807,47 @@ public class ActiveEmitter implements ParticleContext {
                 return 0.0f;
             }
             return strength;
+        }
+
+        private static ResourceLocation resolveBlendTexture(BedrockParticleSystem system, ParticleData data) {
+            if (data == null || data.description() == null) {
+                return null;
+            }
+            return system.toMinecraft(data.description().getBlendTexture());
+        }
+
+        private static BedrockParticleSystem.BlendMode resolveBlendMode(ParticleData data) {
+            if (data == null || data.description() == null) {
+                return BedrockParticleSystem.BlendMode.ALPHA;
+            }
+            String mode = data.description().getBlendMode();
+            if (mode == null || mode.isEmpty()) {
+                return BedrockParticleSystem.BlendMode.ALPHA;
+            }
+            String lower = mode.toLowerCase(java.util.Locale.ROOT);
+            if (lower.contains("add")) {
+                return BedrockParticleSystem.BlendMode.ADD;
+            }
+            return BedrockParticleSystem.BlendMode.ALPHA;
+        }
+
+        private static float[] resolveBlendColor(ParticleData data) {
+            if (data == null || data.description() == null) {
+                return null;
+            }
+            return data.description().getBlendColor();
+        }
+
+        private static float clamp01(float value) {
+            if (Float.isNaN(value)) {
+                return 0.0f;
+            }
+            if (value < 0.0f) {
+                return 0.0f;
+            }
+            if (value > 1.0f) {
+                return 1.0f;
+            }
+            return value;
         }
     }

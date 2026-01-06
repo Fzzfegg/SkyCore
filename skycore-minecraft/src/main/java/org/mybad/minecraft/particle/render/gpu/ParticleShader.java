@@ -24,6 +24,7 @@ final class ParticleShader {
     private int uFogEnd = -1;
     private int uFogEnabled = -1;
     private int uEmissivePass = -1;
+    private int uOverlayPass = -1;
     private int uTexture = -1;
     private int uBaseTexture = -1;
     private int uLightmap = -1;
@@ -63,6 +64,7 @@ final class ParticleShader {
         uFogEnd = GL20.glGetUniformLocation(programId, "u_fogEnd");
         uFogEnabled = GL20.glGetUniformLocation(programId, "u_fogEnabled");
         uEmissivePass = GL20.glGetUniformLocation(programId, "u_emissivePass");
+        uOverlayPass = GL20.glGetUniformLocation(programId, "u_overlayPass");
         uTexture = GL20.glGetUniformLocation(programId, "u_texture");
         uBaseTexture = GL20.glGetUniformLocation(programId, "u_baseTexture");
         uLightmap = GL20.glGetUniformLocation(programId, "u_lightmap");
@@ -83,6 +85,9 @@ final class ParticleShader {
         }
         if (uEmissivePass != -1) {
             GL20.glUniform1i(uEmissivePass, 0);
+        }
+        if (uOverlayPass != -1) {
+            GL20.glUniform1i(uOverlayPass, 0);
         }
         GL20.glUseProgram(0);
     }
@@ -147,6 +152,12 @@ final class ParticleShader {
     void setEmissivePass(boolean emissivePass) {
         if (uEmissivePass != -1) {
             GL20.glUniform1i(uEmissivePass, emissivePass ? 1 : 0);
+        }
+    }
+
+    void setOverlayPass(boolean overlayPass) {
+        if (uOverlayPass != -1) {
+            GL20.glUniform1i(uOverlayPass, overlayPass ? 1 : 0);
         }
     }
 
@@ -413,11 +424,18 @@ final class ParticleShader {
         sb.append("uniform float u_fogEnd;\n");
         sb.append("uniform int u_fogEnabled;\n");
         sb.append("uniform int u_emissivePass;\n");
+        sb.append("uniform int u_overlayPass;\n");
         sb.append("\n");
         sb.append("out vec4 fragColor;\n\n");
         sb.append("void main() {\n");
         sb.append("    vec4 tex = texture(u_texture, v_uv);\n");
         sb.append("    float alpha = tex.a;\n");
+        sb.append("    if (u_overlayPass != 0) {\n");
+        sb.append("        alpha = tex.a * v_color.a;\n");
+        sb.append("        if (alpha <= 0.01) discard;\n");
+        sb.append("        fragColor = vec4(v_color.rgb, alpha);\n");
+        sb.append("        return;\n");
+        sb.append("    }\n");
         sb.append("    if (u_emissivePass != 0) {\n");
         sb.append("        float baseAlpha = texture(u_baseTexture, v_uv).a;\n");
         sb.append("        alpha = min(alpha, baseAlpha);\n");

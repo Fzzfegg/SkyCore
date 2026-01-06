@@ -60,15 +60,31 @@ final class ParticleResourceCache {
             return;
         }
         String textureText = extractTexturePath(root.getAsJsonObject());
-        if (textureText == null || textureText.contains(":")) {
+        if (textureText == null) {
             return;
-        }
-        if (!textureText.endsWith(".png")) {
-            textureText += ".png";
         }
         ResourceLocation fileLoc = resolver.resolveResourceLocation(particlePath);
         String namespace = fileLoc.getNamespace();
-        data.setTexture(new BedrockResourceLocation(namespace, textureText));
+        if (!textureText.contains(":")) {
+            if (!textureText.endsWith(".png")) {
+                textureText += ".png";
+            }
+            data.setTexture(new BedrockResourceLocation(namespace, textureText));
+        }
+        String emissiveText = extractEmissivePath(root.getAsJsonObject());
+        if (emissiveText != null && !emissiveText.contains(":")) {
+            if (!emissiveText.endsWith(".png")) {
+                emissiveText += ".png";
+            }
+            data.setEmissiveTexture(new BedrockResourceLocation(namespace, emissiveText));
+        }
+        String blendText = extractBlendPath(root.getAsJsonObject());
+        if (blendText != null && !blendText.contains(":")) {
+            if (!blendText.endsWith(".png")) {
+                blendText += ".png";
+            }
+            data.setBlendTexture(new BedrockResourceLocation(namespace, blendText));
+        }
     }
 
     private String extractTexturePath(JsonObject root) {
@@ -92,5 +108,65 @@ final class ParticleResourceCache {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private String extractEmissivePath(JsonObject root) {
+        if (!root.has("particle_effect")) {
+            return null;
+        }
+        JsonObject effect = root.getAsJsonObject("particle_effect");
+        if (!effect.has("description")) {
+            return null;
+        }
+        JsonObject desc = effect.getAsJsonObject("description");
+        if (!desc.has("basic_render_parameters")) {
+            return null;
+        }
+        JsonObject params = desc.getAsJsonObject("basic_render_parameters");
+        if (params.has("emissive_texture")) {
+            try {
+                return params.get("emissive_texture").getAsString();
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        if (params.has("emissive")) {
+            try {
+                return params.get("emissive").getAsString();
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String extractBlendPath(JsonObject root) {
+        if (!root.has("particle_effect")) {
+            return null;
+        }
+        JsonObject effect = root.getAsJsonObject("particle_effect");
+        if (!effect.has("description")) {
+            return null;
+        }
+        JsonObject desc = effect.getAsJsonObject("description");
+        if (!desc.has("basic_render_parameters")) {
+            return null;
+        }
+        JsonObject params = desc.getAsJsonObject("basic_render_parameters");
+        if (params.has("blendTexture")) {
+            try {
+                return params.get("blendTexture").getAsString();
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        if (params.has("blend_texture")) {
+            try {
+                return params.get("blend_texture").getAsString();
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        return null;
     }
 }

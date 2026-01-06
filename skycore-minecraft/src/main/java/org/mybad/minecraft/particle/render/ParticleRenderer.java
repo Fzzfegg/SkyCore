@@ -17,6 +17,10 @@ import org.mybad.minecraft.particle.runtime.ActiveEmitter;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.BufferUtils;
+
+import java.nio.FloatBuffer;
 
 public final class ParticleRenderer {
     private final ParticleAppearanceBillboardComponent billboard;
@@ -26,6 +30,12 @@ public final class ParticleRenderer {
     private final ResourceLocation emissiveTexture;
     private final float emissiveStrength;
     private final BedrockParticleSystem.BlendMode blendMode;
+    private final ResourceLocation blendTexture;
+    private final BedrockParticleSystem.BlendMode blendModeOverlay;
+    private final float blendR;
+    private final float blendG;
+    private final float blendB;
+    private final float blendA;
     private final QuadRenderProperties renderProps;
     private final float[] tempDir;
     private final float[] tempAxisX;
@@ -44,7 +54,13 @@ public final class ParticleRenderer {
                      ResourceLocation texture,
                      ResourceLocation emissiveTexture,
                      float emissiveStrength,
-                     BedrockParticleSystem.BlendMode blendMode) {
+                     BedrockParticleSystem.BlendMode blendMode,
+                     ResourceLocation blendTexture,
+                     BedrockParticleSystem.BlendMode blendModeOverlay,
+                     float blendR,
+                     float blendG,
+                     float blendB,
+                     float blendA) {
         this.billboard = billboard;
         this.tint = tint;
         this.lighting = lighting;
@@ -52,6 +68,12 @@ public final class ParticleRenderer {
         this.emissiveTexture = emissiveTexture;
         this.emissiveStrength = emissiveStrength;
         this.blendMode = blendMode;
+        this.blendTexture = blendTexture;
+        this.blendModeOverlay = blendModeOverlay != null ? blendModeOverlay : BedrockParticleSystem.BlendMode.ALPHA;
+        this.blendR = blendR;
+        this.blendG = blendG;
+        this.blendB = blendB;
+        this.blendA = blendA;
         this.renderProps = new QuadRenderProperties();
         this.tempDir = new float[3];
         this.tempAxisX = new float[3];
@@ -197,6 +219,9 @@ public final class ParticleRenderer {
         } else {
             OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
         }
+        if (blendTexture != null && blendA > 0.0f) {
+            renderBlendPass(mc, halfW, halfH, u0, v0, u1, v1, prevLightX, prevLightY);
+        }
 
         GlStateManager.popMatrix();
         resetBlendMode();
@@ -237,6 +262,46 @@ public final class ParticleRenderer {
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        mc.getTextureManager().bindTexture(texture);
+    }
+
+    private void renderBlendPass(Minecraft mc,
+                                 float halfW, float halfH,
+                                 float u0, float v0, float u1, float v1,
+                                 int prevLightX, int prevLightY) {
+        mc.getTextureManager().bindTexture(blendTexture);
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
+        GL11.glAlphaFunc(GL11.GL_GREATER, 0.01f);
+        GlStateManager.depthMask(false);
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+
+        int fullBright = 240;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
+
+        applyMaskTextureEnv(blendR, blendG, blendB, blendA);
+        applyOverlayBlendMode(blendModeOverlay);
+
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+        buffer.pos(-halfW, -halfH, 0.0).tex(u0, v1).color(255, 255, 255, 255).endVertex();
+        buffer.pos(halfW, -halfH, 0.0).tex(u1, v1).color(255, 255, 255, 255).endVertex();
+        buffer.pos(halfW, halfH, 0.0).tex(u1, v0).color(255, 255, 255, 255).endVertex();
+        buffer.pos(-halfW, halfH, 0.0).tex(u0, v0).color(255, 255, 255, 255).endVertex();
+        Tessellator.getInstance().draw();
+
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) prevLightX, (float) prevLightY);
+        GlStateManager.depthMask(true);
+        GlStateManager.disableAlpha();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        resetMaskTextureEnv();
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
         mc.getTextureManager().bindTexture(texture);
     }
 
@@ -514,8 +579,37 @@ public final class ParticleRenderer {
         }
     }
 
+    private void applyOverlayBlendMode(BedrockParticleSystem.BlendMode mode) {
+        if (mode == BedrockParticleSystem.BlendMode.ADD) {
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        } else {
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        }
+    }
+
     private void resetBlendMode() {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+    }
+
+    private static final FloatBuffer MASK_COLOR = BufferUtils.createFloatBuffer(4);
+
+    private void applyMaskTextureEnv(float r, float g, float b, float a) {
+        MASK_COLOR.clear();
+        MASK_COLOR.put(r).put(g).put(b).put(a).flip();
+        GL11.glTexEnv(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_COLOR, MASK_COLOR);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL13.GL_COMBINE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_REPLACE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL13.GL_CONSTANT);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_RGB, GL11.GL_SRC_COLOR);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_MODULATE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL11.GL_TEXTURE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_ALPHA, GL11.GL_SRC_ALPHA);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE1_ALPHA, GL13.GL_CONSTANT);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND1_ALPHA, GL11.GL_SRC_ALPHA);
+    }
+
+    private void resetMaskTextureEnv() {
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
     }
 }

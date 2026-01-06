@@ -96,12 +96,28 @@ public final class ParticleGpuRenderer {
         ssboBuffer.bind();
         quadMesh.bind();
 
-        drawBatches(result.batches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, false);
+        drawBatches(result.batches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, false, false);
 
         quadMesh.unbind();
         ssboBuffer.unbind();
 
         restoreRenderState();
+
+        if (result.blendCount > 0 && !result.blendBatches.isEmpty()) {
+            int blendBytes = result.blendParticleBuffer.remaining() * Float.BYTES;
+            if (blendBytes > 0) {
+                ssboBuffer.uploadParticles(result.blendParticleBuffer, blendBytes);
+            }
+
+            setupRenderState();
+            OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
+            ssboBuffer.bind();
+            quadMesh.bind();
+            drawBatches(result.blendBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, false, true);
+            quadMesh.unbind();
+            ssboBuffer.unbind();
+            restoreRenderState();
+        }
 
         SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
         if (renderConfig.bloomStrength > 0f) {
@@ -115,7 +131,7 @@ public final class ParticleGpuRenderer {
                     () -> {
                         ssboBuffer.bind();
                         quadMesh.bind();
-                        drawBatches(bloomBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true, false);
+                        drawBatches(bloomBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true, false, false);
                         quadMesh.unbind();
                         ssboBuffer.unbind();
                     }
@@ -133,7 +149,7 @@ public final class ParticleGpuRenderer {
             OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
             ssboBuffer.bind();
             quadMesh.bind();
-            drawBatches(result.emissiveBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, true);
+            drawBatches(result.emissiveBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, true, false);
             quadMesh.unbind();
             ssboBuffer.unbind();
             restoreRenderState();
@@ -153,7 +169,8 @@ public final class ParticleGpuRenderer {
                              int lightmapId,
                              boolean lightmapAvailable,
                              boolean bloomPass,
-                             boolean emissivePass) {
+                             boolean emissivePass,
+                             boolean overlayPass) {
         ParticleShader currentShader = null;
         BedrockParticleSystem.BlendMode currentBlend = null;
         ResourceLocation currentTexture = null;
@@ -161,7 +178,7 @@ public final class ParticleGpuRenderer {
 
         for (ParticleBatcher.Batch batch : batches) {
             ParticleBatcher.BatchKey key = batch.key;
-            ParticleShader shader = ((bloomPass || emissivePass) ? shaderUnlit : ((key.lit && lightmapAvailable) ? shaderLit : shaderUnlit));
+            ParticleShader shader = ((bloomPass || emissivePass || overlayPass) ? shaderUnlit : ((key.lit && lightmapAvailable) ? shaderLit : shaderUnlit));
             if (shader != currentShader) {
                 if (currentShader != null) {
                     currentShader.stop();
@@ -170,12 +187,13 @@ public final class ParticleGpuRenderer {
                 shader.setViewProj(viewProj);
                 shader.setCamera((float) camX, (float) camY, (float) camZ, rightX, rightY, rightZ, upX, upY, upZ);
                 shader.setCameraOffset(cameraOffset[0], cameraOffset[1], cameraOffset[2]);
-                if (bloomPass || emissivePass) {
+                if (bloomPass || emissivePass || overlayPass) {
                     shader.setFog(0f, 0f, 0f, 0f, 0f, false);
                 } else {
                     shader.setFog(fog.r, fog.g, fog.b, fog.start, fog.end, fog.enabled);
                 }
                 shader.setEmissivePass(emissivePass);
+                shader.setOverlayPass(overlayPass);
                 currentShader = shader;
             }
 
