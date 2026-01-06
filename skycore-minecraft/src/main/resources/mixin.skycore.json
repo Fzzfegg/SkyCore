@@ -7,7 +7,7 @@
   "mixins": [],
   "client": [
     "sound.MixinSoundManager",
-    "render.MixinRenderManager"
+    "render.MixinRender"
   ],
   "server": []
 }
