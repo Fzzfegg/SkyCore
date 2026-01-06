@@ -15,12 +15,14 @@ import java.util.Set;
 
 public final class SoundExistenceCache {
     private static final Set<ResourceLocation> EXISTING = Collections.synchronizedSet(new HashSet<>());
+    private static final Set<ResourceLocation> WARNED = Collections.synchronizedSet(new HashSet<>());
     private static volatile boolean ready;
 
     private SoundExistenceCache() {}
 
     public static void rescan(Path gameDir) {
         EXISTING.clear();
+        WARNED.clear();
         ready = false;
         Path packRoot = ResourcePackRegistrar.getPackRoot(gameDir != null ? gameDir.toFile() : null);
         if (packRoot == null || !Files.isDirectory(packRoot)) {
@@ -66,5 +68,25 @@ public final class SoundExistenceCache {
             return false;
         }
         return EXISTING.contains(id);
+    }
+
+    public static boolean isReady() {
+        return ready;
+    }
+
+    public static boolean exists(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        return EXISTING.contains(id);
+    }
+
+    public static void warnMissing(ResourceLocation id) {
+        if (id == null) {
+            return;
+        }
+        if (WARNED.add(id)) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 缺少音频文件: {}", id);
+        }
     }
 }

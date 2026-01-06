@@ -12,17 +12,16 @@ import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import paulscode.sound.SoundSystem;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.nio.file.Path;
 import java.util.UUID;
 
 public final class DirectSoundPlayer {
     private static final String[] SOUND_MANAGER_FIELDS = {"sndManager", "field_147694_f"};
     private static final String[] SOUND_SYSTEM_FIELDS = {"sndSystem", "field_148620_e"};
-
     private DirectSoundPlayer() {}
 
     public static void play(ResourceLocation soundId,
@@ -47,12 +46,16 @@ public final class DirectSoundPlayer {
         if (soundId == null) {
             return;
         }
-        if (!SoundExistenceCache.canPlay(soundId)) {
+        if (!SoundExistenceCache.isReady()) {
+            return;
+        }
+        if (!SoundExistenceCache.exists(soundId)) {
+            SoundExistenceCache.warnMissing(soundId);
             return;
         }
 
         ResourceLocation fileLoc = toSoundFileLocation(soundId);
-        URL url = getURLForSoundResource(fileLoc);
+        URL url = getURLForFilePath(fileLoc);
         if (url == null) {
             return;
         }
@@ -76,6 +79,7 @@ public final class DirectSoundPlayer {
         system.setVolume(channel, clampedVolume);
         system.play(channel);
     }
+
 
     private static SoundManager getSoundManager(SoundHandler handler) {
         try {
@@ -115,29 +119,26 @@ public final class DirectSoundPlayer {
         return new ResourceLocation(soundId.getNamespace(), path);
     }
 
-    private static URL getURLForSoundResource(final ResourceLocation location) {
-        String spec = String.format("%s:%s:%s", "mcsounddomain", location.getNamespace(), location.getPath());
-        URLStreamHandler handler = new URLStreamHandler() {
-            @Override
-            protected URLConnection openConnection(URL url) throws IOException {
-                return new URLConnection(url) {
-                    @Override
-                    public void connect() throws IOException {
-                    }
-
-                    @Override
-                    public InputStream getInputStream() throws IOException {
-                        return Minecraft.getMinecraft().getResourceManager().getResource(location).getInputStream();
-                    }
-                };
-            }
-        };
+    private static URL getURLForFilePath(ResourceLocation location) {
+        if (location == null) {
+            return null;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.gameDir == null) {
+            return null;
+        }
+        Path file = mc.gameDir.toPath()
+            .resolve("resourcepacks")
+            .resolve("SkyCore")
+            .resolve(location.getNamespace())
+            .resolve(location.getPath().replace('/', java.io.File.separatorChar));
+        if (!java.nio.file.Files.isRegularFile(file)) {
+            return null;
+        }
         try {
-            return new URL(null, spec, handler);
+            return file.toUri().toURL();
         } catch (MalformedURLException e) {
             return null;
         }
     }
-
-    // resource existence is handled by SoundExistenceCache
 }
