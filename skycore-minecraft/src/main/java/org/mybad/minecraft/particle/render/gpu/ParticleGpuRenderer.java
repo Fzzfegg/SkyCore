@@ -128,6 +128,9 @@ public final class ParticleGpuRenderer {
                     renderConfig.bloomRadius,
                     renderConfig.bloomDownsample,
                     renderConfig.bloomThreshold,
+                    renderConfig.bloomPasses,
+                    renderConfig.bloomSpread,
+                    renderConfig.bloomUseDepth,
                     () -> {
                         ssboBuffer.bind();
                         quadMesh.bind();

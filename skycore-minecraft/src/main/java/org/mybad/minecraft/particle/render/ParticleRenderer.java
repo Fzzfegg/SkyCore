@@ -611,5 +611,8 @@ public final class ParticleRenderer {
 
     private void resetMaskTextureEnv() {
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
+        MASK_COLOR.clear();
+        MASK_COLOR.put(1.0f).put(1.0f).put(1.0f).put(1.0f).flip();
+        GL11.glTexEnv(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_COLOR, MASK_COLOR);
     }
 }

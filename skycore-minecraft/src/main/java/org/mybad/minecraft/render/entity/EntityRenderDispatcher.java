@@ -8,7 +8,6 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
-
 @SideOnly(Side.CLIENT)
 public final class EntityRenderDispatcher {
     private final EntityWrapperCache wrapperCache;
@@ -83,6 +82,5 @@ public final class EntityRenderDispatcher {
     public void clearAllForcedAnimations() {
         forcedAnimations.clearAll();
     }
-
 
 }

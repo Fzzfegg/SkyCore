@@ -44,6 +44,9 @@ class BedrockModelWrapper {
     private int bloomRadius = 8;
     private int bloomDownsample = 2;
     private float bloomThreshold = 0.0f;
+    private int bloomPasses = 1;
+    private float bloomSpread = 1.0f;
+    private boolean bloomUseDepth = true;
     private boolean renderHurtTint = true;
     private ModelBlendMode blendMode = ModelBlendMode.ALPHA;
     private float blendR = 1.0f;
@@ -141,6 +144,9 @@ class BedrockModelWrapper {
             bloomRadius,
             bloomDownsample,
             bloomThreshold,
+            bloomPasses,
+            bloomSpread,
+            bloomUseDepth,
             renderHurtTint,
             hurtTintR,
             hurtTintG,
@@ -221,41 +227,31 @@ class BedrockModelWrapper {
     }
 
     void setBloomStrength(float strength) {
-        if (Float.isNaN(strength)) {
-            return;
-        }
-        if (strength < 0f) {
-            strength = 0f;
-        }
         this.bloomStrength = strength;
     }
 
     void setBloomRadius(int radius) {
-        if (radius <= 0) {
-            this.bloomRadius = 1;
-            return;
-        }
-        this.bloomRadius = Math.min(radius, 32);
+        this.bloomRadius = radius;
     }
 
     void setBloomDownsample(int downsample) {
-        if (downsample <= 0) {
-            this.bloomDownsample = 1;
-            return;
-        }
-        this.bloomDownsample = Math.min(downsample, 4);
+        this.bloomDownsample = downsample;
     }
 
     void setBloomThreshold(float threshold) {
-        if (Float.isNaN(threshold)) {
-            return;
-        }
-        if (threshold < 0f) {
-            threshold = 0f;
-        } else if (threshold > 1f) {
-            threshold = 1f;
-        }
         this.bloomThreshold = threshold;
+    }
+
+    void setBloomPasses(int passes) {
+        this.bloomPasses = passes;
+    }
+
+    void setBloomSpread(float spread) {
+        this.bloomSpread = spread;
+    }
+
+    void setBloomUseDepth(boolean useDepth) {
+        this.bloomUseDepth = useDepth;
     }
 
     void setRenderHurtTint(boolean renderHurtTint) {

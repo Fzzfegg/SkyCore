@@ -38,6 +38,9 @@ public class SkyCoreConfig {
         public int bloomRadius = 8;
         public int bloomDownsample = 2;
         public float bloomThreshold = 0.0f;
+        public int bloomPasses = 1;
+        public float bloomSpread = 1.0f;
+        public boolean bloomUseDepth = true;
     }
 
     private static final class ConfigFile {

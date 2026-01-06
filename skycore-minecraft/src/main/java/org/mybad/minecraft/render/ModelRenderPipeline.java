@@ -28,6 +28,9 @@ final class ModelRenderPipeline {
                 int bloomRadius,
                 int bloomDownsample,
                 float bloomThreshold,
+                int bloomPasses,
+                float bloomSpread,
+                boolean bloomUseDepth,
                 boolean renderHurtTint,
                 float hurtTintR,
                 float hurtTintG,
@@ -103,7 +106,7 @@ final class ModelRenderPipeline {
             renderBlendPass(blendTexture, blendMode, blendR, blendG, blendB, blendA, lightX, lightY, skinningPipeline, texture);
         }
         if (bloomTexture != null) {
-            BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, bloomRadius, bloomDownsample, bloomThreshold, lightX, lightY, skinningPipeline, texture);
+            BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, bloomRadius, bloomDownsample, bloomThreshold, bloomPasses, bloomSpread, bloomUseDepth, lightX, lightY, skinningPipeline, texture);
         }
 
         GlStateManager.popMatrix();
@@ -212,6 +215,9 @@ final class ModelRenderPipeline {
 
     private void resetMaskTextureEnv() {
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
+        MASK_COLOR.clear();
+        MASK_COLOR.put(1.0f).put(1.0f).put(1.0f).put(1.0f).flip();
+        GL11.glTexEnv(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_COLOR, MASK_COLOR);
     }
 
     // bloom pass moved to BloomRenderer

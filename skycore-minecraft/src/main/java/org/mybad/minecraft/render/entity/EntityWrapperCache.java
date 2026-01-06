@@ -54,6 +54,9 @@ final class EntityWrapperCache {
         wrapper.setBloomRadius(renderConfig.bloomRadius);
         wrapper.setBloomDownsample(renderConfig.bloomDownsample);
         wrapper.setBloomThreshold(renderConfig.bloomThreshold);
+        wrapper.setBloomPasses(renderConfig.bloomPasses);
+        wrapper.setBloomSpread(renderConfig.bloomSpread);
+        wrapper.setBloomUseDepth(renderConfig.bloomUseDepth);
         wrapper.setModelScale(mapping.getModelScale());
         wrapper.setRenderHurtTint(mapping.isRenderHurtTint());
         wrapper.setHurtTint(mapping.getHurtTint());

@@ -5,11 +5,11 @@ import net.minecraft.entity.player.EntityPlayer;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 
-final class EntityMappingResolver {
+public final class EntityMappingResolver {
     private EntityMappingResolver() {
     }
 
-    static MappingResult resolve(EntityLivingBase entity) {
+    public static MappingResult resolve(EntityLivingBase entity) {
         if (entity == null) {
             return null;
         }
@@ -43,9 +43,9 @@ final class EntityMappingResolver {
         return entity.getCustomNameTag();
     }
 
-    static final class MappingResult {
-        final String mappingName;
-        final EntityModelMapping mapping;
+    public static final class MappingResult {
+        public final String mappingName;
+        public final EntityModelMapping mapping;
 
         private MappingResult(String mappingName, EntityModelMapping mapping) {
             this.mappingName = mappingName;

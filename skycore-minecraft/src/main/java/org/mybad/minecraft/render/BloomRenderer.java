@@ -45,6 +45,7 @@ public final class BloomRenderer {
     private int uBlurSize;
     private int uBlurRadius;
     private int uBlurThreshold;
+    private int uBlurSpread;
     private int uBlitTex;
     private int uBlitSceneDepth;
     private int uBlitMaskDepth;
@@ -61,6 +62,9 @@ public final class BloomRenderer {
     private int frameRadius = 8;
     private float frameThreshold = 0.0f;
     private int downsample = 1;
+    private int framePasses = 1;
+    private float frameSpread = 1.0f;
+    private boolean frameUseDepth = true;
     private int depthTexScene;
     private int depthTexMask;
     private int depthFboScene;
@@ -93,7 +97,10 @@ public final class BloomRenderer {
         usedThisFrame = false;
         frameParamsLocked = false;
         frameRadius = 0;
-        frameThreshold = 1.0f;
+        frameThreshold = Float.POSITIVE_INFINITY;
+        framePasses = 1;
+        frameSpread = 1.0f;
+        frameUseDepth = true;
     }
 
     public void renderBloomMask(Entity entity,
@@ -103,6 +110,9 @@ public final class BloomRenderer {
                                 int bloomRadius,
                                 int bloomDownsample,
                                 float bloomThreshold,
+                                int bloomPasses,
+                                float bloomSpread,
+                                boolean bloomUseDepth,
                                 int lightX,
                                 int lightY,
                                 SkinningPipeline skinningPipeline,
@@ -112,23 +122,21 @@ public final class BloomRenderer {
         }
         beginFrame(entity, partialTicks);
         if (!frameParamsLocked) {
-            if (bloomDownsample > 0) {
-                int ds = Math.max(1, Math.min(bloomDownsample, 4));
-                if (ds != downsample) {
-                    downsample = ds;
-                    // force reallocate on first call with new downsample
-                    width = 0;
-                    height = 0;
-                }
+            if (bloomDownsample != downsample) {
+                downsample = bloomDownsample;
+                // force reallocate on first call with new downsample
+                width = 0;
+                height = 0;
             }
+            framePasses = bloomPasses;
+            frameSpread = bloomSpread;
+            frameUseDepth = bloomUseDepth;
             frameParamsLocked = true;
         }
-        if (bloomRadius > 0) {
-            frameRadius = Math.max(frameRadius, Math.min(bloomRadius, 32));
-        }
-        if (bloomThreshold >= 0f) {
-            frameThreshold = Math.min(frameThreshold, bloomThreshold);
-        }
+        frameRadius = Math.max(frameRadius, bloomRadius);
+        frameThreshold = Math.min(frameThreshold, bloomThreshold);
+        frameSpread = Math.max(frameSpread, bloomSpread);
+        frameUseDepth = frameUseDepth && bloomUseDepth;
         ensureBuffers();
         if (maskFbo == null) {
             return;
@@ -204,28 +212,29 @@ public final class BloomRenderer {
                                    int bloomRadius,
                                    int bloomDownsample,
                                    float bloomThreshold,
+                                   int bloomPasses,
+                                   float bloomSpread,
+                                   boolean bloomUseDepth,
                                    Runnable drawMask) {
         if (drawMask == null || bloomStrength <= 0f) {
             return;
         }
         beginFrame(entity, partialTicks);
         if (!frameParamsLocked) {
-            if (bloomDownsample > 0) {
-                int ds = Math.max(1, Math.min(bloomDownsample, 4));
-                if (ds != downsample) {
-                    downsample = ds;
-                    width = 0;
-                    height = 0;
-                }
+            if (bloomDownsample != downsample) {
+                downsample = bloomDownsample;
+                width = 0;
+                height = 0;
             }
+            framePasses = bloomPasses;
+            frameSpread = bloomSpread;
+            frameUseDepth = bloomUseDepth;
             frameParamsLocked = true;
         }
-        if (bloomRadius > 0) {
-            frameRadius = Math.max(frameRadius, Math.min(bloomRadius, 32));
-        }
-        if (bloomThreshold >= 0f) {
-            frameThreshold = Math.min(frameThreshold, bloomThreshold);
-        }
+        frameRadius = Math.max(frameRadius, bloomRadius);
+        frameThreshold = Math.min(frameThreshold, bloomThreshold);
+        frameSpread = Math.max(frameSpread, bloomSpread);
+        frameUseDepth = frameUseDepth && bloomUseDepth;
         ensureBuffers();
         if (maskFbo == null) {
             return;
@@ -277,22 +286,39 @@ public final class BloomRenderer {
         ensureDepthTargets();
         captureDepths();
 
-        int radius = frameRadius > 0 ? frameRadius : 8;
-        float threshold = frameThreshold < 1.0f ? frameThreshold : 0.0f;
+        int radius = frameRadius;
+        if (radius <= 0) {
+            return;
+        }
+        int passes = framePasses;
+        if (passes <= 0) {
+            return;
+        }
+        float threshold = (frameThreshold == Float.POSITIVE_INFINITY) ? 0.0f : frameThreshold;
+        float spread = frameSpread;
+        if (Float.isNaN(spread) || spread <= 0.0f) {
+            spread = 1.0f;
+        }
 
-        // Blur X
-        blurPing.bindFramebuffer(true);
-        GL11.glViewport(0, 0, width, height);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDisable(GL11.GL_BLEND);
-        useBlur(maskFbo.framebufferTexture, 1f, 0f, radius, threshold);
-        drawFullscreenQuad();
+        int sourceTex = maskFbo.framebufferTexture;
+        for (int i = 0; i < passes; i++) {
+            float passThreshold = (i == 0) ? threshold : 0.0f;
+            // Blur X
+            blurPing.bindFramebuffer(true);
+            GL11.glViewport(0, 0, width, height);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDisable(GL11.GL_BLEND);
+            useBlur(sourceTex, 1f, 0f, radius, passThreshold, spread);
+            drawFullscreenQuad();
 
-        // Blur Y
-        blurPong.bindFramebuffer(true);
-        GL11.glViewport(0, 0, width, height);
-        useBlur(blurPing.framebufferTexture, 0f, 1f, radius, threshold);
-        drawFullscreenQuad();
+            // Blur Y
+            blurPong.bindFramebuffer(true);
+            GL11.glViewport(0, 0, width, height);
+            useBlur(blurPing.framebufferTexture, 0f, 1f, radius, passThreshold, spread);
+            drawFullscreenQuad();
+
+            sourceTex = blurPong.framebufferTexture;
+        }
 
         // Composite
         Framebuffer main = Minecraft.getMinecraft().getFramebuffer();
@@ -305,7 +331,7 @@ public final class BloomRenderer {
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
-        useBlit(blurPong.framebufferTexture);
+        useBlit(sourceTex, frameUseDepth);
         drawFullscreenQuad();
         GL20.glUseProgram(0);
 
@@ -320,7 +346,10 @@ public final class BloomRenderer {
         if (mc == null) {
             return;
         }
-        int ds = Math.max(1, downsample);
+        if (downsample <= 0) {
+            return;
+        }
+        int ds = downsample;
         int w = Math.max(1, (mc.displayWidth + ds - 1) / ds);
         int h = Math.max(1, (mc.displayHeight + ds - 1) / ds);
         if (w <= 0 || h <= 0) {
@@ -391,15 +420,16 @@ public final class BloomRenderer {
         uBlurSize = GL20.glGetUniformLocation(blurProgram, "OutSize");
         uBlurRadius = GL20.glGetUniformLocation(blurProgram, "Radius");
         uBlurThreshold = GL20.glGetUniformLocation(blurProgram, "Threshold");
+        uBlurSpread = GL20.glGetUniformLocation(blurProgram, "Spread");
     }
 
-    private void useBlit(int textureId) {
+    private void useBlit(int textureId, boolean useDepth) {
         GL20.glUseProgram(blitProgram);
         GL20.glUniform1i(uBlitTex, 0);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
 
-        if (depthValid) {
+        if (useDepth && depthValid) {
             GL20.glUniform1i(uBlitUseDepth, 1);
             GL20.glUniform1f(uBlitDepthBias, 0.0005f);
             GL20.glUniform1i(uBlitSceneDepth, 1);
@@ -414,13 +444,14 @@ public final class BloomRenderer {
         }
     }
 
-    private void useBlur(int textureId, float dirX, float dirY, int radius, float threshold) {
+    private void useBlur(int textureId, float dirX, float dirY, int radius, float threshold, float spread) {
         GL20.glUseProgram(blurProgram);
         GL20.glUniform1i(uBlurTex, 0);
         GL20.glUniform2f(uBlurDir, dirX, dirY);
         GL20.glUniform2f(uBlurSize, (float) width, (float) height);
         GL20.glUniform1i(uBlurRadius, radius);
         GL20.glUniform1f(uBlurThreshold, threshold);
+        GL20.glUniform1f(uBlurSpread, spread);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
     }
 
@@ -500,6 +531,7 @@ public final class BloomRenderer {
             + "uniform vec2 BlurDir;\n"
             + "uniform int Radius;\n"
             + "uniform float Threshold;\n"
+            + "uniform float Spread;\n"
             + "in vec2 v_uv;\n"
             + "out vec4 fragColor;\n"
             + "float gaussianPdf(in float x, in float sigma) {\n"
@@ -507,12 +539,12 @@ public final class BloomRenderer {
             + "}\n"
             + "void main(){\n"
             + "  vec2 invSize = 1.0 / OutSize;\n"
-            + "  float fSigma = float(Radius);\n"
+            + "  float fSigma = max(1.0, float(Radius) * Spread);\n"
             + "  float weightSum = gaussianPdf(0.0, fSigma);\n"
             + "  vec3 base = texture(DiffuseSampler, v_uv).rgb;\n"
             + "  base = max(base - vec3(Threshold), vec3(0.0));\n"
             + "  vec3 diffuseSum = base * weightSum;\n"
-            + "  for(int i = 1; i < Radius; i++){\n"
+            + "  for(int i = 1; i <= Radius; i++){\n"
             + "    float x = float(i);\n"
             + "    float w = gaussianPdf(x, fSigma);\n"
             + "    vec2 uvOffset = BlurDir * invSize * x;\n"

@@ -47,6 +47,8 @@ public class EntityModelMapping {
     private boolean renderHurtTint = true;
     /** 受击颜色 RGBA（可选，默认使用内置红色） */
     private float[] hurtTint;
+    /** 是否渲染原版实体阴影（默认: true） */
+    private boolean renderShadow = true;
 
     public EntityModelMapping() {}
 
@@ -73,6 +75,7 @@ public class EntityModelMapping {
     public float getPrimaryFadeSeconds() { return primaryFadeSeconds; }
     public boolean isRenderHurtTint() { return renderHurtTint; }
     public float[] getHurtTint() { return hurtTint; }
+    public boolean isRenderShadow() { return renderShadow; }
 
     // Setters
     public void setName(String name) { this.name = name; }
@@ -90,6 +93,7 @@ public class EntityModelMapping {
     public void setPrimaryFadeSeconds(float primaryFadeSeconds) { this.primaryFadeSeconds = primaryFadeSeconds; }
     public void setRenderHurtTint(boolean renderHurtTint) { this.renderHurtTint = renderHurtTint; }
     public void setHurtTint(float[] hurtTint) { this.hurtTint = hurtTint; }
+    public void setRenderShadow(boolean renderShadow) { this.renderShadow = renderShadow; }
 
     @Override
     public String toString() {
@@ -109,6 +113,7 @@ public class EntityModelMapping {
                 ", primaryFadeSeconds=" + primaryFadeSeconds +
                 ", renderHurtTint=" + renderHurtTint +
                 ", hurtTint=" + (hurtTint == null ? "null" : java.util.Arrays.toString(hurtTint)) +
+                ", renderShadow=" + renderShadow +
                 '}';
     }
 }

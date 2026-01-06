@@ -92,6 +92,18 @@ public final class BedrockModelHandle {
         wrapper.setBloomThreshold(threshold);
     }
 
+    public void setBloomPasses(int passes) {
+        wrapper.setBloomPasses(passes);
+    }
+
+    public void setBloomSpread(float spread) {
+        wrapper.setBloomSpread(spread);
+    }
+
+    public void setBloomUseDepth(boolean useDepth) {
+        wrapper.setBloomUseDepth(useDepth);
+    }
+
     public void setModelScale(float scale) {
         wrapper.setModelScale(scale);
     }
