@@ -23,6 +23,7 @@ public final class BedrockModelHandle {
                                             ResourceLocation texture,
                                             ResourceLocation emissiveTexture,
                                             ResourceLocation bloomTexture,
+                                            ResourceLocation blendTexture,
                                             boolean enableCull,
                                             String modelId,
                                             GeometryCache geometryCache) {
@@ -32,6 +33,7 @@ public final class BedrockModelHandle {
             texture,
             emissiveTexture,
             bloomTexture,
+            blendTexture,
             enableCull,
             modelId,
             geometryCache
@@ -96,6 +98,14 @@ public final class BedrockModelHandle {
 
     public void setRenderHurtTint(boolean renderHurtTint) {
         wrapper.setRenderHurtTint(renderHurtTint);
+    }
+
+    public void setBlendMode(ModelBlendMode mode) {
+        wrapper.setBlendMode(mode);
+    }
+
+    public void setBlendColor(float[] color) {
+        wrapper.setBlendColor(color);
     }
 
     public void setHurtTint(float[] hurtTint) {

@@ -38,12 +38,18 @@ class BedrockModelWrapper {
     private final ResourceLocation texture;
     private final ResourceLocation emissiveTexture;
     private final ResourceLocation bloomTexture;
+    private final ResourceLocation blendTexture;
     private float emissiveStrength = 1.0f;
     private float bloomStrength = 0.0f;
     private int bloomRadius = 8;
     private int bloomDownsample = 2;
     private float bloomThreshold = 0.0f;
     private boolean renderHurtTint = true;
+    private ModelBlendMode blendMode = ModelBlendMode.ALPHA;
+    private float blendR = 1.0f;
+    private float blendG = 1.0f;
+    private float blendB = 1.0f;
+    private float blendA = 1.0f;
     private float hurtTintR = 1.0f;
     private float hurtTintG = 0.3f;
     private float hurtTintB = 0.3f;
@@ -74,15 +80,19 @@ class BedrockModelWrapper {
     }
 
     BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
-        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, null, enableCull, modelId, geometryCache));
+        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, null, null, enableCull, modelId, geometryCache));
     }
 
     BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, ResourceLocation bloomTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
-        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, bloomTexture, enableCull, modelId, geometryCache));
+        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, bloomTexture, null, enableCull, modelId, geometryCache));
+    }
+
+    BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture, ResourceLocation emissiveTexture, ResourceLocation bloomTexture, ResourceLocation blendTexture, boolean enableCull, String modelId, GeometryCache geometryCache) {
+        this(ModelWrapperFactory.build(model, animation, texture, emissiveTexture, bloomTexture, blendTexture, enableCull, modelId, geometryCache));
     }
 
     BedrockModelWrapper(ModelWrapperFactory.BuildData data) {
-        this(data.model, data.animationController, data.texture, data.emissiveTexture, data.bloomTexture, data.enableCull,
+        this(data.model, data.animationController, data.texture, data.emissiveTexture, data.bloomTexture, data.blendTexture, data.enableCull,
             data.textureWidth, data.textureHeight, data.geometryBuilder, data.skinningPipeline);
     }
 
@@ -91,6 +101,7 @@ class BedrockModelWrapper {
                         ResourceLocation texture,
                         ResourceLocation emissiveTexture,
                         ResourceLocation bloomTexture,
+                        ResourceLocation blendTexture,
                         boolean enableCull,
                         int textureWidth,
                         int textureHeight,
@@ -102,6 +113,7 @@ class BedrockModelWrapper {
         this.texture = texture;
         this.emissiveTexture = emissiveTexture;
         this.bloomTexture = bloomTexture;
+        this.blendTexture = blendTexture;
         this.textureWidth = textureWidth;
         this.textureHeight = textureHeight;
         this.geometryBuilder = geometryBuilder;
@@ -134,6 +146,12 @@ class BedrockModelWrapper {
             hurtTintG,
             hurtTintB,
             hurtTintA,
+            blendTexture,
+            blendMode,
+            blendR,
+            blendG,
+            blendB,
+            blendA,
             skinningPipeline
         );
     }
@@ -242,6 +260,22 @@ class BedrockModelWrapper {
 
     void setRenderHurtTint(boolean renderHurtTint) {
         this.renderHurtTint = renderHurtTint;
+    }
+
+    void setBlendMode(ModelBlendMode mode) {
+        if (mode != null) {
+            this.blendMode = mode;
+        }
+    }
+
+    void setBlendColor(float[] color) {
+        if (color == null || color.length < 4) {
+            return;
+        }
+        blendR = clamp01(color[0]);
+        blendG = clamp01(color[1]);
+        blendB = clamp01(color[2]);
+        blendA = clamp01(color[3]);
     }
 
     void setHurtTint(float[] hurtTint) {

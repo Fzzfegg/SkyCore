@@ -28,6 +28,13 @@ public class EntityModelMapping {
     /** 泛光遮罩贴图路径 (如: skycore/textures/zombie_bloom.png) */
     @SerializedName(value = "bloom", alternate = {"bloomTexture"})
     private String bloom;
+    /** 叠色遮罩贴图路径 */
+    @SerializedName(value = "blendTexture", alternate = {"blend"})
+    private String blendTexture;
+    /** 叠色模式: alpha | add | multiply */
+    private String blendMode;
+    /** 叠色颜色 RGBA */
+    private float[] blendColor;
 
     /** 是否启用背面剔除 (默认: true) */
     private boolean enableCull = true;
@@ -58,6 +65,9 @@ public class EntityModelMapping {
     public String getEmissive() { return emissive; }
     public float getEmissiveStrength() { return emissiveStrength; }
     public String getBloom() { return bloom; }
+    public String getBlendTexture() { return blendTexture; }
+    public String getBlendMode() { return blendMode; }
+    public float[] getBlendColor() { return blendColor; }
     public boolean isEnableCull() { return enableCull; }
     public float getModelScale() { return modelScale; }
     public float getPrimaryFadeSeconds() { return primaryFadeSeconds; }
@@ -72,6 +82,9 @@ public class EntityModelMapping {
     public void setEmissive(String emissive) { this.emissive = emissive; }
     public void setEmissiveStrength(float emissiveStrength) { this.emissiveStrength = emissiveStrength; }
     public void setBloom(String bloom) { this.bloom = bloom; }
+    public void setBlendTexture(String blendTexture) { this.blendTexture = blendTexture; }
+    public void setBlendMode(String blendMode) { this.blendMode = blendMode; }
+    public void setBlendColor(float[] blendColor) { this.blendColor = blendColor; }
     public void setEnableCull(boolean enableCull) { this.enableCull = enableCull; }
     public void setModelScale(float modelScale) { this.modelScale = modelScale; }
     public void setPrimaryFadeSeconds(float primaryFadeSeconds) { this.primaryFadeSeconds = primaryFadeSeconds; }
@@ -88,6 +101,9 @@ public class EntityModelMapping {
                 ", emissive='" + emissive + '\'' +
                 ", emissiveStrength=" + emissiveStrength +
                 ", bloom='" + bloom + '\'' +
+                ", blendTexture='" + blendTexture + '\'' +
+                ", blendMode='" + blendMode + '\'' +
+                ", blendColor=" + (blendColor == null ? "null" : java.util.Arrays.toString(blendColor)) +
                 ", enableCull=" + enableCull +
                 ", modelScale=" + modelScale +
                 ", primaryFadeSeconds=" + primaryFadeSeconds +

@@ -8,6 +8,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
+import org.mybad.minecraft.render.ModelBlendMode;
 
 final class ModelRenderPipeline {
     void render(Entity entity,
@@ -28,6 +29,12 @@ final class ModelRenderPipeline {
                 float hurtTintG,
                 float hurtTintB,
                 float hurtTintA,
+                ResourceLocation blendTexture,
+                ModelBlendMode blendMode,
+                float blendR,
+                float blendG,
+                float blendB,
+                float blendA,
                 SkinningPipeline skinningPipeline) {
         if (skinningPipeline == null) {
             return;
@@ -88,6 +95,9 @@ final class ModelRenderPipeline {
         if (emissiveTexture != null) {
             renderEmissivePass(emissiveTexture, emissiveStrength, lightX, lightY, skinningPipeline, texture);
         }
+        if (blendTexture != null && blendA > 0.0f) {
+            renderBlendPass(blendTexture, blendMode, blendR, blendG, blendB, blendA, lightX, lightY, skinningPipeline, texture);
+        }
         if (bloomTexture != null) {
             BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, bloomRadius, bloomDownsample, bloomThreshold, lightX, lightY, skinningPipeline, texture);
         }
@@ -130,6 +140,49 @@ final class ModelRenderPipeline {
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+    }
+
+    private void renderBlendPass(ResourceLocation blendTexture,
+                                 ModelBlendMode blendMode,
+                                 float blendR,
+                                 float blendG,
+                                 float blendB,
+                                 float blendA,
+                                 int lightX,
+                                 int lightY,
+                                 SkinningPipeline skinningPipeline,
+                                 ResourceLocation baseTexture) {
+        Minecraft.getMinecraft().getTextureManager().bindTexture(blendTexture);
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(blendR, blendG, blendB, blendA);
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.enableBlend();
+        GlStateManager.depthMask(false);
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+
+        int fullBright = 240;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
+
+        applyBlendMode(blendMode);
+        skinningPipeline.draw();
+
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+        GlStateManager.depthMask(true);
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
+        Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+    }
+
+    private void applyBlendMode(ModelBlendMode mode) {
+        if (mode == ModelBlendMode.ADD) {
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        } else if (mode == ModelBlendMode.MULTIPLY) {
+            GL11.glBlendFunc(GL11.GL_DST_COLOR, GL11.GL_ZERO);
+        } else {
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        }
     }
 
     // bloom pass moved to BloomRenderer
