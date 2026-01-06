@@ -3,6 +3,7 @@ package org.mybad.minecraft.render.entity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.SoundCategory;
+import org.mybad.minecraft.audio.DirectSoundPlayer;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
@@ -144,13 +145,13 @@ final class AnimationEventDispatcher {
             return;
         }
         AnimationEventArgsParser.SoundParams params = AnimationEventArgsParser.parseSound(effect);
-        if (params == null || params.soundEvent == null) {
+        if (params == null || params.soundId == null) {
             return;
         }
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.world == null) {
             return;
         }
-        mc.world.playSound(x, y, z, params.soundEvent, SoundCategory.NEUTRAL, params.volume, params.pitch, false);
+        DirectSoundPlayer.play(params.soundId, SoundCategory.NEUTRAL, params.volume, params.pitch, x, y, z);
     }
 }

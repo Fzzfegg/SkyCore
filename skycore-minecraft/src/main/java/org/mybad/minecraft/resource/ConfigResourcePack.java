@@ -7,15 +7,21 @@ import net.minecraft.util.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.awt.image.BufferedImage;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Virtual resource pack that serves files from SkyCore root.
  * Layout: <root>/<namespace>/<path>
- * Also generates sounds.json based on .ogg files under <root>/<namespace>/sounds/.
+ * Serves resources directly from SkyCore root.
  */
 public final class ConfigResourcePack implements IResourcePack {
     private final Path root;
@@ -28,41 +34,16 @@ public final class ConfigResourcePack implements IResourcePack {
 
     @Override
     public InputStream getInputStream(ResourceLocation location) throws IOException {
-        if ("sounds.json".equals(location.getPath())) {
-            String json = buildSoundsJson(location.getNamespace());
-            return new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
-        }
         Path file = resolvePath(location);
         if (file == null || !Files.isRegularFile(file)) {
             throw new FileNotFoundException(location.toString());
         }
-        if (location.getPath().endsWith(".ogg")) {
-            long size = -1L;
-            try {
-                size = Files.size(file);
-            } catch (IOException ignored) {
-            }
-            byte[] head = new byte[4];
-            try (InputStream headIn = Files.newInputStream(file)) {
-                int read = headIn.read(head);
-                if (read == 4) {
-                    String magic = String.format("%02X %02X %02X %02X", head[0], head[1], head[2], head[3]);
-                    System.out.println("[SkyCore][Sound] open " + location + " -> " + file + " size=" + size + " head=" + magic);
-                } else {
-                    System.out.println("[SkyCore][Sound] open " + location + " -> " + file + " size=" + size + " head=EOF");
-                }
-            } catch (IOException ex) {
-                System.out.println("[SkyCore][Sound] open " + location + " -> " + file + " failed: " + ex.getMessage());
-            }
-        }
+        // no per-file debug logging here
         return Files.newInputStream(file);
     }
 
     @Override
     public boolean resourceExists(ResourceLocation location) {
-        if ("sounds.json".equals(location.getPath())) {
-            return hasSounds(location.getNamespace());
-        }
         Path file = resolvePath(location);
         return file != null && Files.isRegularFile(file);
     }
@@ -109,62 +90,4 @@ public final class ConfigResourcePack implements IResourcePack {
         return base.resolve(location.getPath().replace('/', File.separatorChar));
     }
 
-    private boolean hasSounds(String namespace) {
-        Path soundsDir = root.resolve(namespace).resolve("sounds");
-        if (!Files.isDirectory(soundsDir)) {
-            return false;
-        }
-        try {
-            return Files.walk(soundsDir).anyMatch(p -> Files.isRegularFile(p) && p.toString().toLowerCase(Locale.ROOT).endsWith(".ogg"));
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
-    private String buildSoundsJson(String namespace) {
-        Map<String, List<String>> soundMap = new LinkedHashMap<>();
-        Path soundsDir = root.resolve(namespace).resolve("sounds");
-        if (Files.isDirectory(soundsDir)) {
-            try {
-                Files.walk(soundsDir).forEach(p -> {
-                    if (!Files.isRegularFile(p)) {
-                        return;
-                    }
-                    String path = p.toString().toLowerCase(Locale.ROOT);
-                    if (!path.endsWith(".ogg")) {
-                        return;
-                    }
-                    String rel = soundsDir.relativize(p).toString().replace(File.separatorChar, '/');
-                    String id = rel.substring(0, rel.length() - 4); // strip .ogg
-                    String fullId = namespace + ":" + id;
-                    soundMap.computeIfAbsent(id, k -> new ArrayList<>()).add(fullId);
-                });
-            } catch (IOException ignored) {
-            }
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        boolean first = true;
-        for (Map.Entry<String, List<String>> entry : soundMap.entrySet()) {
-            if (!first) {
-                sb.append(",");
-            }
-            first = false;
-            sb.append("\n  \"").append(entry.getKey()).append("\": {\n    \"sounds\": [");
-            List<String> sounds = entry.getValue();
-            for (int i = 0; i < sounds.size(); i++) {
-                if (i > 0) {
-                    sb.append(", ");
-                }
-                sb.append("\"").append(sounds.get(i)).append("\"");
-            }
-            sb.append("]\n  }");
-        }
-        if (!soundMap.isEmpty()) {
-            sb.append("\n");
-        }
-        sb.append("}");
-        System.out.println("[SkyCore][Sound] sounds.json for " + namespace + ":\n" + sb);
-        return sb.toString();
-    }
 }

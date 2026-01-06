@@ -1,7 +1,6 @@
 package org.mybad.minecraft.render.entity;
 
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.SoundEvent;
 import org.mybad.minecraft.SkyCoreMod;
 
 final class AnimationEventArgsParser {
@@ -108,15 +107,11 @@ final class AnimationEventArgsParser {
             soundId = soundId.substring(0, soundId.length() - 4);
         }
         ResourceLocation soundLocation = parseSoundLocation(soundId);
-        SoundEvent soundEvent = SoundEvent.REGISTRY.getObject(soundLocation);
-        if (soundEvent == null) {
-            soundEvent = new SoundEvent(soundLocation);
-        }
         if (volume > 1.0f) {
             volume = volume / 100.0f;
         }
         SoundParams params = new SoundParams();
-        params.soundEvent = soundEvent;
+        params.soundId = soundLocation;
         params.volume = Math.max(0f, volume);
         params.pitch = Math.max(0f, pitch);
         return params;
@@ -157,7 +152,7 @@ final class AnimationEventArgsParser {
     }
 
     static final class SoundParams {
-        SoundEvent soundEvent;
+        ResourceLocation soundId;
         float volume;
         float pitch;
     }

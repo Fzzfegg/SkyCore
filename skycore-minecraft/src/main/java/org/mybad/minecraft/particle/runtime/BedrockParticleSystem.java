@@ -8,13 +8,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
-import net.minecraft.util.SoundEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.audio.DirectSoundPlayer;
 import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import org.mybad.minecraft.particle.render.gpu.ParticleGpuRenderer;
@@ -451,11 +451,7 @@ public class BedrockParticleSystem {
             SkyCoreMod.LOGGER.warn("[SkyCore] 无效的声音ID: {}", sound);
             return;
         }
-        SoundEvent event = SoundEvent.REGISTRY.getObject(id);
-        if (event == null) {
-            event = new SoundEvent(id);
-        }
-        mc.world.playSound(x, y, z, event, SoundCategory.NEUTRAL, 1.0f, 1.0f, false);
+        DirectSoundPlayer.play(id, SoundCategory.NEUTRAL, 1.0f, 1.0f, x, y, z);
     }
 
     void logMessage(String message) {

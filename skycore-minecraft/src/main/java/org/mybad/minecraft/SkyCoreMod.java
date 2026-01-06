@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mybad.minecraft.command.SkyCoreCommandHandler;
 import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
@@ -63,6 +64,7 @@ public class SkyCoreMod {
 
         // 初始化资源加载器
         resourceLoader = new ResourceLoader();
+        SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
 
         LOGGER.info("[SkyCore] PreInit 完成");
     }
@@ -73,9 +75,8 @@ public class SkyCoreMod {
         LOGGER.info("[SkyCore] Init - 注册事件处理器...");
 
         // 注册虚拟资源包
-        if (gameDir != null) {
-            ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir));
-        }
+        ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir));
+        
         // 粒子系统（核心）
         particleSystem = new BedrockParticleSystem(resourceLoader);
         MinecraftForge.EVENT_BUS.register(particleSystem);
@@ -100,20 +101,13 @@ public class SkyCoreMod {
 
         // 重新加载配置
         SkyCoreConfig.getInstance().reload();
+        SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
 
         // 清空资源缓存
-        if (resourceLoader != null) {
-            resourceLoader.clearCache();
-        }
-
-        // 清空模型包装器缓存
-        if (renderEventHandler != null) {
-            renderEventHandler.clearCache();
-        }
-        if (particleDebugSystem != null) {
-            particleDebugSystem.clear();
-        }
-
+        resourceLoader.clearCache();
+        renderEventHandler.clearCache();
+        particleDebugSystem.clear();
+        
         LOGGER.info("[SkyCore] 重新加载完成");
     }
 
