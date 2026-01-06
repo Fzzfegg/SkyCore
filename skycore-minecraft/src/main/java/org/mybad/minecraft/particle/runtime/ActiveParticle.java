@@ -232,6 +232,9 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 this.collisionDrag = motionCollision.collisionDrag();
                 this.collisionRestitution = motionCollision.coefficientOfRestitution();
                 this.expireOnContact = motionCollision.expireOnContact();
+                if (emitter != null) {
+                    this.collisionRadius *= emitter.getScale();
+                }
             } else {
                 this.collisionRadius = 0.0f;
                 this.collisionDrag = 0.0f;
@@ -252,6 +255,12 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             double sx = environment.safeResolve(speeds[0]) / 20.0;
             double sy = environment.safeResolve(speeds[1]) / 20.0;
             double sz = environment.safeResolve(speeds[2]) / 20.0;
+            if (emitter != null) {
+                float scale = emitter.getScale();
+                sx *= scale;
+                sy *= scale;
+                sz *= scale;
+            }
             double vx = this.dirX * sx;
             double vy = this.dirY * sy;
             double vz = this.dirZ * sz;
@@ -649,6 +658,12 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             double ax = environment.safeResolve(accel[0]) / 400.0;
             double ay = environment.safeResolve(accel[1]) / 400.0;
             double az = environment.safeResolve(accel[2]) / 400.0;
+            if (emitter != null) {
+                float scale = emitter.getScale();
+                ax *= scale;
+                ay *= scale;
+                az *= scale;
+            }
             if (emitter != null && localRotation) {
                 double rax = emitter.rotateLocalX(ax, ay, az);
                 double ray = emitter.rotateLocalY(ax, ay, az);
@@ -675,6 +690,10 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 double lx = environment.safeResolve(relative[0]);
                 double ly = environment.safeResolve(relative[1]);
                 double lz = environment.safeResolve(relative[2]);
+                float scale = emitter.getScale();
+                lx *= scale;
+                ly *= scale;
+                lz *= scale;
                 double rx = localPosition ? emitter.rotateLocalX(lx, ly, lz) : lx;
                 double ry = localPosition ? emitter.rotateLocalY(lx, ly, lz) : ly;
                 double rz = localPosition ? emitter.rotateLocalZ(lx, ly, lz) : lz;
@@ -793,6 +812,10 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
 
         public ActiveEmitter getEmitter() {
             return emitter;
+        }
+
+        public float getEmitterScale() {
+            return emitter != null ? emitter.getScale() : 1.0f;
         }
 
         void setVelocity(double vx, double vy, double vz) {

@@ -53,6 +53,9 @@ final class ParticleBatcher {
             }
             width *= 2.0f;
             height *= 2.0f;
+            float scale = particle.getEmitterScale();
+            width *= scale;
+            height *= scale;
             if (width <= 0.0f || height <= 0.0f) {
                 continue;
             }

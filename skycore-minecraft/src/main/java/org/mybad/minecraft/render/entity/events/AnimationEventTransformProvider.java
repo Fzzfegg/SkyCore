@@ -20,6 +20,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
     private final ParticleTargetMode mode;
     private final float yawOffset;
     private final LocatorTransform locatorTransform;
+    private final float modelScale;
     private boolean usedInitial;
 
     AnimationEventTransformProvider(EntityLivingBase entity,
@@ -43,6 +44,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         this.mode = mode != null ? mode : ParticleTargetMode.LOOK;
         this.yawOffset = yawOffset;
         this.locatorTransform = new LocatorTransform();
+        this.modelScale = wrapper != null ? wrapper.getModelScale() : 1.0f;
         this.usedInitial = false;
     }
 
@@ -97,13 +99,13 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
             transform.z = initialZ;
             transform.yaw = 180.0F - initialEmitterYaw;
             setIdentityBasis(transform);
-            transform.scale = 1.0f;
+            transform.scale = modelScale;
             usedInitial = true;
             return;
         }
         if (entity == null) {
             setIdentityBasis(transform);
-            transform.scale = 1.0f;
+            transform.scale = modelScale;
             return;
         }
         double[] pos = AnimationEventMathUtil.resolveEventPositionNow(entity, wrapper, locatorName, positionYaw);
@@ -112,7 +114,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         transform.z = pos[2];
         transform.yaw = 180.0F - emitterYaw;
         setIdentityBasis(transform);
-        transform.scale = 1.0f;
+        transform.scale = modelScale;
     }
 
     @Override

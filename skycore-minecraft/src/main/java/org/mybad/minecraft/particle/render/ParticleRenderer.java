@@ -75,6 +75,9 @@ public final class ParticleRenderer {
         // Match Bedrock/Pollen quad sizing (base quad is 2x2 units).
         width *= 2.0f;
         height *= 2.0f;
+        float scale = particle.getEmitterScale();
+        width *= scale;
+        height *= scale;
         if (width <= 0.0f || height <= 0.0f) {
             return;
         }
