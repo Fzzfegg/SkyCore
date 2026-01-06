@@ -94,6 +94,14 @@ public final class BedrockModelHandle {
         wrapper.setModelScale(scale);
     }
 
+    public void setRenderHurtTint(boolean renderHurtTint) {
+        wrapper.setRenderHurtTint(renderHurtTint);
+    }
+
+    public void setHurtTint(float[] hurtTint) {
+        wrapper.setHurtTint(hurtTint);
+    }
+
     public float getModelScale() {
         return wrapper.getModelScale();
     }

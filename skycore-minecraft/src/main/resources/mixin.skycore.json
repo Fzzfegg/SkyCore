@@ -6,7 +6,7 @@
   "refmap": "skycore.mixins.refmap.json",
   "mixins": [],
   "client": [
-    "ui.MixinGuiMainMenu"
+    "sound.MixinSoundManager"
   ],
   "server": []
 }

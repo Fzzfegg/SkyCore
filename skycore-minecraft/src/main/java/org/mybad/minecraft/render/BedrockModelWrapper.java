@@ -43,6 +43,11 @@ class BedrockModelWrapper {
     private int bloomRadius = 8;
     private int bloomDownsample = 2;
     private float bloomThreshold = 0.0f;
+    private boolean renderHurtTint = true;
+    private float hurtTintR = 1.0f;
+    private float hurtTintG = 0.3f;
+    private float hurtTintB = 0.3f;
+    private float hurtTintA = 1.0f;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -124,6 +129,11 @@ class BedrockModelWrapper {
             bloomRadius,
             bloomDownsample,
             bloomThreshold,
+            renderHurtTint,
+            hurtTintR,
+            hurtTintG,
+            hurtTintB,
+            hurtTintA,
             skinningPipeline
         );
     }
@@ -228,6 +238,33 @@ class BedrockModelWrapper {
             threshold = 1f;
         }
         this.bloomThreshold = threshold;
+    }
+
+    void setRenderHurtTint(boolean renderHurtTint) {
+        this.renderHurtTint = renderHurtTint;
+    }
+
+    void setHurtTint(float[] hurtTint) {
+        if (hurtTint == null || hurtTint.length < 4) {
+            return;
+        }
+        hurtTintR = clamp01(hurtTint[0]);
+        hurtTintG = clamp01(hurtTint[1]);
+        hurtTintB = clamp01(hurtTint[2]);
+        hurtTintA = clamp01(hurtTint[3]);
+    }
+
+    private float clamp01(float value) {
+        if (Float.isNaN(value)) {
+            return 0f;
+        }
+        if (value < 0f) {
+            return 0f;
+        }
+        if (value > 1f) {
+            return 1f;
+        }
+        return value;
     }
 
     void setModelScale(float scale) {

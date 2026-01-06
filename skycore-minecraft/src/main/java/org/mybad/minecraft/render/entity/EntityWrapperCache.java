@@ -55,6 +55,8 @@ final class EntityWrapperCache {
         wrapper.setBloomDownsample(renderConfig.bloomDownsample);
         wrapper.setBloomThreshold(renderConfig.bloomThreshold);
         wrapper.setModelScale(mapping.getModelScale());
+        wrapper.setRenderHurtTint(mapping.isRenderHurtTint());
+        wrapper.setHurtTint(mapping.getHurtTint());
 
         EntityAnimationController controller = buildController(mapping);
         EntityWrapperEntry created = new EntityWrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick);

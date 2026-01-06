@@ -79,6 +79,8 @@ public final class DebugStackManager {
         wrapper.setBloomDownsample(renderConfig.bloomDownsample);
         wrapper.setBloomThreshold(renderConfig.bloomThreshold);
         wrapper.setModelScale(mapping.getModelScale());
+        wrapper.setRenderHurtTint(mapping.isRenderHurtTint());
+        wrapper.setHurtTint(mapping.getHurtTint());
 
         synchronized (debugStacks) {
             debugStacks.add(new DebugStack(wrapper, x, y, z, yaw, count, spacing));

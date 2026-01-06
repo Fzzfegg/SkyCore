@@ -73,6 +73,14 @@ public class EntityRenderEventHandler {
         return entityDispatcher.setForcedAnimation(mappingName, animation);
     }
 
+    public boolean isSkyCoreEntity(net.minecraft.entity.EntityLivingBase entity) {
+        return entityDispatcher.isSkyCoreEntity(entity);
+    }
+
+    public boolean isSkyCoreEntity(net.minecraft.entity.Entity entity) {
+        return entityDispatcher.isSkyCoreEntity(entity);
+    }
+
     public void clearForcedAnimation(String mappingName) {
         entityDispatcher.clearForcedAnimation(mappingName);
     }

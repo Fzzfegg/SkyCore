@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
@@ -22,6 +23,11 @@ final class ModelRenderPipeline {
                 int bloomRadius,
                 int bloomDownsample,
                 float bloomThreshold,
+                boolean renderHurtTint,
+                float hurtTintR,
+                float hurtTintG,
+                float hurtTintB,
+                float hurtTintA,
                 SkinningPipeline skinningPipeline) {
         if (skinningPipeline == null) {
             return;
@@ -48,6 +54,17 @@ final class ModelRenderPipeline {
 
         if (entity != null) {
             GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
+        }
+
+        if (renderHurtTint && entity instanceof EntityLivingBase) {
+            EntityLivingBase living = (EntityLivingBase) entity;
+            if (living.hurtTime > 0 || living.deathTime > 0) {
+                GlStateManager.color(hurtTintR, hurtTintG, hurtTintB, hurtTintA);
+            } else {
+                GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            }
+        } else {
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         }
 
         int lightX = (int) OpenGlHelper.lastBrightnessX;

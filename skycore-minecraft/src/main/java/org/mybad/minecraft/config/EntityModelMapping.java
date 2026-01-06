@@ -36,6 +36,10 @@ public class EntityModelMapping {
     private float modelScale = 1.0f;
     /** 主动画切换淡入淡出时间（秒，默认: 0.12） */
     private float primaryFadeSeconds = 0.12f;
+    /** 是否渲染原版受击红色（默认: true） */
+    private boolean renderHurtTint = true;
+    /** 受击颜色 RGBA（可选，默认使用内置红色） */
+    private float[] hurtTint;
 
     public EntityModelMapping() {}
 
@@ -57,6 +61,8 @@ public class EntityModelMapping {
     public boolean isEnableCull() { return enableCull; }
     public float getModelScale() { return modelScale; }
     public float getPrimaryFadeSeconds() { return primaryFadeSeconds; }
+    public boolean isRenderHurtTint() { return renderHurtTint; }
+    public float[] getHurtTint() { return hurtTint; }
 
     // Setters
     public void setName(String name) { this.name = name; }
@@ -69,6 +75,8 @@ public class EntityModelMapping {
     public void setEnableCull(boolean enableCull) { this.enableCull = enableCull; }
     public void setModelScale(float modelScale) { this.modelScale = modelScale; }
     public void setPrimaryFadeSeconds(float primaryFadeSeconds) { this.primaryFadeSeconds = primaryFadeSeconds; }
+    public void setRenderHurtTint(boolean renderHurtTint) { this.renderHurtTint = renderHurtTint; }
+    public void setHurtTint(float[] hurtTint) { this.hurtTint = hurtTint; }
 
     @Override
     public String toString() {
@@ -83,6 +91,8 @@ public class EntityModelMapping {
                 ", enableCull=" + enableCull +
                 ", modelScale=" + modelScale +
                 ", primaryFadeSeconds=" + primaryFadeSeconds +
+                ", renderHurtTint=" + renderHurtTint +
+                ", hurtTint=" + (hurtTint == null ? "null" : java.util.Arrays.toString(hurtTint)) +
                 '}';
     }
 }

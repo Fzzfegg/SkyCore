@@ -48,6 +48,17 @@ public final class EntityRenderDispatcher {
         renderPipeline.render(entity, entry, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
     }
 
+    public boolean isSkyCoreEntity(EntityLivingBase entity) {
+        return EntityMappingResolver.resolve(entity) != null;
+    }
+
+    public boolean isSkyCoreEntity(net.minecraft.entity.Entity entity) {
+        if (!(entity instanceof EntityLivingBase)) {
+            return false;
+        }
+        return isSkyCoreEntity((EntityLivingBase) entity);
+    }
+
     public void clearCache() {
         wrapperCache.clear();
         clearAllForcedAnimations();
