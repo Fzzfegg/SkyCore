@@ -1,14 +1,15 @@
-package org.mybad.minecraft.render.entity;
+package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.entity.EntityLivingBase;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.entity.EntityWrapperEntry;
 
 import java.util.HashSet;
 import java.util.Set;
 
-final class OverlayEventDispatcher {
+public final class OverlayEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
 
     void dispatch(EntityLivingBase entity, EntityWrapperEntry entry, BedrockModelHandle wrapper,

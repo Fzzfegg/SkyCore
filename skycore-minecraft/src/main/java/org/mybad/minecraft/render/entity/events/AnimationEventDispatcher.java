@@ -1,4 +1,4 @@
-package org.mybad.minecraft.render.entity;
+package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
@@ -9,18 +9,19 @@ import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.entity.EntityWrapperEntry;
 
 import java.util.List;
 
 /**
  * Dispatches particle and sound events from animations.
  */
-final class AnimationEventDispatcher {
+public final class AnimationEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
     private final OverlayEventDispatcher overlayDispatcher = new OverlayEventDispatcher();
 
-    void dispatchAnimationEvents(EntityLivingBase entity, EntityWrapperEntry entry,
-                                 BedrockModelHandle wrapper, float partialTicks) {
+    public void dispatchAnimationEvents(EntityLivingBase entity, EntityWrapperEntry entry,
+                                        BedrockModelHandle wrapper, float partialTicks) {
         AnimationPlayer primaryPlayer = wrapper.getActiveAnimationPlayer();
         if (primaryPlayer != null && primaryPlayer.getAnimation() != null) {
             Animation animation = primaryPlayer.getAnimation();

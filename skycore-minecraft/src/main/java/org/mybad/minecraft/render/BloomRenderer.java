@@ -1,4 +1,4 @@
-package org.mybad.minecraft.render.post;
+package org.mybad.minecraft.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;

@@ -5,7 +5,8 @@ import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 
 @SideOnly(Side.CLIENT)
@@ -15,8 +16,8 @@ public final class EntityRenderDispatcher {
     private final AnimationEventDispatcher eventDispatcher;
     private final EntityRenderPipeline renderPipeline;
 
-    public EntityRenderDispatcher(ResourceLoader resourceLoader) {
-        this.wrapperCache = new EntityWrapperCache(resourceLoader);
+    public EntityRenderDispatcher(ResourceCacheManager cacheManager) {
+        this.wrapperCache = new EntityWrapperCache(cacheManager);
         this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
         this.renderPipeline = new EntityRenderPipeline(eventDispatcher);

@@ -1,4 +1,4 @@
-package org.mybad.minecraft.render.entity;
+package org.mybad.minecraft.render.entity.events;
 
 import org.mybad.core.animation.Animation;
 
@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-final class OverlayEventCursorCache {
+public final class OverlayEventCursorCache {
     private final Map<Animation, OverlayEventCursor> cursors = new HashMap<>();
 
     OverlayEventCursor getOrCreate(Animation animation) {

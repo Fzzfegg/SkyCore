@@ -8,18 +8,18 @@ import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public final class DebugStackManager {
-    private final ResourceLoader resourceLoader;
+    private final ResourceCacheManager cacheManager;
     private final List<DebugStack> debugStacks;
 
-    public DebugStackManager(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+    public DebugStackManager(ResourceCacheManager cacheManager) {
+        this.cacheManager = cacheManager;
         this.debugStacks = new ArrayList<>();
     }
 
@@ -68,7 +68,7 @@ public final class DebugStackManager {
             return false;
         }
 
-        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping);
+        BedrockModelHandle wrapper = ModelHandleFactory.create(cacheManager, mapping);
         if (wrapper == null) {
             return false;
         }

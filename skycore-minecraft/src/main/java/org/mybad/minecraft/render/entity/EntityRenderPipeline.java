@@ -3,6 +3,8 @@ package org.mybad.minecraft.render.entity;
 import net.minecraft.entity.EntityLivingBase;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.EntityNameTagRenderer;
+import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
+import org.mybad.minecraft.render.entity.events.AnimationEventMathUtil;
 
 final class EntityRenderPipeline {
     private final AnimationEventDispatcher eventDispatcher;

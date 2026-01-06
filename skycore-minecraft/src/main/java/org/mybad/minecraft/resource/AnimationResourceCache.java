@@ -7,18 +7,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class AnimationResourceCache {
-    private final ResourceLoader owner;
+    private final ResourceResolver resolver;
     private final Map<String, Animation> animationCache = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Animation>> animationSetCache = new ConcurrentHashMap<>();
     private final AnimationParser animationParser = new AnimationParser();
     private final ResourceLoadReporter reporter = new ResourceLoadReporter("Animation");
 
-    AnimationResourceCache(ResourceLoader owner) {
-        this.owner = owner;
+    AnimationResourceCache(ResourceResolver resolver) {
+        this.resolver = resolver;
     }
 
     Animation loadAnimation(String path) {
-        String key = owner.normalizePath(path);
+        String key = resolver.normalizePath(path);
         Animation cached = animationCache.get(key);
         if (cached != null) {
             return cached;
@@ -46,13 +46,13 @@ final class AnimationResourceCache {
     }
 
     Map<String, Animation> loadAnimationSet(String path) {
-        String key = owner.normalizePath(path);
+        String key = resolver.normalizePath(path);
         Map<String, Animation> cached = animationSetCache.get(key);
         if (cached != null) {
             return cached;
         }
         try {
-            String jsonContent = owner.readResourceAsString(key);
+            String jsonContent = resolver.readResourceAsString(key);
             if (jsonContent == null) {
                 reporter.missing(key);
                 return null;
@@ -67,7 +67,7 @@ final class AnimationResourceCache {
     }
 
     void invalidateAnimation(String path) {
-        String key = owner.normalizePath(path);
+        String key = resolver.normalizePath(path);
         animationCache.remove(key);
         animationSetCache.remove(key);
     }

@@ -14,7 +14,7 @@ import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.resource.ResourcePackRegistrar;
 
 import java.io.File;
@@ -42,7 +42,7 @@ public class SkyCoreMod {
 
     /** 资源加载器 */
     @SideOnly(Side.CLIENT)
-    private ResourceLoader resourceLoader;
+    private ResourceCacheManager resourceCacheManager;
 
     /** 渲染事件处理器 */
     @SideOnly(Side.CLIENT)
@@ -63,7 +63,7 @@ public class SkyCoreMod {
         SkyCoreConfig.init(ResourcePackRegistrar.getPackRoot(gameDir));
 
         // 初始化资源加载器
-        resourceLoader = new ResourceLoader();
+        resourceCacheManager = new ResourceCacheManager();
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
 
         LOGGER.info("[SkyCore] PreInit 完成");
@@ -78,12 +78,12 @@ public class SkyCoreMod {
         ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir));
         
         // 粒子系统（核心）
-        particleSystem = new BedrockParticleSystem(resourceLoader);
+        particleSystem = new BedrockParticleSystem(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(particleSystem);
         // 粒子调试包装
         particleDebugSystem = new BedrockParticleDebugSystem(particleSystem);
         // 创建并注册渲染事件处理器
-        renderEventHandler = new EntityRenderEventHandler(resourceLoader);
+        renderEventHandler = new EntityRenderEventHandler(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
 
         // 注册命令处理器
@@ -104,7 +104,7 @@ public class SkyCoreMod {
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
 
         // 清空资源缓存
-        resourceLoader.clearCache();
+        resourceCacheManager.clearCache();
         renderEventHandler.clearCache();
         particleDebugSystem.clear();
         
@@ -115,8 +115,8 @@ public class SkyCoreMod {
      * 获取资源加载器
      */
     @SideOnly(Side.CLIENT)
-    public ResourceLoader getResourceLoader() {
-        return resourceLoader;
+    public ResourceCacheManager getResourceCacheManager() {
+        return resourceCacheManager;
     }
 
     /**

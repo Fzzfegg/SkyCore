@@ -12,7 +12,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL31;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;
 import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.render.post.BloomRenderer;
+import org.mybad.minecraft.render.BloomRenderer;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 
 import java.lang.reflect.Field;

@@ -2,7 +2,7 @@ package org.mybad.minecraft.debug;
 
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 /**
  * Debug helper wrapper around the core BedrockParticleSystem.
@@ -15,8 +15,8 @@ public final class BedrockParticleDebugSystem {
         this.system = system;
     }
 
-    public BedrockParticleDebugSystem(ResourceLoader resourceLoader) {
-        this(new BedrockParticleSystem(resourceLoader));
+    public BedrockParticleDebugSystem(ResourceCacheManager cacheManager) {
+        this(new BedrockParticleSystem(cacheManager));
     }
 
     public BedrockParticleSystem getSystem() {

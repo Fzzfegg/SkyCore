@@ -10,18 +10,18 @@ import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class EntityWrapperCache {
-    private final ResourceLoader resourceLoader;
+    private final ResourceCacheManager cacheManager;
     private final Map<Integer, EntityWrapperEntry> cache;
 
-    EntityWrapperCache(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+    EntityWrapperCache(ResourceCacheManager cacheManager) {
+        this.cacheManager = cacheManager;
         this.cache = new ConcurrentHashMap<>();
     }
 
@@ -43,7 +43,7 @@ final class EntityWrapperCache {
             }
         }
 
-        BedrockModelHandle wrapper = ModelHandleFactory.create(resourceLoader, mapping);
+        BedrockModelHandle wrapper = ModelHandleFactory.create(cacheManager, mapping);
         if (wrapper == null) {
             return null;
         }
@@ -101,7 +101,7 @@ final class EntityWrapperCache {
         if (basePath == null || basePath.isEmpty()) {
             return null;
         }
-        Map<String, Animation> actions = resourceLoader.loadAnimationSet(basePath);
+        Map<String, Animation> actions = cacheManager.loadAnimationSet(basePath);
         if (actions == null || actions.isEmpty()) {
             return null;
         }

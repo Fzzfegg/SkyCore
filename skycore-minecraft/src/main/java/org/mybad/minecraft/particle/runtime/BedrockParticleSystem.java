@@ -19,7 +19,7 @@ import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import org.mybad.minecraft.particle.render.gpu.ParticleGpuRenderer;
 import org.mybad.bedrockparticle.particle.BedrockResourceLocation;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.BufferUtils;
 
@@ -39,7 +39,7 @@ public class BedrockParticleSystem {
     static final int MAX_POOLED_PARTICLES = 768;
     private static final FloatBuffer ORIENTATION_BUFFER = BufferUtils.createFloatBuffer(16);
 
-    private final ResourceLoader resourceLoader;
+    private final ResourceCacheManager cacheManager;
     private final List<ActiveParticle> particles;
     private final List<ActiveEmitter> emitters;
     private final List<ActiveParticle> pendingParticles;
@@ -49,8 +49,8 @@ public class BedrockParticleSystem {
     private int pooledParticles;
     private boolean ticking;
 
-    public BedrockParticleSystem(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+    public BedrockParticleSystem(ResourceCacheManager cacheManager) {
+        this.cacheManager = cacheManager;
         this.particles = new ArrayList<>();
         this.emitters = new ArrayList<>();
         this.pendingParticles = new ArrayList<>();
@@ -88,7 +88,7 @@ public class BedrockParticleSystem {
     }
 
     private boolean spawnInternal(String particlePath, EmitterTransformProvider provider, int overrideCount) {
-        ParticleData data = resourceLoader.loadParticle(particlePath);
+        ParticleData data = cacheManager.loadParticle(particlePath);
         if (data == null) {
             return false;
         }

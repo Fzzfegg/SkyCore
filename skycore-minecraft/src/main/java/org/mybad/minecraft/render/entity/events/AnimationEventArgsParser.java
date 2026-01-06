@@ -1,9 +1,9 @@
-package org.mybad.minecraft.render.entity;
+package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.util.ResourceLocation;
 import org.mybad.minecraft.SkyCoreMod;
 
-final class AnimationEventArgsParser {
+public final class AnimationEventArgsParser {
     private AnimationEventArgsParser() {
     }
 

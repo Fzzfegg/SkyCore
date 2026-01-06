@@ -4,34 +4,34 @@ import net.minecraft.util.ResourceLocation;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.config.EntityModelMapping;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 public final class ModelHandleFactory {
     private ModelHandleFactory() {
     }
 
-    public static BedrockModelHandle create(ResourceLoader resourceLoader, EntityModelMapping mapping) {
-        if (resourceLoader == null || mapping == null) {
+    public static BedrockModelHandle create(ResourceCacheManager cacheManager, EntityModelMapping mapping) {
+        if (cacheManager == null || mapping == null) {
             return null;
         }
-        Model model = resourceLoader.loadModel(mapping.getModel());
+        Model model = cacheManager.loadModel(mapping.getModel());
         if (model == null) {
             return null;
         }
 
         Animation animation = null;
         if (mapping.getAnimation() != null && !mapping.getAnimation().isEmpty()) {
-            animation = resourceLoader.loadAnimation(mapping.getAnimation());
+            animation = cacheManager.loadAnimation(mapping.getAnimation());
         }
 
-        ResourceLocation texture = resourceLoader.resolveResourceLocation(mapping.getTexture());
+        ResourceLocation texture = cacheManager.resolveResourceLocation(mapping.getTexture());
         ResourceLocation emissiveTexture = null;
         if (mapping.getEmissive() != null && !mapping.getEmissive().isEmpty()) {
-            emissiveTexture = resourceLoader.resolveResourceLocation(mapping.getEmissive());
+            emissiveTexture = cacheManager.resolveResourceLocation(mapping.getEmissive());
         }
         ResourceLocation bloomTexture = null;
         if (mapping.getBloom() != null && !mapping.getBloom().isEmpty()) {
-            bloomTexture = resourceLoader.resolveResourceLocation(mapping.getBloom());
+            bloomTexture = cacheManager.resolveResourceLocation(mapping.getBloom());
         }
 
         return BedrockModelHandle.create(
@@ -42,7 +42,7 @@ public final class ModelHandleFactory {
             bloomTexture,
             mapping.isEnableCull(),
             mapping.getModel(),
-            resourceLoader.getGeometryCache()
+            cacheManager.getGeometryCache()
         );
     }
 

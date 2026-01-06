@@ -8,9 +8,10 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.debug.DebugStackManager;
+import org.mybad.minecraft.render.BloomRenderer;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 /**
  * 渲染事件处理器
@@ -23,9 +24,9 @@ public class EntityRenderEventHandler {
     private final EntityRenderDispatcher entityDispatcher;
     private final DebugStackManager debugStackManager;
 
-    public EntityRenderEventHandler(ResourceLoader resourceLoader) {
-        this.entityDispatcher = new EntityRenderDispatcher(resourceLoader);
-        this.debugStackManager = new DebugStackManager(resourceLoader);
+    public EntityRenderEventHandler(ResourceCacheManager cacheManager) {
+        this.entityDispatcher = new EntityRenderDispatcher(cacheManager);
+        this.debugStackManager = new DebugStackManager(cacheManager);
     }
 
     /**
@@ -44,7 +45,7 @@ public class EntityRenderEventHandler {
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
         debugStackManager.onRenderWorldLast(event);
-        org.mybad.minecraft.render.post.BloomRenderer.get().endFrame();
+        BloomRenderer.get().endFrame();
     }
 
     /**

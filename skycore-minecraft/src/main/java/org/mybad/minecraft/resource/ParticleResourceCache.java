@@ -12,22 +12,22 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class ParticleResourceCache {
-    private final ResourceLoader owner;
+    private final ResourceResolver resolver;
     private final Map<String, ParticleData> particleCache = new ConcurrentHashMap<>();
     private final ResourceLoadReporter reporter = new ResourceLoadReporter("Particle");
 
-    ParticleResourceCache(ResourceLoader owner) {
-        this.owner = owner;
+    ParticleResourceCache(ResourceResolver resolver) {
+        this.resolver = resolver;
     }
 
     ParticleData loadParticle(String path) {
-        String key = owner.normalizePath(path);
+        String key = resolver.normalizePath(path);
         ParticleData cached = particleCache.get(key);
         if (cached != null) {
             return cached;
         }
         try {
-            String jsonContent = owner.readResourceAsString(key);
+            String jsonContent = resolver.readResourceAsString(key);
             if (jsonContent == null) {
                 reporter.missing(key);
                 return null;
@@ -44,7 +44,7 @@ final class ParticleResourceCache {
     }
 
     void invalidateParticle(String path) {
-        particleCache.remove(owner.normalizePath(path));
+        particleCache.remove(resolver.normalizePath(path));
     }
 
     int getCachedParticleCount() {
@@ -66,7 +66,7 @@ final class ParticleResourceCache {
         if (!textureText.endsWith(".png")) {
             textureText += ".png";
         }
-        ResourceLocation fileLoc = owner.resolveResourceLocation(particlePath);
+        ResourceLocation fileLoc = resolver.resolveResourceLocation(particlePath);
         String namespace = fileLoc.getNamespace();
         data.setTexture(new BedrockResourceLocation(namespace, textureText));
     }

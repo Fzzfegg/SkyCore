@@ -1,17 +1,17 @@
-package org.mybad.minecraft.render.entity;
+package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
-import org.mybad.minecraft.render.entity.AnimationEventArgsParser.ParticleParams;
-import org.mybad.minecraft.render.entity.AnimationEventArgsParser.ParticleTargetMode;
+import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleParams;
+import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleTargetMode;
 import org.mybad.minecraft.render.BedrockModelHandle;
 
-final class AnimationEventMathUtil {
+public final class AnimationEventMathUtil {
     private AnimationEventMathUtil() {
     }
 
-    static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
-                                         float positionYaw, float partialTicks) {
+    public static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
+                                                float positionYaw, float partialTicks) {
         if (entity == null) {
             return resolveEventPosition(null, wrapper, locatorName, positionYaw, 0.0, 0.0, 0.0);
         }
@@ -21,16 +21,16 @@ final class AnimationEventMathUtil {
         return resolveEventPosition(entity, wrapper, locatorName, positionYaw, baseX, baseY, baseZ);
     }
 
-    static double[] resolveEventPositionNow(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
-                                            float positionYaw) {
+    public static double[] resolveEventPositionNow(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
+                                                   float positionYaw) {
         if (entity == null) {
             return resolveEventPosition(null, wrapper, locatorName, positionYaw, 0.0, 0.0, 0.0);
         }
         return resolveEventPosition(entity, wrapper, locatorName, positionYaw, entity.posX, entity.posY, entity.posZ);
     }
 
-    static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
-                                         float positionYaw, double baseX, double baseY, double baseZ) {
+    public static double[] resolveEventPosition(EntityLivingBase entity, BedrockModelHandle wrapper, String locatorName,
+                                                float positionYaw, double baseX, double baseY, double baseZ) {
         if (locatorName == null || locatorName.isEmpty()) {
             return new double[]{baseX, baseY, baseZ};
         }
@@ -54,35 +54,35 @@ final class AnimationEventMathUtil {
         return new double[]{baseX + rx, baseY + ly, baseZ + rz};
     }
 
-    static float resolveBodyYaw(EntityLivingBase entity, float partialTicks) {
+    public static float resolveBodyYaw(EntityLivingBase entity, float partialTicks) {
         if (entity == null) {
             return 0.0f;
         }
         return interpolateRotation(entity.prevRenderYawOffset, entity.renderYawOffset, partialTicks);
     }
 
-    static float resolveBodyYaw(EntityLivingBase entity) {
+    public static float resolveBodyYaw(EntityLivingBase entity) {
         if (entity == null) {
             return 0.0f;
         }
         return entity.renderYawOffset;
     }
 
-    static float resolveHeadYaw(EntityLivingBase entity) {
+    public static float resolveHeadYaw(EntityLivingBase entity) {
         if (entity == null) {
             return 0.0f;
         }
         return entity.rotationYawHead;
     }
 
-    static float resolveHeadYaw(EntityLivingBase entity, float partialTicks) {
+    public static float resolveHeadYaw(EntityLivingBase entity, float partialTicks) {
         if (entity == null) {
             return 0.0f;
         }
         return interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
     }
 
-    static float resolveEmitterYaw(EntityLivingBase entity, float partialTicks, ParticleParams params) {
+    public static float resolveEmitterYaw(EntityLivingBase entity, float partialTicks, ParticleParams params) {
         if (params == null) {
             return resolveHeadYaw(entity, partialTicks);
         }
@@ -97,7 +97,7 @@ final class AnimationEventMathUtil {
         }
     }
 
-    static float resolveEmitterYaw(EntityLivingBase entity, ParticleTargetMode mode, float yawOffset, float fallbackYaw) {
+    public static float resolveEmitterYaw(EntityLivingBase entity, ParticleTargetMode mode, float yawOffset, float fallbackYaw) {
         if (entity == null) {
             return fallbackYaw;
         }
@@ -110,7 +110,7 @@ final class AnimationEventMathUtil {
         return entity.rotationYawHead + yawOffset;
     }
 
-    static float interpolateRotation(float prev, float current, float partialTicks) {
+    public static float interpolateRotation(float prev, float current, float partialTicks) {
         float diff = current - prev;
         while (diff < -180.0F) diff += 360.0F;
         while (diff >= 180.0F) diff -= 360.0F;

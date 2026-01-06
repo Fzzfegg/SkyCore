@@ -1,14 +1,14 @@
-package org.mybad.minecraft.render.entity;
+package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
-import org.mybad.minecraft.render.entity.AnimationEventArgsParser.ParticleTargetMode;
+import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleTargetMode;
 import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.transform.LocatorTransform;
 
-final class AnimationEventTransformProvider implements EmitterTransformProvider {
+public final class AnimationEventTransformProvider implements EmitterTransformProvider {
     private final EntityLivingBase entity;
     private final BedrockModelHandle wrapper;
     private final String locatorName;

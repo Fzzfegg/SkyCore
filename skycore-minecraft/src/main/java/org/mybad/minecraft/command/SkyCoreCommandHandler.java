@@ -13,7 +13,7 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.render.geometry.GeometryCache;
-import org.mybad.minecraft.resource.ResourceLoader;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 
 /**
  * Reload/Debug chat command handler.
@@ -44,10 +44,10 @@ public class SkyCoreCommandHandler {
             }
             String target = parts[2].toLowerCase();
             String path = parts.length >= 4 ? parts[3] : null;
-            ResourceLoader loader = SkyCoreMod.instance.getResourceLoader();
+            ResourceCacheManager cacheManager = SkyCoreMod.instance.getResourceCacheManager();
             EntityRenderEventHandler renderHandler = SkyCoreMod.getEntityRenderEventHandler();
             BedrockParticleDebugSystem particleDebug = SkyCoreMod.getParticleDebugSystem();
-            if (loader == null) {
+            if (cacheManager == null) {
                 return;
             }
             if (target.equals("all")) {
@@ -59,9 +59,9 @@ public class SkyCoreCommandHandler {
             }
             if (target.equals("model")) {
                 if (path != null) {
-                    loader.invalidateModel(path);
+                    cacheManager.invalidateModel(path);
                 } else {
-                    loader.clearModelCache();
+                    cacheManager.clearModelCache();
                 }
                 if (renderHandler != null) {
                     renderHandler.clearCache();
@@ -73,9 +73,9 @@ public class SkyCoreCommandHandler {
             }
             if (target.equals("anim") || target.equals("animation")) {
                 if (path != null) {
-                    loader.invalidateAnimation(path);
+                    cacheManager.invalidateAnimation(path);
                 } else {
-                    loader.clearAnimationCache();
+                    cacheManager.clearAnimationCache();
                 }
                 if (renderHandler != null) {
                     renderHandler.clearCache();
@@ -87,9 +87,9 @@ public class SkyCoreCommandHandler {
             }
             if (target.equals("particle")) {
                 if (path != null) {
-                    loader.invalidateParticle(path);
+                    cacheManager.invalidateParticle(path);
                 } else {
-                    loader.clearParticleCache();
+                    cacheManager.clearParticleCache();
                 }
                 if (particleDebug != null) {
                     particleDebug.clear();
@@ -107,9 +107,9 @@ public class SkyCoreCommandHandler {
 
         if (message.equalsIgnoreCase("/skycore geomstats")) {
             if (SkyCoreMod.instance != null) {
-                ResourceLoader loader = SkyCoreMod.instance.getResourceLoader();
-                if (loader != null) {
-                    GeometryCache.Stats stats = loader.getGeometryCache().getStats();
+                ResourceCacheManager cacheManager = SkyCoreMod.instance.getResourceCacheManager();
+                if (cacheManager != null) {
+                    GeometryCache.Stats stats = cacheManager.getGeometryCache().getStats();
                     Minecraft.getMinecraft().player.sendMessage(
                         new TextComponentString("[SkyCore] \u51e0\u4f55\u7f13\u5b58\u7edf\u8ba1: " + stats.toString())
                     );
@@ -120,10 +120,10 @@ public class SkyCoreCommandHandler {
 
         if (message.equalsIgnoreCase("/skycore particlestats")) {
             if (SkyCoreMod.instance != null) {
-                ResourceLoader loader = SkyCoreMod.instance.getResourceLoader();
+                ResourceCacheManager cacheManager = SkyCoreMod.instance.getResourceCacheManager();
                 BedrockParticleDebugSystem particleDebug = SkyCoreMod.getParticleDebugSystem();
-                if (loader != null && particleDebug != null) {
-                    int cached = loader.getCachedParticleCount();
+                if (cacheManager != null && particleDebug != null) {
+                    int cached = cacheManager.getCachedParticleCount();
                     int active = particleDebug.getActiveCount();
                     Minecraft.getMinecraft().player.sendMessage(
                         new TextComponentString("[SkyCore] \u7c92\u5b50\u7f13\u5b58: " + cached + " / \u6d3b\u52a8\u7c92\u5b50: " + active)
@@ -223,8 +223,8 @@ public class SkyCoreCommandHandler {
                 return;
             }
             EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
-            ResourceLoader loader = SkyCoreMod.instance.getResourceLoader();
-            if (handler == null || loader == null) {
+            ResourceCacheManager cacheManager = SkyCoreMod.instance.getResourceCacheManager();
+            if (handler == null || cacheManager == null) {
                 return;
             }
             String[] parts = message.trim().split("\\s+");
@@ -250,7 +250,7 @@ public class SkyCoreCommandHandler {
                 );
                 return;
             }
-            Animation animation = loader.loadAnimation(animPath, clipName);
+            Animation animation = cacheManager.loadAnimation(animPath, clipName);
             if (animation == null) {
                 Minecraft.getMinecraft().player.sendMessage(
                     new TextComponentString("[SkyCore] \u52a8\u753b\u7247\u6bb5\u4e0d\u5b58\u5728: " + clipName)
