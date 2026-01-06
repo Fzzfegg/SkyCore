@@ -65,9 +65,6 @@ public final class ModelHandleFactory {
         if (lower.contains("add")) {
             return ModelBlendMode.ADD;
         }
-        if (lower.contains("mul")) {
-            return ModelBlendMode.MULTIPLY;
-        }
         return ModelBlendMode.ALPHA;
     }
 

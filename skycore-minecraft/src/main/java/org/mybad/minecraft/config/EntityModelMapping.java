@@ -31,7 +31,7 @@ public class EntityModelMapping {
     /** 叠色遮罩贴图路径 */
     @SerializedName(value = "blendTexture", alternate = {"blend"})
     private String blendTexture;
-    /** 叠色模式: alpha | add | multiply */
+    /** 叠色模式: alpha | add */
     private String blendMode;
     /** 叠色颜色 RGBA */
     private float[] blendColor;

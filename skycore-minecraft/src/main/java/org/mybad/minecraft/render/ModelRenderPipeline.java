@@ -158,6 +158,8 @@ final class ModelRenderPipeline {
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
         GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
+        GL11.glAlphaFunc(GL11.GL_GREATER, 0.01f);
         GlStateManager.depthMask(false);
         GlStateManager.depthFunc(GL11.GL_LEQUAL);
 
@@ -170,6 +172,8 @@ final class ModelRenderPipeline {
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
         GlStateManager.depthMask(true);
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        GlStateManager.disableAlpha();
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
@@ -178,8 +182,6 @@ final class ModelRenderPipeline {
     private void applyBlendMode(ModelBlendMode mode) {
         if (mode == ModelBlendMode.ADD) {
             GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-        } else if (mode == ModelBlendMode.MULTIPLY) {
-            GL11.glBlendFunc(GL11.GL_DST_COLOR, GL11.GL_ZERO);
         } else {
             GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         }
