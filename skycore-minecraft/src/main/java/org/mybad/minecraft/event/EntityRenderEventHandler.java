@@ -8,6 +8,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.debug.DebugStackManager;
+import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.BloomRenderer;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
@@ -55,6 +56,7 @@ public class EntityRenderEventHandler {
     public void clearCache() {
         entityDispatcher.clearCache();
         debugStackManager.clearDebugStacks();
+        BedrockModelWrapper.clearSharedResources();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
     }
 

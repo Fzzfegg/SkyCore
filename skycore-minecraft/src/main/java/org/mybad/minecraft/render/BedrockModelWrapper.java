@@ -26,7 +26,7 @@ import java.util.List;
  * - 批量渲染
  */
 @SideOnly(Side.CLIENT)
-class BedrockModelWrapper {
+public class BedrockModelWrapper {
 
     /** 模型数据 */
     private final Model model;
@@ -66,6 +66,7 @@ class BedrockModelWrapper {
     private final ModelGeometryBuilder geometryBuilder;
     private final SkinningPipeline skinningPipeline;
     private final ModelRenderPipeline renderPipeline;
+    private final String modelId;
 
     /** 是否启用背面剔除 */
     private final boolean enableCull;
@@ -96,7 +97,7 @@ class BedrockModelWrapper {
 
     BedrockModelWrapper(ModelWrapperFactory.BuildData data) {
         this(data.model, data.animationController, data.texture, data.emissiveTexture, data.bloomTexture, data.blendTexture, data.enableCull,
-            data.textureWidth, data.textureHeight, data.geometryBuilder, data.skinningPipeline);
+            data.textureWidth, data.textureHeight, data.geometryBuilder, data.skinningPipeline, data.modelId);
     }
 
     BedrockModelWrapper(Model model,
@@ -109,7 +110,8 @@ class BedrockModelWrapper {
                         int textureWidth,
                         int textureHeight,
                         ModelGeometryBuilder geometryBuilder,
-                        SkinningPipeline skinningPipeline) {
+                        SkinningPipeline skinningPipeline,
+                        String modelId) {
         this.enableCull = enableCull;
         this.model = model;
         this.animationController = animationController != null ? animationController : new ModelAnimationController(null);
@@ -121,6 +123,7 @@ class BedrockModelWrapper {
         this.textureHeight = textureHeight;
         this.geometryBuilder = geometryBuilder;
         this.skinningPipeline = skinningPipeline;
+        this.modelId = modelId;
         this.renderPipeline = new ModelRenderPipeline();
     }
 
@@ -311,9 +314,10 @@ class BedrockModelWrapper {
     void dispose() {
         skinningPipeline.dispose();
         animationController.dispose();
+        ModelWrapperFactory.releaseModelInstance(modelId, model);
     }
 
-    static void clearSharedResources() {
+    public static void clearSharedResources() {
         ModelWrapperFactory.clearSharedResources();
     }
 

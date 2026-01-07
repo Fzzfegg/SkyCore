@@ -7,8 +7,15 @@ import org.mybad.minecraft.render.geometry.GeometryCache;
 import org.mybad.minecraft.render.geometry.ModelGeometryBuilder;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 final class ModelWrapperFactory {
     private static final GeometryCache FALLBACK_GEOMETRY_CACHE = new GeometryCache();
+    private static final Map<String, Deque<Model>> MODEL_INSTANCE_POOLS = new ConcurrentHashMap<>();
+    private static final int MAX_POOL_SIZE = 16;
 
     private ModelWrapperFactory() {
     }
@@ -22,17 +29,18 @@ final class ModelWrapperFactory {
                            boolean enableCull,
                            String modelId,
                            GeometryCache geometryCache) {
+        String resolvedModelId = normalizeModelId(modelId, model);
         if (model == null) {
             return new BuildData(null, new ModelAnimationController(new AnimationBridge(animation)), texture, emissiveTexture, bloomTexture, blendTexture, enableCull,
-                64, 64, null, null);
+                64, 64, null, null, resolvedModelId);
         }
         Model baseModel = model;
-        Model instance = baseModel.createInstance();
+        Model instance = borrowModelInstance(baseModel, resolvedModelId);
         int[] texSize = resolveTextureSize(baseModel);
         int texWidth = texSize[0];
         int texHeight = texSize[1];
         GeometryCache resolvedCache = geometryCache != null ? geometryCache : FALLBACK_GEOMETRY_CACHE;
-        GeometryCache.Key resolvedKey = GeometryCache.key(normalizeModelId(modelId, baseModel), texWidth, texHeight);
+        GeometryCache.Key resolvedKey = GeometryCache.key(resolvedModelId, texWidth, texHeight);
 
         ModelAnimationController animationController = new ModelAnimationController(new AnimationBridge(animation));
         ModelGeometryBuilder geometryBuilder = new ModelGeometryBuilder(instance, texWidth, texHeight);
@@ -40,11 +48,12 @@ final class ModelWrapperFactory {
         SkinningPipeline skinningPipeline = new SkinningPipeline(instance, geometryBuilder, resolvedCache, resolvedKey);
 
         return new BuildData(instance, animationController, texture, emissiveTexture, bloomTexture, blendTexture, enableCull,
-            texWidth, texHeight, geometryBuilder, skinningPipeline);
+            texWidth, texHeight, geometryBuilder, skinningPipeline, resolvedModelId);
     }
 
     static void clearSharedResources() {
         FALLBACK_GEOMETRY_CACHE.clear();
+        MODEL_INSTANCE_POOLS.clear();
     }
 
     private static int[] resolveTextureSize(Model model) {
@@ -82,6 +91,7 @@ final class ModelWrapperFactory {
         final int textureHeight;
         final ModelGeometryBuilder geometryBuilder;
         final SkinningPipeline skinningPipeline;
+        final String modelId;
 
         private BuildData(Model model,
                           ModelAnimationController animationController,
@@ -93,7 +103,8 @@ final class ModelWrapperFactory {
                           int textureWidth,
                           int textureHeight,
                           ModelGeometryBuilder geometryBuilder,
-                          SkinningPipeline skinningPipeline) {
+                          SkinningPipeline skinningPipeline,
+                          String modelId) {
             this.model = model;
             this.animationController = animationController;
             this.texture = texture;
@@ -105,6 +116,31 @@ final class ModelWrapperFactory {
             this.textureHeight = textureHeight;
             this.geometryBuilder = geometryBuilder;
             this.skinningPipeline = skinningPipeline;
+            this.modelId = modelId;
+        }
+    }
+
+    private static Model borrowModelInstance(Model baseModel, String modelId) {
+        if (baseModel == null) {
+            return null;
+        }
+        Deque<Model> pool = MODEL_INSTANCE_POOLS.get(modelId);
+        Model instance = pool != null ? pool.pollFirst() : null;
+        if (instance == null) {
+            instance = baseModel.createInstance();
+        }
+        return instance;
+    }
+
+    static void releaseModelInstance(String modelId, Model instance) {
+        if (modelId == null || instance == null) {
+            return;
+        }
+        instance.resetToBindPose();
+        Deque<Model> pool = MODEL_INSTANCE_POOLS.computeIfAbsent(modelId, key -> new ArrayDeque<>());
+        pool.offerFirst(instance);
+        while (pool.size() > MAX_POOL_SIZE) {
+            pool.pollLast();
         }
     }
 }
