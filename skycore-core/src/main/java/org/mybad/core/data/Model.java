@@ -10,8 +10,8 @@ import java.util.*;
  */
 public class Model {
     private String name;
-    private String textureWidth;
-    private String textureHeight;
+    private int textureWidth = 64;
+    private int textureHeight = 64;
 
     private List<ModelBone> bones;
     private Map<String, ModelBone> boneMap;  // 快速查找
@@ -144,14 +144,19 @@ public class Model {
 
     // Getters
     public String getName() { return name; }
-    public String getTextureWidth() { return textureWidth; }
-    public String getTextureHeight() { return textureHeight; }
+    public int getTextureWidth() { return textureWidth; }
+    public int getTextureHeight() { return textureHeight; }
     public List<ModelBone> getBones() { return bones; }
     public List<ModelBone> getAllBones() { return bones; }
     public Map<String, ModelLocator> getLocators() { return locators; }
     public List<Constraint> getConstraints() { return constraints; }
 
     // Setters
-    public void setTextureWidth(String width) { this.textureWidth = width; }
-    public void setTextureHeight(String height) { this.textureHeight = height; }
+    public void setTextureWidth(int width) {
+        this.textureWidth = width;
+    }
+
+    public void setTextureHeight(int height) {
+        this.textureHeight = height;
+    }
 }

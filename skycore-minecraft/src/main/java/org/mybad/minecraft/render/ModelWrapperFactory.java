@@ -48,18 +48,13 @@ final class ModelWrapperFactory {
     }
 
     private static int[] resolveTextureSize(Model model) {
-        int texWidth = 64;
-        int texHeight = 64;
-        try {
-            String tw = model.getTextureWidth();
-            String th = model.getTextureHeight();
-            if (tw != null && !tw.isEmpty()) {
-                texWidth = Integer.parseInt(tw);
-            }
-            if (th != null && !th.isEmpty()) {
-                texHeight = Integer.parseInt(th);
-            }
-        } catch (NumberFormatException ignored) {
+        int texWidth = model.getTextureWidth();
+        int texHeight = model.getTextureHeight();
+        if (texWidth <= 0) {
+            texWidth = 64;
+        }
+        if (texHeight <= 0) {
+            texHeight = 64;
         }
         return new int[]{texWidth, texHeight};
     }

@@ -75,13 +75,13 @@ public class ModelParser {
         int textureWidth = 64;
         int textureHeight = 64;
         if (description.has("texture_width")) {
-            textureWidth = description.get("texture_width").getAsInt();
+            textureWidth = Math.max(1, description.get("texture_width").getAsInt());
         }
         if (description.has("texture_height")) {
-            textureHeight = description.get("texture_height").getAsInt();
+            textureHeight = Math.max(1, description.get("texture_height").getAsInt());
         }
-        model.setTextureWidth(String.valueOf(textureWidth));
-        model.setTextureHeight(String.valueOf(textureHeight));
+        model.setTextureWidth(textureWidth);
+        model.setTextureHeight(textureHeight);
 
         // 第一遍扫描：创建骨骼对象
         Map<String, ModelBone> boneMap = new HashMap<>();
