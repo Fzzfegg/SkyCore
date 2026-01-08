@@ -9,6 +9,10 @@ buildscript {
     }
 }
 
+plugins {
+    id 'com.google.protobuf' version '0.9.4'
+}
+
 apply plugin: 'org.spongepowered.mixin'
 
 version = "${minecraft_version}-${projectVersion}"
@@ -28,6 +32,10 @@ repositories {
     maven { url = 'https://repo.spongepowered.org/repository/maven-public' }
     maven { url = 'https://maven.cleanroommc.com/' }
     mavenCentral()
+}
+
+configurations {
+    shade
 }
 
 dependencies {
@@ -53,6 +61,9 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5'
     annotationProcessor 'org.ow2.asm:asm-tree:5.2'
     compileOnly 'org.ow2.asm:asm-tree:5.2'
+
+    implementation 'com.google.protobuf:protobuf-java:3.25.3'
+    shade 'com.google.protobuf:protobuf-java:3.25.3'
 }
 
 mixin {
@@ -64,6 +75,9 @@ jar {
     archiveVersion = projectVersion
     from(project(':skycore-core').sourceSets.main.output)
     from(project(':skycore-bedrockparticle').sourceSets.main.output)
+    from({
+        configurations.shade.collect { it.isDirectory() ? it : zipTree(it) }
+    })
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     manifest {
@@ -86,9 +100,28 @@ task sourceJar(type: Jar) {
     archiveBaseName = 'skycore-minecraft'
     archiveClassifier = 'sources'
     archiveVersion = projectVersion
-    from sourceSets.main.allSource
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        sourceSets.main.allSource.matching {
+            exclude '**/org/mybad/skycoreproto/**'
+        }
+    }
 }
 
 artifacts {
     archives sourceJar
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "$buildDir/generated/source/proto/main/java"
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.3"
+    }
 }

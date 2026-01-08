@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+option java_package = "org.mybad.skycoreproto";
+option java_outer_classname = "SkyCoreProto";
+
+package skycore;
+
+message EntityMapping {
+  string name = 1;
+  string model = 2;
+  string animation = 3;
+  string texture = 4;
+  string emissive = 5;
+  float emissive_strength = 6;
+  string bloom = 7;
+  string blend_texture = 8;
+  string blend_mode = 9;
+  repeated float blend_color = 10;
+  bool enable_cull = 11;
+  float scale = 12;
+  float primary_fade_seconds = 13;
+  bool render_hurt_tint = 14;
+  repeated float hurt_tint = 15;
+  bool render_shadow = 16;
+}
+
+message MappingFile {
+  string file_name = 1;
+  repeated EntityMapping mappings = 2;
+}
+
+message ConfigIndexEntry {
+  string file_name = 1;
+  bytes hash = 2;
+  uint64 size = 3;
+  int64 modified_at = 4;
+}
+
+message ConfigIndex {
+  bytes full_hash = 1;
+  repeated ConfigIndexEntry entries = 2;
+}
+
+message ConfigFileRemoved {
+  string file_name = 1;
+}
+
+message ForceAnimation {
+  string mapping_name = 1;
+  string clip_name = 2;
+  float speed = 3;
+  float blend_time = 4;
+  string entity_uuid = 5;
+}
+
+message ClearForceAnimation {
+  string mapping_name = 1;
+  enum Scope {
+    SINGLE = 0;
+    ALL = 1;
+  }
+  Scope scope = 2;
+}
+
+message SetModelAttributes {
+  string mapping_name = 1;
+  optional float scale = 2;
+  optional float emissive_strength = 3;
+  optional float bloom_strength = 4;
+  optional float bloom_threshold = 5;
+}
+
+message SpawnParticle {
+  string effect = 1;
+  double x = 2;
+  double y = 3;
+  double z = 4;
+  string locator = 5;
+  string mapping_name = 6;
+  int32 count = 7;
+}
+
+message ClearParticles {
+  string effect = 1;
+  enum Scope {
+    PLAYER = 0;
+    WORLD = 1;
+    ALL = 2;
+  }
+  Scope scope = 2;
+}

@@ -4,6 +4,9 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraftforge.fml.common.network.FMLEventChannel;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
@@ -16,6 +19,7 @@ import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.resource.ResourcePackRegistrar;
+import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 
 import java.io.File;
 
@@ -65,6 +69,7 @@ public class SkyCoreMod {
         // 初始化资源加载器
         resourceCacheManager = new ResourceCacheManager();
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
+        RemoteConfigController.getInstance().loadCacheOnStartup();
 
         LOGGER.info("[SkyCore] PreInit 完成");
     }
@@ -88,6 +93,10 @@ public class SkyCoreMod {
 
         // 注册命令处理器
         MinecraftForge.EVENT_BUS.register(new SkyCoreCommandHandler());
+
+        net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
+        channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
+
 
         LOGGER.info("[SkyCore] Init 完成");
     }

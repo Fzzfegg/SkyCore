@@ -153,5 +153,13 @@ public class SkyCoreConfig {
         return renderConfig;
     }
 
+    public synchronized void applyRemoteMappings(Map<String, EntityModelMapping> newMappings) {
+        mappings.clear();
+        if (newMappings != null) {
+            mappings.putAll(newMappings);
+        }
+        SkyCoreMod.LOGGER.info("[SkyCore] 已同步远端模型配置: {} 个实体", mappings.size());
+    }
+
     
 }

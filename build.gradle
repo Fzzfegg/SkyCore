@@ -32,8 +32,9 @@ subprojects {
     java.toolchain.languageVersion = JavaLanguageVersion.of(8)
 
     repositories {
-        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo1.maven.org/maven2/' }
         mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net' }
     }
 
     compileJava {
