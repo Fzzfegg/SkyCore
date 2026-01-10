@@ -66,8 +66,14 @@ public class ModelCube {
         }
 
         // 如果是 Box UV 模式，先计算各面 UV
+        float width = size[0];
+        float height = size[1];
+        float depth = size[2];
+        boolean flipX = width < 0;
+        boolean flipY = height < 0;
+        boolean flipZ = depth < 0;
         if (!uv.isPerFace()) {
-            uv.setupBoxUV(size[0], size[1], size[2], mirror);
+            uv.setupBoxUV(Math.abs(width), Math.abs(height), Math.abs(depth), mirror);
         }
 
         float tw = 1.0f / textureWidth;
@@ -77,18 +83,27 @@ public class ModelCube {
         // Bedrock: origin 是立方体的一个角，size 向正方向延伸
         // 但 Chameleon 的计算方式是 origin.x - size.x
         float convertedOriginX = -origin[0];
-        float minX = (convertedOriginX - size[0] - inflate) / 16.0f;
-        float minY = (origin[1] - inflate) / 16.0f;
-        float minZ = (origin[2] - inflate) / 16.0f;
+        float rawMinX = (convertedOriginX - width - inflate) / 16.0f;
+        float rawMaxX = (convertedOriginX + inflate) / 16.0f;
+        float rawMinY = (origin[1] - inflate) / 16.0f;
+        float rawMaxY = (origin[1] + height + inflate) / 16.0f;
+        float rawMinZ = (origin[2] - inflate) / 16.0f;
+        float rawMaxZ = (origin[2] + depth + inflate) / 16.0f;
 
-        float maxX = (convertedOriginX + inflate) / 16.0f;
-        float maxY = (origin[1] + size[1] + inflate) / 16.0f;
-        float maxZ = (origin[2] + size[2] + inflate) / 16.0f;
+        float minX = Math.min(rawMinX, rawMaxX);
+        float maxX = Math.max(rawMinX, rawMaxX);
+        float minY = Math.min(rawMinY, rawMaxY);
+        float maxY = Math.max(rawMinY, rawMaxY);
+        float minZ = Math.min(rawMinZ, rawMaxZ);
+        float maxZ = Math.max(rawMinZ, rawMaxZ);
 
         // 跳过 0 尺寸的面
-        boolean hasWidth = size[0] > 0;
-        boolean hasHeight = size[1] > 0;
-        boolean hasDepth = size[2] > 0;
+        boolean hasWidth = Math.abs(width) > 0;
+        boolean hasHeight = Math.abs(height) > 0;
+        boolean hasDepth = Math.abs(depth) > 0;
+        boolean invertNorthSouth = flipZ;
+        boolean invertEastWest = flipX;
+        boolean invertUpDown = flipY;
 
         // North face (Z-)
         if (hasWidth && hasHeight && uv.getNorth() != null) {
@@ -98,7 +113,8 @@ public class ModelCube {
                 new ModelVertex(minX, minY, minZ, uvn[2] * tw, uvn[3] * th),
                 new ModelVertex(minX, maxY, minZ, uvn[2] * tw, uvn[1] * th),
                 new ModelVertex(maxX, maxY, minZ, uvn[0] * tw, uvn[1] * th),
-                ModelQuad.Direction.NORTH
+                ModelQuad.Direction.NORTH,
+                invertNorthSouth
             ));
         }
 
@@ -110,7 +126,8 @@ public class ModelCube {
                 new ModelVertex(maxX, minY, maxZ, uvs[2] * tw, uvs[3] * th),
                 new ModelVertex(maxX, maxY, maxZ, uvs[2] * tw, uvs[1] * th),
                 new ModelVertex(minX, maxY, maxZ, uvs[0] * tw, uvs[1] * th),
-                ModelQuad.Direction.SOUTH
+                ModelQuad.Direction.SOUTH,
+                invertNorthSouth
             ));
         }
 
@@ -122,7 +139,8 @@ public class ModelCube {
                 new ModelVertex(maxX, minY, minZ, uve[2] * tw, uve[3] * th),
                 new ModelVertex(maxX, maxY, minZ, uve[2] * tw, uve[1] * th),
                 new ModelVertex(maxX, maxY, maxZ, uve[0] * tw, uve[1] * th),
-                ModelQuad.Direction.EAST
+                ModelQuad.Direction.EAST,
+                invertEastWest
             ));
         }
 
@@ -134,7 +152,8 @@ public class ModelCube {
                 new ModelVertex(minX, minY, maxZ, uvw[2] * tw, uvw[3] * th),
                 new ModelVertex(minX, maxY, maxZ, uvw[2] * tw, uvw[1] * th),
                 new ModelVertex(minX, maxY, minZ, uvw[0] * tw, uvw[1] * th),
-                ModelQuad.Direction.WEST
+                ModelQuad.Direction.WEST,
+                invertEastWest
             ));
         }
 
@@ -146,7 +165,8 @@ public class ModelCube {
                 new ModelVertex(minX, maxY, minZ, uvu[2] * tw, uvu[3] * th),
                 new ModelVertex(minX, maxY, maxZ, uvu[2] * tw, uvu[1] * th),
                 new ModelVertex(maxX, maxY, maxZ, uvu[0] * tw, uvu[1] * th),
-                ModelQuad.Direction.UP
+                ModelQuad.Direction.UP,
+                invertUpDown
             ));
         }
 
@@ -158,7 +178,8 @@ public class ModelCube {
                 new ModelVertex(maxX, minY, minZ, uvd[0] * tw, uvd[1] * th),
                 new ModelVertex(maxX, minY, maxZ, uvd[0] * tw, uvd[3] * th),
                 new ModelVertex(minX, minY, maxZ, uvd[2] * tw, uvd[3] * th),
-                ModelQuad.Direction.DOWN
+                ModelQuad.Direction.DOWN,
+                invertUpDown
             ));
         }
     }
@@ -167,7 +188,10 @@ public class ModelCube {
      * 创建四边形
      */
     private ModelQuad createQuad(ModelVertex v1, ModelVertex v2, ModelVertex v3, ModelVertex v4,
-                                  ModelQuad.Direction direction) {
+                                  ModelQuad.Direction direction, boolean invert) {
+        if (invert) {
+            return new ModelQuad(v4, v3, v2, v1, -direction.nx, -direction.ny, -direction.nz, direction);
+        }
         return new ModelQuad(v1, v2, v3, v4, direction.nx, direction.ny, direction.nz, direction);
     }
 
