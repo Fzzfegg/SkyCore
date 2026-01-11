@@ -7,7 +7,6 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
-import org.mybad.minecraft.debug.DebugStackManager;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.BloomRenderer;
 import org.mybad.minecraft.render.GLDeletionQueue;
@@ -23,11 +22,9 @@ import org.mybad.minecraft.resource.ResourceCacheManager;
 public class EntityRenderEventHandler {
 
     private final EntityRenderDispatcher entityDispatcher;
-    private final DebugStackManager debugStackManager;
 
     public EntityRenderEventHandler(ResourceCacheManager cacheManager) {
         this.entityDispatcher = new EntityRenderDispatcher(cacheManager);
-        this.debugStackManager = new DebugStackManager(cacheManager);
     }
 
     /**
@@ -45,7 +42,6 @@ public class EntityRenderEventHandler {
     public void onRenderWorldLast(RenderWorldLastEvent event) {
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
-        debugStackManager.onRenderWorldLast(event);
         BloomRenderer.get().endFrame();
     }
 
@@ -55,7 +51,6 @@ public class EntityRenderEventHandler {
      */
     public void clearCache() {
         entityDispatcher.clearCache();
-        debugStackManager.clearDebugStacks();
         BedrockModelWrapper.clearSharedResources();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
     }
@@ -66,11 +61,7 @@ public class EntityRenderEventHandler {
     public void invalidateWrapper(String entityName) {
         entityDispatcher.invalidateWrapper(entityName);
     }
-
-    public void clearDebugStacks() {
-        debugStackManager.clearDebugStacks();
-    }
-
+    
     public boolean setForcedAnimation(String mappingName, Animation animation) {
         return entityDispatcher.setForcedAnimation(mappingName, animation);
     }
@@ -91,7 +82,5 @@ public class EntityRenderEventHandler {
         entityDispatcher.clearAllForcedAnimations();
     }
 
-    public boolean addDebugStack(String mappingName, double x, double y, double z, float yaw, int count, double spacing) {
-        return debugStackManager.addDebugStack(mappingName, x, y, z, yaw, count, spacing);
-    }
+ 
 }

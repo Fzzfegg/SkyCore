@@ -45,6 +45,14 @@ message ConfigFileRemoved {
   string file_name = 1;
 }
 
+message RenderSettings {
+  float bloom_strength = 1;
+  uint32 bloom_radius = 2;
+  uint32 bloom_downsample = 3;
+  float bloom_threshold = 4;
+  uint32 bloom_passes = 5;
+}
+
 message ForceAnimation {
   string mapping_name = 1;
   string clip_name = 2;

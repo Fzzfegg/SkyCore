@@ -4,18 +4,13 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-import net.minecraftforge.fml.common.network.FMLEventChannel;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.mybad.minecraft.command.SkyCoreCommandHandler;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
-import org.mybad.minecraft.debug.BedrockParticleDebugSystem;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.resource.ResourcePackRegistrar;
@@ -53,8 +48,6 @@ public class SkyCoreMod {
     private EntityRenderEventHandler renderEventHandler;
     @SideOnly(Side.CLIENT)
     private BedrockParticleSystem particleSystem;
-    @SideOnly(Side.CLIENT)
-    private BedrockParticleDebugSystem particleDebugSystem;
     private File gameDir;
 
     @Mod.EventHandler
@@ -85,14 +78,10 @@ public class SkyCoreMod {
         // 粒子系统（核心）
         particleSystem = new BedrockParticleSystem(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(particleSystem);
-        // 粒子调试包装
-        particleDebugSystem = new BedrockParticleDebugSystem(particleSystem);
+
         // 创建并注册渲染事件处理器
         renderEventHandler = new EntityRenderEventHandler(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
-
-        // 注册命令处理器
-        MinecraftForge.EVENT_BUS.register(new SkyCoreCommandHandler());
 
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
         channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
@@ -115,7 +104,6 @@ public class SkyCoreMod {
         // 清空资源缓存
         resourceCacheManager.clearCache();
         renderEventHandler.clearCache();
-        particleDebugSystem.clear();
         
         LOGGER.info("[SkyCore] 重新加载完成");
     }
@@ -141,11 +129,7 @@ public class SkyCoreMod {
     public static BedrockParticleSystem getParticleSystem() {
         return instance != null ? instance.particleSystem : null;
     }
-
-    @SideOnly(Side.CLIENT)
-    public static BedrockParticleDebugSystem getParticleDebugSystem() {
-        return instance != null ? instance.particleDebugSystem : null;
-    }
+    
 
 
 }

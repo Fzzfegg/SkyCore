@@ -19,8 +19,8 @@ public final class SkycoreClientNetwork {
 
     public static void sendHello(String reason) {
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft == null || minecraft.getConnection() == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] Cannot send HELLO, connection unavailable.");
+        if (minecraft.getConnection() == null) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 无法发送握手数据：连接尚未建立。");
             return;
         }
         byte[] payload = buildHelloPayload(reason);
@@ -31,9 +31,9 @@ public final class SkycoreClientNetwork {
         buffer.writeBytes(payload);
         try {
             minecraft.getConnection().sendPacket(new CPacketCustomPayload(CHANNEL, buffer));
-            SkyCoreMod.LOGGER.info("[SkyCore] Sent HELLO to server (reason={})", reason);
+            SkyCoreMod.LOGGER.info("[SkyCore] 已向服务器发送握手数据（原因：{}）。", reason);
         } catch (Exception ex) {
-            SkyCoreMod.LOGGER.error("[SkyCore] Failed to send HELLO", ex);
+            SkyCoreMod.LOGGER.error("[SkyCore] 发送握手数据失败", ex);
         }
     }
 

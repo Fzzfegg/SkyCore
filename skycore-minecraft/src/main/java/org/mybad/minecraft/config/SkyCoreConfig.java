@@ -1,17 +1,6 @@
 package org.mybad.minecraft.config;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParseException;
-import org.mybad.minecraft.SkyCoreMod;
-
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,14 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SkyCoreConfig {
     private static SkyCoreConfig instance;
 
-    /** 配置文件路径 */
-    private final Path configPath;
-
     /** 实体名字 -> 模型映射 */
-    private final Map<String, EntityModelMapping> mappings;
-
-    /** Gson 实例 */
-    private final Gson gson;
+    private final Map<String, EntityModelMapping> mappings = new ConcurrentHashMap<>();
     private RenderConfig renderConfig = new RenderConfig();
 
     public static final class RenderConfig {
@@ -43,19 +26,7 @@ public class SkyCoreConfig {
         public boolean bloomUseDepth = true;
     }
 
-    private static final class ConfigFile {
-        RenderConfig render = new RenderConfig();
-        List<EntityModelMapping> entities = new ArrayList<>();
-    }
-
-    private SkyCoreConfig(Path packRoot) {
-        this.configPath = packRoot.resolve("skycore.json");
-        this.mappings = new ConcurrentHashMap<>();
-        this.gson = new GsonBuilder()
-                .setPrettyPrinting()
-                .disableHtmlEscaping()
-                .create();
-    }
+    private SkyCoreConfig(Path packRoot) {}
 
     /**
      * 初始化配置管理器
@@ -65,12 +36,7 @@ public class SkyCoreConfig {
         if (packRoot == null) {
             throw new IllegalStateException("SkyCoreConfig 初始化失败，packRoot 为空");
         }
-        try {
-            Files.createDirectories(packRoot);
-        } catch (IOException ignored) {
-        }
         instance = new SkyCoreConfig(packRoot);
-        instance.load();
     }
 
     /**
@@ -88,50 +54,14 @@ public class SkyCoreConfig {
      */
     public void load() {
         mappings.clear();
-
-        ConfigFile file = readConfigFile();
-        if (file == null) {
-            renderConfig = new RenderConfig();
-            SkyCoreMod.LOGGER.info("[SkyCore] 未发现配置文件，使用默认配置");
-            return;
-        }
-        if (file.render != null) {
-            renderConfig = file.render;
-        } else {
-            renderConfig = new RenderConfig();
-        }
-        if (file.entities != null) {
-            for (EntityModelMapping mapping : file.entities) {
-                if (mapping != null && mapping.getName() != null && !mapping.getName().isEmpty()) {
-                    mappings.put(mapping.getName(), mapping);
-                    SkyCoreMod.LOGGER.info("[SkyCore] 加载实体映射: {}", mapping.getName());
-                }
-            }
-        }
-        SkyCoreMod.LOGGER.info("[SkyCore] 配置加载完成，共 {} 个实体映射", mappings.size());
+        renderConfig = new RenderConfig();
     }
 
     /**
      * 重新加载配置（运行时 reload）
      */
     public void reload() {
-        SkyCoreMod.LOGGER.info("[SkyCore] 重新加载配置...");
-        load();
-    }
-    
-    
-    private ConfigFile readConfigFile() {
-        if (!Files.exists(configPath)) {
-            return null;
-        }
-        try (Reader reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
-            return gson.fromJson(reader, ConfigFile.class);
-        } catch (IOException e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 加载配置文件失败", e);
-        } catch (JsonParseException e) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 配置文件格式错误", e);
-        }
-        return null;
+        // No-op in remote-managed mode
     }
 
  
@@ -158,7 +88,22 @@ public class SkyCoreConfig {
         if (newMappings != null) {
             mappings.putAll(newMappings);
         }
-        SkyCoreMod.LOGGER.info("[SkyCore] 已同步远端模型配置: {} 个实体", mappings.size());
+    }
+
+    public synchronized void applyRenderSettings(float bloomStrength,
+                                                 int bloomRadius,
+                                                 int bloomDownsample,
+                                                 float bloomThreshold,
+                                                 int bloomPasses) {
+        RenderConfig updated = new RenderConfig();
+        updated.bloomStrength = bloomStrength;
+        updated.bloomRadius = bloomRadius;
+        updated.bloomDownsample = bloomDownsample;
+        updated.bloomThreshold = bloomThreshold;
+        updated.bloomPasses = bloomPasses;
+        updated.bloomSpread = renderConfig.bloomSpread;
+        updated.bloomUseDepth = renderConfig.bloomUseDepth;
+        renderConfig = updated;
     }
 
     

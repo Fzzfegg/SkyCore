@@ -39,18 +39,22 @@ public class RemoteConfigController {
             mappingFiles.put(file.getFileName(), file);
         }
         applyMappings();
+        SkyCoreProto.RenderSettings renderSettings = cacheManager.loadRenderSettings();
+        if (renderSettings != null) {
+            applyRenderSettings(renderSettings);
+        }
     }
 
     public void handleConfigIndex(SkyCoreProto.ConfigIndex index) {
         currentHash = index.getFullHash().toByteArray();
         cacheManager.saveIndex(index);
-        SkyCoreMod.LOGGER.info("[SkyCore] Received config index with {} files", index.getEntriesCount());
+        SkyCoreMod.LOGGER.info("[SkyCore] 已接收配置索引，共 {} 个文件。", index.getEntriesCount());
     }
 
     public void handleMappingFile(SkyCoreProto.MappingFile file) {
         mappingFiles.put(file.getFileName(), file);
         cacheManager.saveMappingFile(file);
-        SkyCoreMod.LOGGER.info("[SkyCore] Updated mapping file {}", file.getFileName());
+        SkyCoreMod.LOGGER.info("[SkyCore] 配置文件 {} 已更新。", file.getFileName());
         applyMappings();
     }
 
@@ -58,6 +62,11 @@ public class RemoteConfigController {
         mappingFiles.remove(removed.getFileName());
         cacheManager.deleteMappingFile(removed.getFileName());
         applyMappings();
+    }
+
+    public void handleRenderSettings(SkyCoreProto.RenderSettings settings) {
+        cacheManager.saveRenderSettings(settings);
+        applyRenderSettings(settings);
     }
 
     private void applyMappings() {
@@ -68,6 +77,20 @@ public class RemoteConfigController {
             }
         }
         SkyCoreConfig.getInstance().applyRemoteMappings(merged);
+        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
+        if (handler != null) {
+            handler.clearCache();
+        }
+    }
+
+    private void applyRenderSettings(SkyCoreProto.RenderSettings settings) {
+        SkyCoreConfig.getInstance().applyRenderSettings(
+                settings.getBloomStrength(),
+                settings.getBloomRadius(),
+                settings.getBloomDownsample(),
+                settings.getBloomThreshold(),
+                settings.getBloomPasses()
+        );
         EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
         if (handler != null) {
             handler.clearCache();
