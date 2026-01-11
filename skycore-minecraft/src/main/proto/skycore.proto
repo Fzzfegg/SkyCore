@@ -54,10 +54,8 @@ message RenderSettings {
 }
 
 message ForceAnimation {
-  string mapping_name = 1;
+  reserved 1;
   string clip_name = 2;
-  float speed = 3;
-  float blend_time = 4;
   string entity_uuid = 5;
 }
 
@@ -71,11 +69,19 @@ message ClearForceAnimation {
 }
 
 message SetModelAttributes {
-  string mapping_name = 1;
+  optional string mapping_name = 1;
   optional float scale = 2;
   optional float emissive_strength = 3;
   optional float bloom_strength = 4;
   optional float bloom_threshold = 5;
+  optional string texture = 6;
+  optional string emissive = 7;
+  optional string bloom = 8;
+  optional string blend_texture = 9;
+  optional bool enable_cull = 10;
+  optional bool render_shadow = 11;
+  optional float primary_fade_seconds = 12;
+  optional string entity_uuid = 13;
 }
 
 message SpawnParticle {

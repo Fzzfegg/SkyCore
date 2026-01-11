@@ -18,6 +18,7 @@ import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import java.lang.reflect.Field;
 import java.nio.FloatBuffer;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * SSBO + instanced 粒子渲染入口。
@@ -62,7 +63,8 @@ public final class ParticleGpuRenderer {
             return;
         }
 
-        ParticleBatcher.Result result = batcher.build(particles, partialTicks);
+        List<ActiveParticle> snapshot = new ArrayList<>(particles);
+        ParticleBatcher.Result result = batcher.build(snapshot, partialTicks);
         if (result.particleCount <= 0 || result.batches.isEmpty()) {
             return;
         }

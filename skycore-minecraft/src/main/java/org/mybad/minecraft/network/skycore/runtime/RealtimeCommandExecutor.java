@@ -18,11 +18,25 @@ public final class RealtimeCommandExecutor {
     private RealtimeCommandExecutor() {}
 
     public static void handleForceAnimation(SkyCoreProto.ForceAnimation packet) {
+        String rawUuid = packet.getEntityUuid();
+        if (rawUuid == null || rawUuid.isEmpty()) {
+            return;
+        }
+        java.util.UUID entityUuid;
+        try {
+            entityUuid = java.util.UUID.fromString(rawUuid);
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
         EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
         if (handler == null) {
             return;
         }
-        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(packet.getMappingName());
+        String mappingName = handler.resolveMappingByEntity(entityUuid);
+        if (mappingName == null) {
+            return;
+        }
+        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
         if (mapping == null || mapping.getAnimation() == null) {
             return;
         }
@@ -31,23 +45,23 @@ public final class RealtimeCommandExecutor {
         if (animation == null) {
             return;
         }
-        handler.setForcedAnimation(packet.getMappingName(), animation);
-    }
-
-    public static void handleClearAnimation(SkyCoreProto.ClearForceAnimation packet) {
-        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
-        if (handler == null) {
-            return;
-        }
-        if (packet.getScope() == SkyCoreProto.ClearForceAnimation.Scope.ALL) {
-            handler.clearAllForcedAnimations();
-        } else if (!packet.getMappingName().isEmpty()) {
-            handler.clearForcedAnimation(packet.getMappingName());
-        }
+        handler.setForcedAnimation(entityUuid, animation);
     }
 
     public static void handleSetModelAttributes(SkyCoreProto.SetModelAttributes packet) {
-        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(packet.getMappingName());
+        String mappingName = packet.hasMappingName() ? packet.getMappingName() : null;
+        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
+        if (mappingName == null && packet.hasEntityUuid() && handler != null) {
+            try {
+                java.util.UUID uuid = java.util.UUID.fromString(packet.getEntityUuid());
+                mappingName = handler.resolveMappingByEntity(uuid);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (mappingName == null) {
+            return;
+        }
+        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
         if (mapping == null) {
             return;
         }
@@ -60,9 +74,29 @@ public final class RealtimeCommandExecutor {
         if (packet.hasBloomStrength()) {
             // reuse emissiveStrength field to simulate bloom adjustments if needed
         }
-        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
+        if (packet.hasTexture()) {
+            mapping.setTexture(packet.getTexture());
+        }
+        if (packet.hasEmissive()) {
+            mapping.setEmissive(packet.getEmissive());
+        }
+        if (packet.hasBloom()) {
+            mapping.setBloom(packet.getBloom());
+        }
+        if (packet.hasBlendTexture()) {
+            mapping.setBlendTexture(packet.getBlendTexture());
+        }
+        if (packet.hasEnableCull()) {
+            mapping.setEnableCull(packet.getEnableCull());
+        }
+        if (packet.hasRenderShadow()) {
+            mapping.setRenderShadow(packet.getRenderShadow());
+        }
+        if (packet.hasPrimaryFadeSeconds()) {
+            mapping.setPrimaryFadeSeconds(packet.getPrimaryFadeSeconds());
+        }
         if (handler != null) {
-            handler.invalidateWrapper(packet.getMappingName());
+            handler.invalidateWrapper(mappingName);
         }
     }
 
@@ -74,11 +108,4 @@ public final class RealtimeCommandExecutor {
         system.spawn(packet.getEffect(), packet.getX(), packet.getY(), packet.getZ(), packet.getCount());
     }
 
-    public static void handleClearParticles(SkyCoreProto.ClearParticles packet) {
-        BedrockParticleSystem system = SkyCoreMod.getParticleSystem();
-        if (system == null) {
-            return;
-        }
-        system.clear();
-    }
 }

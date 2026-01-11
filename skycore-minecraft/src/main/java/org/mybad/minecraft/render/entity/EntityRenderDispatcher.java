@@ -5,6 +5,7 @@ import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
+import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
@@ -41,8 +42,14 @@ public final class EntityRenderDispatcher {
             return;
         }
 
-        Animation forced = forcedAnimations.get(mappingName);
+        Animation forced = forcedAnimations.get(entity.getUniqueID());
         entry.overlayStates = AnimationStateApplier.apply(entity, entry, forced);
+        if (forced != null) {
+            AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
+            if (player == null || player.isFinished()) {
+                forcedAnimations.clear(entity.getUniqueID());
+            }
+        }
 
         renderPipeline.render(entity, entry, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
     }
@@ -71,16 +78,20 @@ public final class EntityRenderDispatcher {
         wrapperCache.cleanupDead();
     }
 
-    public boolean setForcedAnimation(String mappingName, Animation animation) {
-        return forcedAnimations.set(mappingName, animation, wrapperCache.entries());
+    public boolean setForcedAnimation(java.util.UUID entityUuid, Animation animation) {
+        return forcedAnimations.set(entityUuid, animation, wrapperCache.entries());
     }
 
-    public void clearForcedAnimation(String mappingName) {
-        forcedAnimations.clear(mappingName);
+    public void clearForcedAnimation(java.util.UUID entityUuid) {
+        forcedAnimations.clear(entityUuid);
     }
 
     public void clearAllForcedAnimations() {
         forcedAnimations.clearAll();
+    }
+
+    public String findMappingByUuid(java.util.UUID uuid) {
+        return wrapperCache.findMappingNameByUuid(uuid);
     }
 
 }

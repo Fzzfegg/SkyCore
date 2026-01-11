@@ -48,6 +48,10 @@ public final class BedrockModelHandle {
         wrapper.setAnimation(animation);
     }
 
+    public void restartAnimation() {
+        wrapper.restartAnimation();
+    }
+
     public AnimationPlayer getActiveAnimationPlayer() {
         return wrapper.getActiveAnimationPlayer();
     }

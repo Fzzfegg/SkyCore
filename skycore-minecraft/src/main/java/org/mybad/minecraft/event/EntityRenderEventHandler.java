@@ -62,8 +62,8 @@ public class EntityRenderEventHandler {
         entityDispatcher.invalidateWrapper(entityName);
     }
     
-    public boolean setForcedAnimation(String mappingName, Animation animation) {
-        return entityDispatcher.setForcedAnimation(mappingName, animation);
+    public boolean setForcedAnimation(java.util.UUID entityUuid, Animation animation) {
+        return entityDispatcher.setForcedAnimation(entityUuid, animation);
     }
 
     public boolean isSkyCoreEntity(net.minecraft.entity.EntityLivingBase entity) {
@@ -74,12 +74,16 @@ public class EntityRenderEventHandler {
         return entityDispatcher.isSkyCoreEntity(entity);
     }
 
-    public void clearForcedAnimation(String mappingName) {
-        entityDispatcher.clearForcedAnimation(mappingName);
+    public void clearForcedAnimation(java.util.UUID entityUuid) {
+        entityDispatcher.clearForcedAnimation(entityUuid);
     }
 
     public void clearAllForcedAnimations() {
         entityDispatcher.clearAllForcedAnimations();
+    }
+
+    public String resolveMappingByEntity(java.util.UUID uuid) {
+        return entityDispatcher.findMappingByUuid(uuid);
     }
 
  

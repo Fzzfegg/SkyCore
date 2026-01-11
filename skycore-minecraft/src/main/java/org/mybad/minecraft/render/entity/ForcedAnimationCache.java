@@ -3,27 +3,29 @@ package org.mybad.minecraft.render.entity;
 import org.mybad.core.animation.Animation;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class ForcedAnimationCache {
-    private final Map<String, Animation> forcedAnimations = new ConcurrentHashMap<>();
+    private final Map<UUID, Animation> forcedAnimations = new ConcurrentHashMap<>();
 
-    Animation get(String mappingName) {
-        if (mappingName == null || mappingName.isEmpty()) {
+    Animation get(UUID entityUuid) {
+        if (entityUuid == null) {
             return null;
         }
-        return forcedAnimations.get(mappingName);
+        return forcedAnimations.get(entityUuid);
     }
 
-    boolean set(String mappingName, Animation animation, Iterable<EntityWrapperEntry> entries) {
-        if (mappingName == null || mappingName.isEmpty() || animation == null) {
+    boolean set(UUID entityUuid, Animation animation, Iterable<EntityWrapperEntry> entries) {
+        if (entityUuid == null || animation == null) {
             return false;
         }
-        forcedAnimations.put(mappingName, animation);
+        forcedAnimations.put(entityUuid, animation);
         if (entries != null) {
             for (EntityWrapperEntry entry : entries) {
-                if (entry != null && mappingName.equals(entry.mappingName)) {
+                if (entry != null && entityUuid.equals(entry.entityUuid)) {
                     entry.wrapper.setAnimation(animation);
+                    entry.wrapper.restartAnimation();
                     entry.wrapper.clearOverlayStates();
                 }
             }
@@ -31,11 +33,11 @@ final class ForcedAnimationCache {
         return true;
     }
 
-    void clear(String mappingName) {
-        if (mappingName == null || mappingName.isEmpty()) {
+    void clear(UUID entityUuid) {
+        if (entityUuid == null) {
             return;
         }
-        forcedAnimations.remove(mappingName);
+        forcedAnimations.remove(entityUuid);
     }
 
     void clearAll() {

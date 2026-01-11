@@ -38,10 +38,6 @@ public final class SkycorePacketRouter {
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到强制动画指令。");
                     RealtimeCommandExecutor.handleForceAnimation(SkyCoreProto.ForceAnimation.parseFrom(payload));
                     return;
-                case SkycorePacketId.CLEAR_FORCE_ANIMATION:
-                    SkyCoreMod.LOGGER.info("[SkyCore] 收到清除动画指令。");
-                    RealtimeCommandExecutor.handleClearAnimation(SkyCoreProto.ClearForceAnimation.parseFrom(payload));
-                    return;
                 case SkycorePacketId.SET_MODEL_ATTRIBUTES:
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到模型属性更新。");
                     RealtimeCommandExecutor.handleSetModelAttributes(SkyCoreProto.SetModelAttributes.parseFrom(payload));
@@ -49,10 +45,6 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.SPAWN_PARTICLE:
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到粒子生成指令。");
                     RealtimeCommandExecutor.handleSpawnParticle(SkyCoreProto.SpawnParticle.parseFrom(payload));
-                    return;
-                case SkycorePacketId.CLEAR_PARTICLES:
-                    SkyCoreMod.LOGGER.info("[SkyCore] 收到粒子清理指令。");
-                    RealtimeCommandExecutor.handleClearParticles(SkyCoreProto.ClearParticles.parseFrom(payload));
                     return;
                 case SkycorePacketId.DEBUG_MESSAGE:
                     String text = new String(payload, java.nio.charset.StandardCharsets.UTF_8);

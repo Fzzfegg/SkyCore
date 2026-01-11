@@ -14,6 +14,7 @@ import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class EntityWrapperCache {
@@ -99,6 +100,18 @@ final class EntityWrapperCache {
                 it.remove();
             }
         }
+    }
+
+    String findMappingNameByUuid(UUID uuid) {
+        if (uuid == null) {
+            return null;
+        }
+        for (EntityWrapperEntry entry : cache.values()) {
+            if (uuid.equals(entry.entityUuid)) {
+                return entry.mappingName;
+            }
+        }
+        return null;
     }
 
     private EntityAnimationController buildController(EntityModelMapping mapping) {
