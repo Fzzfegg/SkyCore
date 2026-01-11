@@ -14,6 +14,7 @@ import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.resource.ResourcePackRegistrar;
+import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 
 import java.io.File;
@@ -48,6 +49,8 @@ public class SkyCoreMod {
     private EntityRenderEventHandler renderEventHandler;
     @SideOnly(Side.CLIENT)
     private BedrockParticleSystem particleSystem;
+    @SideOnly(Side.CLIENT)
+    private PreloadManager preloadManager;
     private File gameDir;
 
     @Mod.EventHandler
@@ -61,6 +64,7 @@ public class SkyCoreMod {
 
         // 初始化资源加载器
         resourceCacheManager = new ResourceCacheManager();
+        preloadManager = new PreloadManager(resourceCacheManager);
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
         RemoteConfigController.getInstance().loadCacheOnStartup();
 
@@ -104,6 +108,9 @@ public class SkyCoreMod {
         // 清空资源缓存
         resourceCacheManager.clearCache();
         renderEventHandler.clearCache();
+        if (preloadManager != null) {
+            preloadManager.clear();
+        }
         
         LOGGER.info("[SkyCore] 重新加载完成");
     }
@@ -128,6 +135,11 @@ public class SkyCoreMod {
     @SideOnly(Side.CLIENT)
     public static BedrockParticleSystem getParticleSystem() {
         return instance != null ? instance.particleSystem : null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public static PreloadManager getPreloadManager() {
+        return instance != null ? instance.preloadManager : null;
     }
     
 

@@ -4,6 +4,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.network.skycore.runtime.RealtimeCommandExecutor;
+import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 import java.nio.charset.StandardCharsets;
@@ -45,6 +46,13 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.SPAWN_PARTICLE:
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到粒子生成指令。");
                     RealtimeCommandExecutor.handleSpawnParticle(SkyCoreProto.SpawnParticle.parseFrom(payload));
+                    return;
+                case SkycorePacketId.PRELOAD_HINT:
+                    SkyCoreMod.LOGGER.info("[SkyCore] 收到预热指令。");
+                    PreloadManager manager = SkyCoreMod.getPreloadManager();
+                    if (manager != null) {
+                        manager.enqueue(SkyCoreProto.PreloadHint.parseFrom(payload));
+                    }
                     return;
                 case SkycorePacketId.DEBUG_MESSAGE:
                     String text = new String(payload, java.nio.charset.StandardCharsets.UTF_8);

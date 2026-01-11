@@ -94,6 +94,14 @@ message SpawnParticle {
   int32 count = 7;
 }
 
+message PreloadHint {
+  string group = 1;
+  repeated string mapping_names = 2;
+  repeated string textures = 3;
+  repeated string particles = 4;
+  repeated string sounds = 5;
+}
+
 message ClearParticles {
   string effect = 1;
   enum Scope {

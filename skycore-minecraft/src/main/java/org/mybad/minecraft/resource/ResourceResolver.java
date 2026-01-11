@@ -53,7 +53,39 @@ public final class ResourceResolver {
      * 从资源包加载资源文件为字符串
      */
     String readResourceAsString(String path) {
-        return readFromPackRoot(path);
+        byte[] bytes = readResourceBytes(path);
+        if (bytes == null) {
+            return null;
+        }
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    byte[] readResourceBytes(String path) {
+        Path filePath = locateResourcePath(path);
+        if (filePath == null) {
+            return null;
+        }
+        try {
+            return Files.readAllBytes(filePath);
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    public boolean prefetchBinary(String path) {
+        Path filePath = locateResourcePath(path);
+        if (filePath == null || !Files.isRegularFile(filePath)) {
+            return false;
+        }
+        try (java.io.InputStream input = Files.newInputStream(filePath)) {
+            byte[] buffer = new byte[8192];
+            while (input.read(buffer) != -1) {
+                // discard
+            }
+            return true;
+        } catch (IOException ex) {
+            return false;
+        }
     }
 
     private String normalizeKnownPrefixes(String path) {
@@ -102,35 +134,24 @@ public final class ResourceResolver {
      * 从 resourcepacks/SkyCore/<namespace>/<path> 目录读取
      * 支持路径: models/player.geo.json, animations/walk.animation.json 等
      */
-    private String readFromPackRoot(String path) {
-        try {
-            String cleanPath = path;
-            String namespace = SkyCoreMod.MOD_ID;
-            int colonIndex = path.indexOf(':');
-            if (colonIndex > 0) {
-                namespace = path.substring(0, colonIndex);
-                cleanPath = path.substring(colonIndex + 1);
-            }
-
-            Path packRoot = resolvePackRoot();
-            if (packRoot == null) {
-                return null;
-            }
-            Path filePath = packRoot.resolve(namespace).resolve(cleanPath);
-            if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
-                return new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            // 文件不存在或读取失败
-        }
-        return null;
-    }
-
     private Path resolvePackRoot() {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc == null || mc.gameDir == null) {
             return null;
         }
         return mc.gameDir.toPath().resolve("resourcepacks").resolve("SkyCore");
+    }
+
+    private Path locateResourcePath(String rawPath) {
+        if (rawPath == null || rawPath.trim().isEmpty()) {
+            return null;
+        }
+        String normalized = normalizeKnownPrefixes(rawPath.trim());
+        ResourceLocation location = resolveResourceLocationInternal(normalized);
+        Path packRoot = resolvePackRoot();
+        if (packRoot == null) {
+            return null;
+        }
+        return packRoot.resolve(location.getNamespace()).resolve(location.getPath());
     }
 }
