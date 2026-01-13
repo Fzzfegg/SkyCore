@@ -104,6 +104,14 @@ public final class SkullModelManager {
         disposeAndRemove(key);
     }
 
+    public static boolean isGlobalRenderer(TileEntitySkull skull) {
+        if (skull == null) {
+            return false;
+        }
+        SkullProfileData profile = SkullProfileData.from(skull.getPlayerProfile());
+        return profile != null && Boolean.TRUE.equals(profile.getGlobalRender());
+    }
+
     private static void disposeAndRemove(SkullModelKey key) {
         SkullModelInstance removed = INSTANCES.remove(key);
         if (removed != null) {
