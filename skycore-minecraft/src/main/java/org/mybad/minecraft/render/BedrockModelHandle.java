@@ -139,4 +139,9 @@ public final class BedrockModelHandle {
     public void dispose() {
         wrapper.dispose();
     }
+
+    public void updateAnimations() {
+        wrapper.updateAnimations();
+    }
+
 }

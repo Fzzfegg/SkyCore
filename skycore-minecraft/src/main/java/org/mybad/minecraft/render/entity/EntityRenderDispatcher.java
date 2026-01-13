@@ -94,4 +94,11 @@ public final class EntityRenderDispatcher {
         return wrapperCache.findMappingNameByUuid(uuid);
     }
 
+    public void forEachWrapper(java.util.function.BiConsumer<EntityLivingBase, EntityWrapperEntry> consumer) {
+        if (consumer == null) {
+            return;
+        }
+        wrapperCache.forEach(consumer);
+    }
+
 }

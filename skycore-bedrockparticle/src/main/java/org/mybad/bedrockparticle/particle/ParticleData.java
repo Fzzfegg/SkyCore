@@ -25,7 +25,6 @@ import org.mybad.bedrockparticle.particle.component.ParticleComponentParser;
 import org.mybad.bedrockparticle.particle.event.ParticleEvent;
 import org.mybad.bedrockparticle.particle.json.ParticleJsonTupleParser;
 import org.mybad.bedrockparticle.particle.json.ParticleGsonHelper;
-import org.mybad.bedrockparticle.particle.BedrockResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Type;

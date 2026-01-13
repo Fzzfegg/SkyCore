@@ -114,6 +114,20 @@ final class EntityWrapperCache {
         return null;
     }
 
+    void forEach(java.util.function.BiConsumer<EntityLivingBase, EntityWrapperEntry> consumer) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null) {
+            return;
+        }
+        for (Map.Entry<Integer, EntityWrapperEntry> entry : cache.entrySet()) {
+            Entity entity = mc.world.getEntityByID(entry.getKey());
+            if (!(entity instanceof EntityLivingBase)) {
+                continue;
+            }
+            consumer.accept((EntityLivingBase) entity, entry.getValue());
+        }
+    }
+
     private EntityAnimationController buildController(EntityModelMapping mapping) {
         String basePath = mapping.getAnimation();
         if (basePath == null || basePath.isEmpty()) {

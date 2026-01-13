@@ -16,4 +16,5 @@ public final class SkycorePacketId {
     public static final int SPAWN_PARTICLE = 32;
 
     public static final int DEBUG_MESSAGE = 64;
+    public static final int DEBUG_FLAGS = 65;
 }

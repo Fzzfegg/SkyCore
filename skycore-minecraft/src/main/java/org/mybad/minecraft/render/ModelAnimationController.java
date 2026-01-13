@@ -18,6 +18,14 @@ final class ModelAnimationController {
         bridge.updateAndApply(model);
     }
 
+    boolean update() {
+        return bridge.update();
+    }
+
+    boolean apply(Model model) {
+        return bridge.apply(model);
+    }
+
     void setAnimation(Animation animation) {
         bridge.setAnimation(animation);
     }

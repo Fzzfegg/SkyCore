@@ -87,12 +87,25 @@ final class AnimationBridge {
     }
 
     boolean updateAndApply(Model model) {
+        update();
+        return apply(model);
+    }
+
+    boolean update() {
         updateAnimation();
-        AnimationPlayer player = activePlayer;
-        if (player == null && previousPlayer == null && overlayStates.isEmpty()) {
+        return hasActiveAnimation();
+    }
+
+    boolean apply(Model model) {
+        if (model == null) {
+            return false;
+        }
+        if (!hasActiveAnimation()) {
+            model.resetToBindPose();
             return false;
         }
         model.resetToBindPose();
+        AnimationPlayer player = activePlayer;
         if (player != null) {
             player.apply(model);
         }
@@ -178,5 +191,9 @@ final class AnimationBridge {
             return 0f;
         }
         return 1f - t;
+    }
+
+    private boolean hasActiveAnimation() {
+        return activePlayer != null || previousPlayer != null || !overlayStates.isEmpty();
     }
 }

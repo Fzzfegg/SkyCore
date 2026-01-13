@@ -114,3 +114,8 @@ message ClearParticles {
   }
   Scope scope = 2;
 }
+
+message DebugRenderFlags {
+  optional bool show_entity_boxes = 1;
+  optional bool show_skull_anchors = 2;
+}

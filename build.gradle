@@ -1,5 +1,3 @@
-// SkyCore 根项目构建配置 - ForgeGradle 6.0+
-
 buildscript {
     repositories {
         maven { url = 'https://maven.minecraftforge.net' }
@@ -18,7 +16,6 @@ configure(project(':skycore-minecraft')) {
 
 group = 'org.mybad'
 version = '1.0.0'
-description = '高性能、功能完整的 Minecraft Bedrock 模型和粒子系统框架'
 
 // 为所有子项目配置通用设置
 subprojects {
@@ -50,7 +47,6 @@ def modsDir = file('D:/Minecraft/记忆之间客户端模型测试/.minecraft/mo
 
 tasks.register('copyBuiltMods') {
     group = 'build'
-    description = 'Copy skycore-core and skycore-minecraft jars (non-sources) to the test mods folder.'
     dependsOn ':skycore-core:jar', ':skycore-bedrockparticle:jar', ':skycore-minecraft:reobfJar'
     doLast {
         if (!modsDir.exists()) {
@@ -59,13 +55,11 @@ tasks.register('copyBuiltMods') {
         copy {
 //            from('skycore-core/build/libs') {
 //                include '*.jar'
-//                exclude '*-sources.jar'
 //            }
 //            from('skycore-bedrockparticle/build/libs') {
 //                include '*.jar'
-//                exclude '*-sources.jar'
 //            }
-            from('skycore-minecraft/build/libs') {
+            from('build/libs') {
                 include '*.jar'
                 exclude '*-sources.jar'
                 exclude '*-dev.jar'
@@ -73,6 +67,22 @@ tasks.register('copyBuiltMods') {
             }
             into modsDir
         }
+        def versionedJarName = "SkyCoreMod-${projectVersion}.jar"
+        def versionedJar = file("skycore-minecraft/build/libs/${versionedJarName}")
+        if (!versionedJar.exists()) {
+            throw new GradleException("未找到构建产物 ${versionedJarName}，无法执行 Allatori 混淆。")
+        }
+        def rootBuildLibs = file("$buildDir/libs")
+        if (!rootBuildLibs.exists()) {
+            rootBuildLibs.mkdirs()
+        }
+        copy {
+            from(versionedJar.parentFile)
+            include versionedJarName
+            into rootBuildLibs
+            rename { 'SkyCore-deobf.jar' }
+        }
+        runAllatori()
     }
 }
 
@@ -81,3 +91,15 @@ subprojects {
         finalizedBy rootProject.tasks.named('copyBuiltMods')
     }
 }
+
+
+def runAllatori() {
+    println "运行 Allatori 混淆器..."
+    javaexec {
+        mainClass = 'com.allatori.Obfuscate'
+        classpath = files('E:\\脚本\\混淆\\Allatori-9.5-Demo\\lib\\allatori.jar')
+        args "allatori-config.xml"
+    }
+    println "混淆完成！"
+}
+

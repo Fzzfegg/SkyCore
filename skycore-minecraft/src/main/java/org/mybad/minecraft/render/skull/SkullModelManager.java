@@ -17,6 +17,7 @@ import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public final class SkullModelManager {
     private static final Map<SkullModelKey, SkullModelInstance> INSTANCES = new ConcurrentHashMap<>();
@@ -126,6 +127,21 @@ public final class SkullModelManager {
         return SkyCoreMod.instance.getResourceCacheManager();
     }
 
+    public static void collectDebugInfo(Consumer<DebugInfo> consumer) {
+        if (consumer == null || INSTANCES.isEmpty()) {
+            return;
+        }
+        for (SkullModelInstance instance : INSTANCES.values()) {
+            if (instance == null) {
+                continue;
+            }
+            DebugInfo info = instance.toDebugInfo();
+            if (info != null) {
+                consumer.accept(info);
+            }
+        }
+    }
+
     private static Transform computeTransform(World world, BlockPos pos, TileEntitySkull skull) {
         Transform transform = new Transform();
         transform.offsetX = 0.5;
@@ -190,6 +206,48 @@ public final class SkullModelManager {
         public int hashCode() {
             int result = Integer.hashCode(dimension);
             return 31 * result + Long.hashCode(pos);
+        }
+    }
+
+    public static final class DebugInfo {
+        private final String mappingName;
+        private final double worldX;
+        private final double worldY;
+        private final double worldZ;
+        private final float scale;
+        private final float yaw;
+
+        DebugInfo(String mappingName, double worldX, double worldY, double worldZ, float scale, float yaw) {
+            this.mappingName = mappingName;
+            this.worldX = worldX;
+            this.worldY = worldY;
+            this.worldZ = worldZ;
+            this.scale = scale;
+            this.yaw = yaw;
+        }
+
+        public String getMappingName() {
+            return mappingName;
+        }
+
+        public double getWorldX() {
+            return worldX;
+        }
+
+        public double getWorldY() {
+            return worldY;
+        }
+
+        public double getWorldZ() {
+            return worldZ;
+        }
+
+        public float getScale() {
+            return scale;
+        }
+
+        public float getYaw() {
+            return yaw;
         }
     }
 }

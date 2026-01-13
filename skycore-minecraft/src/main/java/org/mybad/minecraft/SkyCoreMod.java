@@ -9,6 +9,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.debug.DebugRenderController;
 import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
@@ -113,6 +114,7 @@ public class SkyCoreMod {
             preloadManager.clear();
         }
         SkullModelManager.clear();
+        DebugRenderController.clear();
         
         LOGGER.info("[SkyCore] 重新加载完成");
     }

@@ -30,6 +30,10 @@ final class SkullModelInstance implements AnimationEventContext {
     private static final List<EntityAnimationController.OverlayState> NO_OVERLAYS = Collections.emptyList();
     private String activeClip;
     private long lastSeenTick;
+    private double lastWorldX;
+    private double lastWorldY;
+    private double lastWorldZ;
+    private float lastYaw;
 
     private SkullModelInstance(String mappingName,
                                EntityModelMapping mapping,
@@ -100,6 +104,10 @@ final class SkullModelInstance implements AnimationEventContext {
                 float yaw,
                 float partialTicks) {
         eventTarget.update(worldX, worldY, worldZ, yaw);
+        this.lastWorldX = worldX;
+        this.lastWorldY = worldY;
+        this.lastWorldZ = worldZ;
+        this.lastYaw = yaw;
         handle.renderBlock(renderX, renderY, renderZ, yaw, partialTicks);
     }
 
@@ -108,6 +116,21 @@ final class SkullModelInstance implements AnimationEventContext {
             return;
         }
         dispatcher.dispatchAnimationEvents(null, this, eventTarget, handle, partialTicks);
+    }
+
+    void updateAnimations() {
+        handle.updateAnimations();
+    }
+
+    SkullModelManager.DebugInfo toDebugInfo() {
+        return new SkullModelManager.DebugInfo(
+            mappingName,
+            lastWorldX,
+            lastWorldY,
+            lastWorldZ,
+            handle.getModelScale(),
+            lastYaw
+        );
     }
 
     private boolean applyClip(String clipName) {

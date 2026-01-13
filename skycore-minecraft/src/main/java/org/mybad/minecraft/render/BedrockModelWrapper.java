@@ -67,6 +67,7 @@ public class BedrockModelWrapper {
     private final ModelGeometryBuilder geometryBuilder;
     private final SkinningPipeline skinningPipeline;
     private final ModelRenderPipeline renderPipeline;
+    private boolean animationsDirty = true;
     private final String modelId;
 
     /** 是否启用背面剔除 */
@@ -143,7 +144,7 @@ public class BedrockModelWrapper {
                                 double x, double y, double z,
                                 float entityYaw, float partialTicks,
                                 boolean applyYaw) {
-        animationController.updateAndApply(model);
+        applyAnimationsIfNeeded();
         renderPipeline.render(
             entity,
             x, y, z,
@@ -182,6 +183,7 @@ public class BedrockModelWrapper {
      */
     void setAnimation(Animation animation) {
         animationController.setAnimation(animation);
+        markAnimationsDirty();
     }
 
     /**
@@ -189,6 +191,7 @@ public class BedrockModelWrapper {
      */
     void restartAnimation() {
         animationController.restartAnimation();
+        markAnimationsDirty();
     }
 
     /**
@@ -204,10 +207,12 @@ public class BedrockModelWrapper {
 
     void setOverlayStates(List<EntityAnimationController.OverlayState> states) {
         animationController.setOverlayStates(states);
+        markAnimationsDirty();
     }
 
     void clearOverlayStates() {
         animationController.clearOverlayStates();
+        markAnimationsDirty();
     }
 
     /**
@@ -317,6 +322,7 @@ public class BedrockModelWrapper {
             return;
         }
         this.modelScale = scale;
+        markAnimationsDirty();
     }
 
     float getModelScale() {
@@ -327,6 +333,23 @@ public class BedrockModelWrapper {
         skinningPipeline.dispose();
         animationController.dispose();
         ModelWrapperFactory.releaseModelInstance(modelId, model);
+    }
+
+    void updateAnimations() {
+        if (animationController.update()) {
+            animationsDirty = true;
+        }
+    }
+
+    private void applyAnimationsIfNeeded() {
+        if (animationsDirty) {
+            animationController.apply(model);
+            animationsDirty = false;
+        }
+    }
+
+    private void markAnimationsDirty() {
+        animationsDirty = true;
     }
 
     public static void clearSharedResources() {

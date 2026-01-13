@@ -2,6 +2,7 @@ package org.mybad.minecraft.network.skycore;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.debug.DebugRenderController;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.network.skycore.runtime.RealtimeCommandExecutor;
 import org.mybad.minecraft.resource.preload.PreloadManager;
@@ -57,6 +58,10 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.DEBUG_MESSAGE:
                     String text = new String(payload, java.nio.charset.StandardCharsets.UTF_8);
                     SkyCoreMod.LOGGER.info("[SkyCore] 调试消息：{}", text);
+                    return;
+                case SkycorePacketId.DEBUG_FLAGS:
+                    SkyCoreMod.LOGGER.info("[SkyCore] 收到调试渲染开关。");
+                    DebugRenderController.apply(SkyCoreProto.DebugRenderFlags.parseFrom(payload));
                     return;
                 default:
                     SkyCoreMod.LOGGER.warn("[SkyCore] 收到未知数据包：{}", packetId);
