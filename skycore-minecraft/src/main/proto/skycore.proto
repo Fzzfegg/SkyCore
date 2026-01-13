@@ -22,6 +22,9 @@ message EntityMapping {
   bool render_hurt_tint = 14;
   repeated float hurt_tint = 15;
   bool render_shadow = 16;
+  float render_box_width = 17;
+  float render_box_height = 18;
+  float render_box_depth = 19;
 }
 
 message MappingFile {

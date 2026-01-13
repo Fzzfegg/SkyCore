@@ -28,6 +28,15 @@ public final class ProtoMappingConverter {
             mapping.setHurtTint(toArray(proto.getHurtTintList()));
         }
         mapping.setRenderShadow(proto.getRenderShadow());
+        if (proto.getRenderBoxWidth() > 0f) {
+            mapping.setRenderBoxWidth(proto.getRenderBoxWidth());
+        }
+        if (proto.getRenderBoxHeight() > 0f) {
+            mapping.setRenderBoxHeight(proto.getRenderBoxHeight());
+        }
+        if (proto.getRenderBoxDepth() > 0f) {
+            mapping.setRenderBoxDepth(proto.getRenderBoxDepth());
+        }
         return mapping;
     }
 

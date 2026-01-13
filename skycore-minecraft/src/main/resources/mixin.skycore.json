@@ -9,7 +9,8 @@
     "sound.MixinSoundManager",
     "render.MixinRender",
     "render.MixinTileEntitySkullRenderer",
-    "render.MixinTileEntity"
+    "render.MixinTileEntity",
+    "render.MixinEntityRenderBox"
   ],
   "server": []
 }

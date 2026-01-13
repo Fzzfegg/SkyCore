@@ -49,6 +49,12 @@ public class EntityModelMapping {
     private float[] hurtTint;
     /** 是否渲染原版实体阴影（默认: true） */
     private boolean renderShadow = true;
+    /** 自定义渲染包围盒宽度（XZ方向，单位格） */
+    private float renderBoxWidth = 0f;
+    /** 自定义渲染包围盒高度（单位格） */
+    private float renderBoxHeight = 0f;
+    /** 自定义渲染包围盒深度（Z方向，单位格） */
+    private float renderBoxDepth = 0f;
 
     public EntityModelMapping() {}
 
@@ -76,6 +82,12 @@ public class EntityModelMapping {
     public boolean isRenderHurtTint() { return renderHurtTint; }
     public float[] getHurtTint() { return hurtTint; }
     public boolean isRenderShadow() { return renderShadow; }
+    public float getRenderBoxWidth() { return renderBoxWidth; }
+    public float getRenderBoxHeight() { return renderBoxHeight; }
+    public float getRenderBoxDepth() { return renderBoxDepth; }
+    public boolean hasCustomRenderBox() {
+        return renderBoxWidth > 0f && renderBoxHeight > 0f && renderBoxDepth > 0f;
+    }
 
     // Setters
     public void setName(String name) { this.name = name; }
@@ -94,6 +106,9 @@ public class EntityModelMapping {
     public void setRenderHurtTint(boolean renderHurtTint) { this.renderHurtTint = renderHurtTint; }
     public void setHurtTint(float[] hurtTint) { this.hurtTint = hurtTint; }
     public void setRenderShadow(boolean renderShadow) { this.renderShadow = renderShadow; }
+    public void setRenderBoxWidth(float renderBoxWidth) { this.renderBoxWidth = renderBoxWidth; }
+    public void setRenderBoxHeight(float renderBoxHeight) { this.renderBoxHeight = renderBoxHeight; }
+    public void setRenderBoxDepth(float renderBoxDepth) { this.renderBoxDepth = renderBoxDepth; }
 
     @Override
     public String toString() {
@@ -114,6 +129,9 @@ public class EntityModelMapping {
                 ", renderHurtTint=" + renderHurtTint +
                 ", hurtTint=" + (hurtTint == null ? "null" : java.util.Arrays.toString(hurtTint)) +
                 ", renderShadow=" + renderShadow +
+                ", renderBoxWidth=" + renderBoxWidth +
+                ", renderBoxHeight=" + renderBoxHeight +
+                ", renderBoxDepth=" + renderBoxDepth +
                 '}';
     }
 }
