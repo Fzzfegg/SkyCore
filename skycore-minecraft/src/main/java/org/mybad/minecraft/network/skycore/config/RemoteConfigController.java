@@ -6,6 +6,7 @@ import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
+import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 import java.nio.file.Path;
@@ -81,6 +82,7 @@ public class RemoteConfigController {
         if (handler != null) {
             handler.clearCache();
         }
+        SkullModelManager.clear();
     }
 
     private void applyRenderSettings(SkyCoreProto.RenderSettings settings) {

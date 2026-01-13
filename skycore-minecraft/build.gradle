@@ -71,7 +71,7 @@ mixin {
 }
 
 jar {
-    archiveBaseName = 'skycore-minecraft'
+    archiveBaseName = 'SkyCoreMod'
     archiveVersion = projectVersion
     from(project(':skycore-core').sourceSets.main.output)
     from(project(':skycore-bedrockparticle').sourceSets.main.output)
@@ -94,22 +94,6 @@ jar {
             'Implementation-Timestamp': new Date().format('yyyy-MM-dd\'T\'HH:mm:ssZ')
         ])
     }
-}
-
-task sourceJar(type: Jar) {
-    archiveBaseName = 'skycore-minecraft'
-    archiveClassifier = 'sources'
-    archiveVersion = projectVersion
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from {
-        sourceSets.main.allSource.matching {
-            exclude '**/org/mybad/skycoreproto/**'
-        }
-    }
-}
-
-artifacts {
-    archives sourceJar
 }
 
 sourceSets {

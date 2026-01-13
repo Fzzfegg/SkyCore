@@ -1,9 +1,7 @@
-// skycore-bedrockparticle 模块构建配置
-
 group = 'org.mybad'
 version = projectVersion
 
-description = 'Bedrock particle parser/runtime (ported, rendering handled by SkyCore)'
+description = ''
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(8)
 

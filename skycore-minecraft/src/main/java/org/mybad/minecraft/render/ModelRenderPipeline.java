@@ -42,7 +42,8 @@ final class ModelRenderPipeline {
                 float blendG,
                 float blendB,
                 float blendA,
-                SkinningPipeline skinningPipeline) {
+                SkinningPipeline skinningPipeline,
+                boolean applyYaw) {
         if (skinningPipeline == null) {
             return;
         }
@@ -66,7 +67,7 @@ final class ModelRenderPipeline {
             GlStateManager.scale(modelScale, modelScale, modelScale);
         }
 
-        if (entity != null) {
+        if (applyYaw) {
             GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
         }
 

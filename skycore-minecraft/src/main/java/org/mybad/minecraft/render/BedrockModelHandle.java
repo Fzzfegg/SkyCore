@@ -44,6 +44,10 @@ public final class BedrockModelHandle {
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
     }
 
+    public void renderBlock(double x, double y, double z, float yaw, float partialTicks) {
+        wrapper.renderBlock(x, y, z, yaw, partialTicks);
+    }
+
     public void setAnimation(Animation animation) {
         wrapper.setAnimation(animation);
     }

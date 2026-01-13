@@ -15,6 +15,7 @@ import org.mybad.minecraft.render.transform.LocatorResolver;
 import org.mybad.minecraft.render.transform.LocatorTransform;
 
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Bedrock 模型包装器
@@ -131,7 +132,17 @@ public class BedrockModelWrapper {
      * 渲染模型
      */
     void render(Entity entity, double x, double y, double z, float entityYaw, float partialTicks) {
-        // 更新动画并应用到模型
+        renderInternal(entity, x, y, z, entityYaw, partialTicks, entity != null);
+    }
+
+    void renderBlock(double x, double y, double z, float yaw, float partialTicks) {
+        renderInternal(null, x, y, z, yaw, partialTicks, true);
+    }
+
+    private void renderInternal(@Nullable Entity entity,
+                                double x, double y, double z,
+                                float entityYaw, float partialTicks,
+                                boolean applyYaw) {
         animationController.updateAndApply(model);
         renderPipeline.render(
             entity,
@@ -161,7 +172,8 @@ public class BedrockModelWrapper {
             blendG,
             blendB,
             blendA,
-            skinningPipeline
+            skinningPipeline,
+            applyYaw
         );
     }
 
