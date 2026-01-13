@@ -4,28 +4,33 @@ import net.minecraft.entity.EntityLivingBase;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.render.BedrockModelHandle;
-import org.mybad.minecraft.render.entity.EntityWrapperEntry;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class OverlayEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
 
-    void dispatch(EntityLivingBase entity, EntityWrapperEntry entry, BedrockModelHandle wrapper,
+    void dispatch(EntityLivingBase entity, AnimationEventContext context, AnimationEventTarget target, BedrockModelHandle wrapper,
                   float partialTicks, AnimationEventDispatcher dispatcher) {
-        if (entry.overlayStates == null || entry.overlayStates.isEmpty()) {
-            entry.overlayCursors.clear();
+        if (context == null) {
+            return;
+        }
+        List<EntityAnimationController.OverlayState> overlayStates = context.getOverlayStates();
+        OverlayEventCursorCache cursorCache = context.getOverlayCursorCache();
+        if (overlayStates == null || overlayStates.isEmpty()) {
+            cursorCache.clear();
             return;
         }
         Set<Animation> active = new HashSet<>();
-        for (EntityAnimationController.OverlayState state : entry.overlayStates) {
+        for (EntityAnimationController.OverlayState state : overlayStates) {
             if (state == null || state.animation == null) {
                 continue;
             }
             Animation animation = state.animation;
             active.add(animation);
-            OverlayEventCursor cursor = entry.overlayCursors.getOrCreate(animation);
+            OverlayEventCursor cursor = cursorCache.getOrCreate(animation);
             float currentTime = state.time;
             if (!cursor.valid) {
                 cursor.lastTime = currentTime;
@@ -34,9 +39,9 @@ public final class OverlayEventDispatcher {
                 continue;
             }
             boolean looped = animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < cursor.lastTime;
-            dispatcher.dispatchEventsForAnimation(entity, wrapper, animation, cursor.lastTime, currentTime, looped, partialTicks);
+            dispatcher.dispatchEventsForAnimation(entity, target, wrapper, animation, cursor.lastTime, currentTime, looped, partialTicks);
             cursor.lastTime = currentTime;
         }
-        entry.overlayCursors.prune(active);
+        cursorCache.prune(active);
     }
 }

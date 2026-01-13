@@ -1,22 +1,33 @@
 package org.mybad.minecraft.render.skull;
 
 import org.mybad.core.animation.Animation;
+import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
+import org.mybad.minecraft.render.entity.events.AnimationEventContext;
+import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
+import org.mybad.minecraft.render.entity.events.AnimationEventState;
+import org.mybad.minecraft.render.entity.events.AnimationEventTarget;
+import org.mybad.minecraft.render.entity.events.OverlayEventCursorCache;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-final class SkullModelInstance {
+final class SkullModelInstance implements AnimationEventContext {
     private final String mappingName;
     private final EntityModelMapping mapping;
     private final BedrockModelHandle handle;
     private final Map<String, Animation> animations;
+    private final AnimationEventState eventState = new AnimationEventState();
+    private final OverlayEventCursorCache overlayCursors = new OverlayEventCursorCache();
+    private final SkullAnimationEventTarget eventTarget = new SkullAnimationEventTarget();
+    private static final List<EntityAnimationController.OverlayState> NO_OVERLAYS = Collections.emptyList();
     private String activeClip;
     private long lastSeenTick;
 
@@ -80,8 +91,23 @@ final class SkullModelInstance {
         }
     }
 
-    void render(double x, double y, double z, float yaw, float partialTicks) {
-        handle.renderBlock(x, y, z, yaw, partialTicks);
+    void render(double renderX,
+                double renderY,
+                double renderZ,
+                double worldX,
+                double worldY,
+                double worldZ,
+                float yaw,
+                float partialTicks) {
+        eventTarget.update(worldX, worldY, worldZ, yaw);
+        handle.renderBlock(renderX, renderY, renderZ, yaw, partialTicks);
+    }
+
+    void dispatchEvents(AnimationEventDispatcher dispatcher, float partialTicks) {
+        if (dispatcher == null) {
+            return;
+        }
+        dispatcher.dispatchAnimationEvents(null, this, eventTarget, handle, partialTicks);
     }
 
     private boolean applyClip(String clipName) {
@@ -146,5 +172,59 @@ final class SkullModelInstance {
         handle.setModelScale(mapping.getModelScale());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());
+    }
+
+    @Override
+    public AnimationEventState getPrimaryEventState() {
+        return eventState;
+    }
+
+    @Override
+    public List<EntityAnimationController.OverlayState> getOverlayStates() {
+        return NO_OVERLAYS;
+    }
+
+    @Override
+    public OverlayEventCursorCache getOverlayCursorCache() {
+        return overlayCursors;
+    }
+
+    private static final class SkullAnimationEventTarget implements AnimationEventTarget {
+        private double baseX;
+        private double baseY;
+        private double baseZ;
+        private float yaw;
+
+        void update(double x, double y, double z, float yaw) {
+            this.baseX = x;
+            this.baseY = y;
+            this.baseZ = z;
+            this.yaw = yaw;
+        }
+
+        @Override
+        public double getBaseX() {
+            return baseX;
+        }
+
+        @Override
+        public double getBaseY() {
+            return baseY;
+        }
+
+        @Override
+        public double getBaseZ() {
+            return baseZ;
+        }
+
+        @Override
+        public float getHeadYaw() {
+            return yaw;
+        }
+
+        @Override
+        public float getBodyYaw() {
+            return yaw;
+        }
     }
 }

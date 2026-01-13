@@ -12,6 +12,7 @@ import net.minecraft.world.World;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.Map;
@@ -19,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class SkullModelManager {
     private static final Map<SkullModelKey, SkullModelInstance> INSTANCES = new ConcurrentHashMap<>();
+    private static final AnimationEventDispatcher EVENT_DISPATCHER = new AnimationEventDispatcher();
 
     private SkullModelManager() {
     }
@@ -75,7 +77,11 @@ public final class SkullModelManager {
         double renderX = x + transform.offsetX;
         double renderY = y + transform.offsetY;
         double renderZ = z + transform.offsetZ;
-        instance.render(renderX, renderY, renderZ, transform.yaw, partialTicks);
+        double worldX = pos != null ? pos.getX() + transform.offsetX : transform.offsetX;
+        double worldY = pos != null ? pos.getY() + transform.offsetY : transform.offsetY;
+        double worldZ = pos != null ? pos.getZ() + transform.offsetZ : transform.offsetZ;
+        instance.render(renderX, renderY, renderZ, worldX, worldY, worldZ, transform.yaw, partialTicks);
+        instance.dispatchEvents(EVENT_DISPATCHER, partialTicks);
         return true;
     }
 

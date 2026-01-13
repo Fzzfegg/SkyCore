@@ -22,7 +22,7 @@ final class EntityRenderPipeline {
         float entityYaw = AnimationEventMathUtil.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
-        eventDispatcher.dispatchAnimationEvents(entity, entry, wrapper, partialTicks);
+        eventDispatcher.dispatchAnimationEvents(entity, entry, null, wrapper, partialTicks);
 
         if (EntityNameTagRenderer.shouldRenderNameTag(entity)) {
             EntityNameTagRenderer.render(entity, x, y, z);

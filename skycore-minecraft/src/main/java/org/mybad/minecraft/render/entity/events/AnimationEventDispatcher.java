@@ -3,13 +3,12 @@ package org.mybad.minecraft.render.entity.events;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.SoundCategory;
-import org.mybad.minecraft.audio.DirectSoundPlayer;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.audio.DirectSoundPlayer;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.BedrockModelHandle;
-import org.mybad.minecraft.render.entity.EntityWrapperEntry;
 
 import java.util.List;
 
@@ -20,14 +19,23 @@ public final class AnimationEventDispatcher {
     private static final float EVENT_EPS = 1.0e-4f;
     private final OverlayEventDispatcher overlayDispatcher = new OverlayEventDispatcher();
 
-    public void dispatchAnimationEvents(EntityLivingBase entity, EntityWrapperEntry entry,
-                                        BedrockModelHandle wrapper, float partialTicks) {
+    public void dispatchAnimationEvents(EntityLivingBase entity,
+                                        AnimationEventContext context,
+                                        AnimationEventTarget target,
+                                        BedrockModelHandle wrapper,
+                                        float partialTicks) {
+        if (context == null || wrapper == null) {
+            return;
+        }
+        AnimationEventState renderState = context.getPrimaryEventState();
+        if (renderState == null) {
+            return;
+        }
         AnimationPlayer primaryPlayer = wrapper.getActiveAnimationPlayer();
         if (primaryPlayer != null && primaryPlayer.getAnimation() != null) {
             Animation animation = primaryPlayer.getAnimation();
             float currentTime = primaryPlayer.getState().getCurrentTime();
             int loopCount = primaryPlayer.getState().getLoopCount();
-            AnimationEventState renderState = entry.renderState;
             if (!renderState.primaryValid || renderState.lastPrimaryAnimation != animation) {
                 renderState.lastPrimaryAnimation = animation;
                 renderState.lastPrimaryTime = currentTime;
@@ -36,19 +44,25 @@ public final class AnimationEventDispatcher {
             } else {
                 boolean looped = loopCount != renderState.lastPrimaryLoop ||
                     (animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < renderState.lastPrimaryTime);
-                dispatchEventsForAnimation(entity, wrapper, animation, renderState.lastPrimaryTime, currentTime, looped, partialTicks);
+                dispatchEventsForAnimation(entity, target, wrapper, animation,
+                    renderState.lastPrimaryTime, currentTime, looped, partialTicks);
                 renderState.lastPrimaryTime = currentTime;
                 renderState.lastPrimaryLoop = loopCount;
             }
         } else {
-            entry.renderState.primaryValid = false;
+            renderState.primaryValid = false;
         }
 
-        overlayDispatcher.dispatch(entity, entry, wrapper, partialTicks, this);
+        overlayDispatcher.dispatch(entity, context, target, wrapper, partialTicks, this);
     }
 
-    void dispatchEventsForAnimation(EntityLivingBase entity, BedrockModelHandle wrapper, Animation animation,
-                                    float prevTime, float currentTime, boolean looped,
+    void dispatchEventsForAnimation(EntityLivingBase entity,
+                                    AnimationEventTarget target,
+                                    BedrockModelHandle wrapper,
+                                    Animation animation,
+                                    float prevTime,
+                                    float currentTime,
+                                    boolean looped,
                                     float partialTicks) {
         if (animation == null) {
             return;
@@ -58,16 +72,23 @@ public final class AnimationEventDispatcher {
         }
 
         if (!animation.getSoundEvents().isEmpty()) {
-            dispatchEventList(entity, wrapper, animation, animation.getSoundEvents(), prevTime, currentTime, looped, partialTicks);
+            dispatchEventList(entity, target, wrapper, animation, animation.getSoundEvents(),
+                prevTime, currentTime, looped, partialTicks);
         }
         if (!animation.getParticleEvents().isEmpty()) {
-            dispatchEventList(entity, wrapper, animation, animation.getParticleEvents(), prevTime, currentTime, looped, partialTicks);
+            dispatchEventList(entity, target, wrapper, animation, animation.getParticleEvents(),
+                prevTime, currentTime, looped, partialTicks);
         }
     }
 
-    private void dispatchEventList(EntityLivingBase entity, BedrockModelHandle wrapper, Animation animation,
+    private void dispatchEventList(EntityLivingBase entity,
+                                   AnimationEventTarget target,
+                                   BedrockModelHandle wrapper,
+                                   Animation animation,
                                    List<Animation.Event> events,
-                                   float prevTime, float currentTime, boolean looped,
+                                   float prevTime,
+                                   float currentTime,
+                                   boolean looped,
                                    float partialTicks) {
         if (events == null || events.isEmpty()) {
             return;
@@ -79,7 +100,7 @@ public final class AnimationEventDispatcher {
                 }
                 float t = event.getTimestamp();
                 if (t > prevTime + EVENT_EPS && t <= currentTime + EVENT_EPS) {
-                    fireEvent(entity, wrapper, event, partialTicks);
+                    fireEvent(entity, target, wrapper, event, partialTicks);
                 }
             }
             return;
@@ -92,28 +113,40 @@ public final class AnimationEventDispatcher {
             }
             float t = event.getTimestamp();
             if (t > prevTime + EVENT_EPS && t <= length + EVENT_EPS) {
-                fireEvent(entity, wrapper, event, partialTicks);
+                fireEvent(entity, target, wrapper, event, partialTicks);
             } else if (t >= -EVENT_EPS && t <= currentTime + EVENT_EPS) {
-                fireEvent(entity, wrapper, event, partialTicks);
+                fireEvent(entity, target, wrapper, event, partialTicks);
             }
         }
     }
 
-    private void fireEvent(EntityLivingBase entity, BedrockModelHandle wrapper, Animation.Event event,
+    private void fireEvent(EntityLivingBase entity,
+                           AnimationEventTarget target,
+                           BedrockModelHandle wrapper,
+                           Animation.Event event,
                            float partialTicks) {
-        if (event.getType() == Animation.Event.Type.PARTICLE) {
-            spawnParticleEffect(event.getEffect(), entity, wrapper, event.getLocator(), partialTicks);
-        } else {
-            float positionYaw = AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks);
-            double[] pos = AnimationEventMathUtil.resolveEventPosition(entity, wrapper, event.getLocator(), positionYaw, partialTicks);
-            playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
+        if (event == null) {
+            return;
         }
+        float positionYaw = resolveHeadYaw(entity, target, partialTicks);
+        if (event.getType() == Animation.Event.Type.PARTICLE) {
+            spawnParticleEffect(event.getEffect(), entity, target, wrapper, event.getLocator(),
+                positionYaw, partialTicks);
+            return;
+        }
+        double[] pos = resolveEventPosition(entity, target, wrapper, event.getLocator(), positionYaw, partialTicks);
+        if (pos == null) {
+            return;
+        }
+        playSoundEffect(event.getEffect(), pos[0], pos[1], pos[2]);
     }
 
     private void spawnParticleEffect(String effect,
                                      EntityLivingBase entity,
+                                     AnimationEventTarget target,
                                      BedrockModelHandle wrapper,
                                      String locatorName,
+                                     float positionYaw,
                                      float partialTicks) {
         if (effect == null || effect.isEmpty()) {
             return;
@@ -126,19 +159,60 @@ public final class AnimationEventDispatcher {
         if (system == null) {
             return;
         }
-        float positionYaw = AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks);
-        float emitterYaw = AnimationEventMathUtil.resolveEmitterYaw(entity, partialTicks, params);
-        double[] initialPos = AnimationEventMathUtil.resolveEventPosition(entity, wrapper, locatorName, positionYaw, partialTicks);
+        double[] initialPos = resolveEventPosition(entity, target, wrapper, locatorName, positionYaw, partialTicks);
         if (entity == null) {
-            double[] pos = initialPos != null ? initialPos : new double[]{0.0, 0.0, 0.0};
-            system.spawn(params.path, pos[0], pos[1], pos[2], params.count);
+            if (target != null) {
+                system.spawn(params.path,
+                    new BlockAnimationEventTransformProvider(target, wrapper, locatorName, positionYaw, params),
+                    params.count);
+                return;
+            }
+            double px = initialPos != null && initialPos.length > 0 ? initialPos[0] : getBaseX(target);
+            double py = initialPos != null && initialPos.length > 1 ? initialPos[1] : getBaseY(target);
+            double pz = initialPos != null && initialPos.length > 2 ? initialPos[2] : getBaseZ(target);
+            system.spawn(params.path, px, py, pz, params.count);
             return;
         }
+        float emitterYaw = AnimationEventMathUtil.resolveEmitterYaw(entity, partialTicks, params);
         double ix = initialPos != null && initialPos.length > 0 ? initialPos[0] : entity.posX;
         double iy = initialPos != null && initialPos.length > 1 ? initialPos[1] : entity.posY;
         double iz = initialPos != null && initialPos.length > 2 ? initialPos[2] : entity.posZ;
         system.spawn(params.path, new AnimationEventTransformProvider(entity, wrapper, locatorName, ix, iy, iz, emitterYaw,
             positionYaw, params.mode, params.yawOffset), params.count);
+    }
+
+    private double[] resolveEventPosition(EntityLivingBase entity,
+                                          AnimationEventTarget target,
+                                          BedrockModelHandle wrapper,
+                                          String locatorName,
+                                          float positionYaw,
+                                          float partialTicks) {
+        if (entity != null) {
+            return AnimationEventMathUtil.resolveEventPosition(entity, wrapper, locatorName, positionYaw, partialTicks);
+        }
+        double baseX = getBaseX(target);
+        double baseY = getBaseY(target);
+        double baseZ = getBaseZ(target);
+        return AnimationEventMathUtil.resolveEventPosition(null, wrapper, locatorName, positionYaw, baseX, baseY, baseZ);
+    }
+
+    private float resolveHeadYaw(EntityLivingBase entity, AnimationEventTarget target, float partialTicks) {
+        if (entity != null) {
+            return AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks);
+        }
+        return target != null ? target.getHeadYaw() : 0.0f;
+    }
+
+    private double getBaseX(AnimationEventTarget target) {
+        return target != null ? target.getBaseX() : 0.0;
+    }
+
+    private double getBaseY(AnimationEventTarget target) {
+        return target != null ? target.getBaseY() : 0.0;
+    }
+
+    private double getBaseZ(AnimationEventTarget target) {
+        return target != null ? target.getBaseZ() : 0.0;
     }
 
     private void playSoundEffect(String effect, double x, double y, double z) {

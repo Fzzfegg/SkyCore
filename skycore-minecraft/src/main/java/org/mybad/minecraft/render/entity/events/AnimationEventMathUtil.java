@@ -2,9 +2,9 @@ package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
+import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleParams;
 import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleTargetMode;
-import org.mybad.minecraft.render.BedrockModelHandle;
 
 public final class AnimationEventMathUtil {
     private AnimationEventMathUtil() {
@@ -108,6 +108,19 @@ public final class AnimationEventMathUtil {
             return yawOffset;
         }
         return entity.rotationYawHead + yawOffset;
+    }
+
+    public static float resolveEmitterYaw(AnimationEventTarget target, ParticleTargetMode mode, float yawOffset, float fallbackYaw) {
+        if (target == null) {
+            return fallbackYaw;
+        }
+        if (mode == ParticleTargetMode.BODY) {
+            return target.getBodyYaw() + yawOffset;
+        }
+        if (mode == ParticleTargetMode.WORLD) {
+            return yawOffset;
+        }
+        return target.getHeadYaw() + yawOffset;
     }
 
     public static float interpolateRotation(float prev, float current, float partialTicks) {
