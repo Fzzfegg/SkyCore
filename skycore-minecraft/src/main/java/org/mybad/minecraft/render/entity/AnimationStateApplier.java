@@ -29,6 +29,7 @@ final class AnimationStateApplier {
                 boolean override = false;
                 if (frame.primary != null) {
                     entry.wrapper.setAnimation(frame.primary);
+                    entry.setLastPrimaryAnimation(frame.primary);
                     override = frame.primary.isOverridePreviousAnimation();
                     if (override) {
                         entry.wrapper.clearOverlayStates();

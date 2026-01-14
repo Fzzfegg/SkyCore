@@ -131,6 +131,16 @@ public class EntityAnimationController {
         return currentAction;
     }
 
+    /**
+     * Forces the controller to treat the next update as if the primary
+     * action changed, even when it stays the same.
+     * Helps external systems (e.g. command animations) reapply
+     * the current state immediately after a temporary override ends.
+     */
+    public void forcePrimaryRefresh() {
+        this.currentAction = null;
+    }
+
     private float computeDeltaTime(long now) {
         float delta;
         if (lastUpdateTime == 0L) {

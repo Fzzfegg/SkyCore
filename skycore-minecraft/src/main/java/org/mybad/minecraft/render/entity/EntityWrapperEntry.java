@@ -1,5 +1,6 @@
 package org.mybad.minecraft.render.entity;
 
+import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventContext;
@@ -21,6 +22,7 @@ public final class EntityWrapperEntry implements AnimationEventContext {
     public List<EntityAnimationController.OverlayState> overlayStates = Collections.emptyList();
     public final OverlayEventCursorCache overlayCursors = new OverlayEventCursorCache();
     public final AnimationEventState renderState = new AnimationEventState();
+    private Animation lastPrimaryAnimation;
 
     EntityWrapperEntry(BedrockModelHandle wrapper, EntityAnimationController controller, UUID entityUuid, String mappingName, long lastSeenTick) {
         this.wrapper = wrapper;
@@ -29,6 +31,15 @@ public final class EntityWrapperEntry implements AnimationEventContext {
         this.mappingName = mappingName;
         this.lastSeenTick = lastSeenTick;
     }
+
+    void setLastPrimaryAnimation(Animation animation) {
+        this.lastPrimaryAnimation = animation;
+    }
+
+    Animation getLastPrimaryAnimation() {
+        return lastPrimaryAnimation;
+    }
+
     @Override
     public AnimationEventState getPrimaryEventState() {
         return renderState;

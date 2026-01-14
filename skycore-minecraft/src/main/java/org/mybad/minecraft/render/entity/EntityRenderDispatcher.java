@@ -112,7 +112,21 @@ public final class EntityRenderDispatcher {
     }
 
     public void clearForcedAnimation(java.util.UUID entityUuid) {
-        forcedAnimations.clear(entityUuid);
+        Animation previous = forcedAnimations.remove(entityUuid);
+        if (entityUuid == null || previous == null) {
+            return;
+        }
+        EntityWrapperEntry entry = wrapperCache.findByUuid(entityUuid);
+        if (entry == null || entry.wrapper == null) {
+            return;
+        }
+        entry.wrapper.setAnimation(previous);
+        entry.wrapper.restartAnimation();
+        entry.wrapper.clearOverlayStates();
+        entry.setLastPrimaryAnimation(previous);
+        if (entry.controller != null) {
+            entry.controller.forcePrimaryRefresh();
+        }
     }
 
     public void clearAllForcedAnimations() {
@@ -162,14 +176,25 @@ public final class EntityRenderDispatcher {
         if (entry.lastAnimationTick == currentTick) {
             return;
         }
-        Animation forced = forcedAnimations.get(entity.getUniqueID());
-        entry.overlayStates = AnimationStateApplier.apply(entity, entry, forced);
+        java.util.UUID uuid = entity.getUniqueID();
+        Animation forced = forcedAnimations.get(uuid);
         if (forced != null) {
             AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
             if (player == null || player.isFinished()) {
-                forcedAnimations.clear(entity.getUniqueID());
+                Animation previous = forcedAnimations.remove(uuid);
+                if (previous != null) {
+                    entry.wrapper.setAnimation(previous);
+                    entry.wrapper.restartAnimation();
+                    entry.wrapper.clearOverlayStates();
+                    entry.setLastPrimaryAnimation(previous);
+                }
+                if (entry.controller != null) {
+                    entry.controller.forcePrimaryRefresh();
+                }
+                forced = null;
             }
         }
+        entry.overlayStates = AnimationStateApplier.apply(entity, entry, forced);
         entry.lastAnimationTick = currentTick;
     }
 
