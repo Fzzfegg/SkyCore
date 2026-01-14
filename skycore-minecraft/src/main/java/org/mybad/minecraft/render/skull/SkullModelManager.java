@@ -142,6 +142,17 @@ public final class SkullModelManager {
         }
     }
 
+    public static void tickAnimations() {
+        if (INSTANCES.isEmpty()) {
+            return;
+        }
+        for (SkullModelInstance instance : INSTANCES.values()) {
+            if (instance != null) {
+                instance.updateAnimations();
+            }
+        }
+    }
+
     private static Transform computeTransform(World world, BlockPos pos, TileEntitySkull skull) {
         Transform transform = new Transform();
         transform.offsetX = 0.5;

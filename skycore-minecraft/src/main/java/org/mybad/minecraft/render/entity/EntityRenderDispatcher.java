@@ -1,5 +1,6 @@
 package org.mybad.minecraft.render.entity;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.fml.relauncher.Side;
@@ -42,16 +43,28 @@ public final class EntityRenderDispatcher {
             return;
         }
 
-        Animation forced = forcedAnimations.get(entity.getUniqueID());
-        entry.overlayStates = AnimationStateApplier.apply(entity, entry, forced);
-        if (forced != null) {
-            AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
-            if (player == null || player.isFinished()) {
-                forcedAnimations.clear(entity.getUniqueID());
-            }
+        long tick = entity.world != null ? entity.world.getTotalWorldTime() : Long.MIN_VALUE;
+        if (tick != Long.MIN_VALUE && entry.lastAnimationTick != tick) {
+            tickEntry(entity, entry, tick);
         }
 
         renderPipeline.render(entity, entry, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
+    }
+
+    public void onClientTick() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null || mc.isGamePaused()) {
+            return;
+        }
+        wrapperCache.forEach((entity, entry) -> {
+            if (entity == null || entry == null) {
+                return;
+            }
+            long tick = entity.world != null ? entity.world.getTotalWorldTime() : Long.MIN_VALUE;
+            if (tick != Long.MIN_VALUE) {
+                tickEntry(entity, entry, tick);
+            }
+        });
     }
 
     public boolean isSkyCoreEntity(EntityLivingBase entity) {
@@ -99,6 +112,25 @@ public final class EntityRenderDispatcher {
             return;
         }
         wrapperCache.forEach(consumer);
+    }
+
+    private void tickEntry(EntityLivingBase entity, EntityWrapperEntry entry, long currentTick) {
+        if (entry == null || entry.wrapper == null) {
+            return;
+        }
+        if (entry.lastAnimationTick == currentTick) {
+            return;
+        }
+        Animation forced = forcedAnimations.get(entity.getUniqueID());
+        entry.overlayStates = AnimationStateApplier.apply(entity, entry, forced);
+        if (forced != null) {
+            AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
+            if (player == null || player.isFinished()) {
+                forcedAnimations.clear(entity.getUniqueID());
+            }
+        }
+        entry.wrapper.updateAnimations();
+        entry.lastAnimationTick = currentTick;
     }
 
 }

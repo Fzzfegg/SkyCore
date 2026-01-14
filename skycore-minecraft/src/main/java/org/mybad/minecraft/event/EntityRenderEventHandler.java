@@ -1,8 +1,10 @@
 package org.mybad.minecraft.event;
 
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
@@ -11,6 +13,7 @@ import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.BloomRenderer;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
+import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
 /**
@@ -43,6 +46,19 @@ public class EntityRenderEventHandler {
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
         BloomRenderer.get().endFrame();
+    }
+
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null || mc.isGamePaused()) {
+            return;
+        }
+        entityDispatcher.onClientTick();
+        SkullModelManager.tickAnimations();
     }
 
     /**

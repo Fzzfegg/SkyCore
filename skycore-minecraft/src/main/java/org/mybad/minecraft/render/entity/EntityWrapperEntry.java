@@ -16,6 +16,7 @@ public final class EntityWrapperEntry implements AnimationEventContext {
     public final UUID entityUuid;
     public final String mappingName;
     public long lastSeenTick;
+    public long lastAnimationTick = Long.MIN_VALUE;
     public List<EntityAnimationController.OverlayState> overlayStates = Collections.emptyList();
     public final OverlayEventCursorCache overlayCursors = new OverlayEventCursorCache();
     public final AnimationEventState renderState = new AnimationEventState();
