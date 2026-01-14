@@ -18,14 +18,11 @@ final class SkullProfileData {
     private final String clip;
     private final Float scale;
     private final Boolean loop;
-    private final Boolean globalRender;
-
-    private SkullProfileData(String mappingName, String clip, Float scale, Boolean loop, Boolean globalRender) {
+    private SkullProfileData(String mappingName, String clip, Float scale, Boolean loop) {
         this.mappingName = mappingName;
         this.clip = clip;
         this.scale = scale;
         this.loop = loop;
-        this.globalRender = globalRender;
     }
 
     String getMappingName() {
@@ -42,10 +39,6 @@ final class SkullProfileData {
 
     Boolean getLoop() {
         return loop;
-    }
-
-    Boolean getGlobalRender() {
-        return globalRender;
     }
 
     static SkullProfileData from(GameProfile profile) {
@@ -86,11 +79,7 @@ final class SkullProfileData {
                 String clip = getString(obj, "clip");
                 Float scale = getFloat(obj, "scale");
                 Boolean loop = getBoolean(obj, "loop");
-                Boolean global = getBoolean(obj, "global_render");
-                if (global == null) {
-                    global = getBoolean(obj, "globalRender");
-                }
-                return new SkullProfileData(mapping, clip, scale, loop, global);
+                return new SkullProfileData(mapping, clip, scale, loop);
             } catch (JsonSyntaxException ignored) {
                 return simpleValue(value);
             }
@@ -102,7 +91,7 @@ final class SkullProfileData {
         if (value == null || value.isEmpty()) {
             return null;
         }
-        return new SkullProfileData(value, null, null, null, null);
+        return new SkullProfileData(value, null, null, null);
     }
 
     private static String getString(JsonObject obj, String member) {

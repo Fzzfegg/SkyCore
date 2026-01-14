@@ -31,6 +31,6 @@ public abstract class MixinTileEntitySkullRenderer extends TileEntitySpecialRend
 
     @Override
     public boolean isGlobalRenderer(TileEntitySkull tile) {
-        return SkullModelManager.isGlobalRenderer(tile) || super.isGlobalRenderer(tile);
+        return true;
     }
 }

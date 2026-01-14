@@ -34,6 +34,7 @@ final class SkullModelInstance implements AnimationEventContext {
     private double lastWorldY;
     private double lastWorldZ;
     private float lastYaw;
+    private long lastRenderFrameId = Long.MIN_VALUE;
 
     private SkullModelInstance(String mappingName,
                                EntityModelMapping mapping,
@@ -103,6 +104,7 @@ final class SkullModelInstance implements AnimationEventContext {
                 double worldZ,
                 float yaw,
                 float partialTicks) {
+        handle.updateAnimations();
         eventTarget.update(worldX, worldY, worldZ, yaw);
         this.lastWorldX = worldX;
         this.lastWorldY = worldY;
@@ -118,10 +120,6 @@ final class SkullModelInstance implements AnimationEventContext {
         dispatcher.dispatchAnimationEvents(null, this, eventTarget, handle, partialTicks);
     }
 
-    void updateAnimations() {
-        handle.updateAnimations();
-    }
-
     SkullModelManager.DebugInfo toDebugInfo() {
         return new SkullModelManager.DebugInfo(
             mappingName,
@@ -131,6 +129,18 @@ final class SkullModelInstance implements AnimationEventContext {
             handle.getModelScale(),
             lastYaw
         );
+    }
+
+    void markRenderFrame(long frameId) {
+        this.lastRenderFrameId = frameId;
+    }
+
+    boolean renderedThisFrame(long frameId) {
+        return this.lastRenderFrameId == frameId;
+    }
+
+    void updateAnimationsFrame() {
+        handle.updateAnimations();
     }
 
     private boolean applyClip(String clipName) {

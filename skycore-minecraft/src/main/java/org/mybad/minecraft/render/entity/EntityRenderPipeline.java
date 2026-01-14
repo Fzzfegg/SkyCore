@@ -19,6 +19,8 @@ final class EntityRenderPipeline {
             return;
         }
         BedrockModelHandle wrapper = entry.wrapper;
+        // 每一帧渲染前推进动画，保持动画刷新率与渲染帧率一致
+        wrapper.updateAnimations();
         float entityYaw = AnimationEventMathUtil.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);

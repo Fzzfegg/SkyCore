@@ -8,6 +8,7 @@
   "client": [
     "sound.MixinSoundManager",
     "render.MixinRender",
+    "render.MixinRenderManager",
     "render.MixinTileEntitySkullRenderer",
     "render.MixinTileEntity",
     "render.MixinEntityRenderBox"

@@ -43,9 +43,12 @@ public class EntityRenderEventHandler {
      */
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null || mc.isGamePaused()) {
+            return;
+        }
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
-        System.out.println("AAA1");
         org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
         BloomRenderer.get().endFrame();
     }
@@ -60,7 +63,21 @@ public class EntityRenderEventHandler {
             return;
         }
         entityDispatcher.onClientTick();
-        SkullModelManager.tickAnimations();
+    }
+
+    @SubscribeEvent
+    public void onRenderTick(TickEvent.RenderTickEvent event) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null || mc.isGamePaused()) {
+            return;
+        }
+        if (event.phase == TickEvent.Phase.START) {
+            entityDispatcher.beginRenderFrame();
+            SkullModelManager.beginRenderFrame();
+        } else {
+            entityDispatcher.finishRenderFrame();
+            SkullModelManager.finishRenderFrame();
+        }
     }
 
     /**

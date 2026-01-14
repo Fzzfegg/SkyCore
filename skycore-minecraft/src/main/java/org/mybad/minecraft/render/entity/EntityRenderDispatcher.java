@@ -1,6 +1,7 @@
 package org.mybad.minecraft.render.entity;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.fml.relauncher.Side;
@@ -16,6 +17,9 @@ public final class EntityRenderDispatcher {
     private final ForcedAnimationCache forcedAnimations;
     private final AnimationEventDispatcher eventDispatcher;
     private final EntityRenderPipeline renderPipeline;
+    private long renderFrameCounter = 0L;
+    private long currentRenderFrameId = 0L;
+    private boolean renderFrameActive = false;
 
     public EntityRenderDispatcher(ResourceCacheManager cacheManager) {
         this.wrapperCache = new EntityWrapperCache(cacheManager);
@@ -49,12 +53,24 @@ public final class EntityRenderDispatcher {
         }
 
         renderPipeline.render(entity, entry, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
+        entry.lastRenderFrameId = currentRenderFrameId;
     }
 
     public void onClientTick() {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc == null || mc.world == null || mc.isGamePaused()) {
             return;
+        }
+        for (Entity entity : mc.world.loadedEntityList) {
+            if (!(entity instanceof EntityLivingBase)) {
+                continue;
+            }
+            EntityLivingBase living = (EntityLivingBase) entity;
+            EntityMappingResolver.MappingResult mappingResult = EntityMappingResolver.resolve(living);
+            if (mappingResult == null) {
+                continue;
+            }
+            wrapperCache.getOrCreate(living, mappingResult.mappingName, mappingResult.mapping);
         }
         wrapperCache.forEach((entity, entry) -> {
             if (entity == null || entry == null) {
@@ -114,6 +130,31 @@ public final class EntityRenderDispatcher {
         wrapperCache.forEach(consumer);
     }
 
+    public void beginRenderFrame() {
+        if (renderFrameActive) {
+            return;
+        }
+        renderFrameActive = true;
+        currentRenderFrameId = ++renderFrameCounter;
+    }
+
+    public void finishRenderFrame() {
+        if (!renderFrameActive) {
+            return;
+        }
+        renderFrameActive = false;
+        final long frameId = currentRenderFrameId;
+        wrapperCache.forEach((entity, entry) -> {
+            if (entry == null || entry.wrapper == null) {
+                return;
+            }
+            if (entry.lastRenderFrameId != frameId) {
+                entry.wrapper.updateAnimations();
+                entry.lastRenderFrameId = frameId;
+            }
+        });
+    }
+
     private void tickEntry(EntityLivingBase entity, EntityWrapperEntry entry, long currentTick) {
         if (entry == null || entry.wrapper == null) {
             return;
@@ -129,7 +170,6 @@ public final class EntityRenderDispatcher {
                 forcedAnimations.clear(entity.getUniqueID());
             }
         }
-        entry.wrapper.updateAnimations();
         entry.lastAnimationTick = currentTick;
     }
 

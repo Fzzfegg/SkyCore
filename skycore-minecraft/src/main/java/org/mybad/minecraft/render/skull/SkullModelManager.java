@@ -22,6 +22,9 @@ import java.util.function.Consumer;
 public final class SkullModelManager {
     private static final Map<SkullModelKey, SkullModelInstance> INSTANCES = new ConcurrentHashMap<>();
     private static final AnimationEventDispatcher EVENT_DISPATCHER = new AnimationEventDispatcher();
+    private static long renderFrameCounter = 0L;
+    private static long currentRenderFrameId = 0L;
+    private static boolean renderFrameActive = false;
 
     private SkullModelManager() {
     }
@@ -83,6 +86,7 @@ public final class SkullModelManager {
         double worldZ = pos != null ? pos.getZ() + transform.offsetZ : transform.offsetZ;
         instance.render(renderX, renderY, renderZ, worldX, worldY, worldZ, transform.yaw, partialTicks);
         instance.dispatchEvents(EVENT_DISPATCHER, partialTicks);
+        instance.markRenderFrame(currentRenderFrameId);
         return true;
     }
 
@@ -103,14 +107,6 @@ public final class SkullModelManager {
         }
         SkullModelKey key = new SkullModelKey(world.provider.getDimension(), skull.getPos());
         disposeAndRemove(key);
-    }
-
-    public static boolean isGlobalRenderer(TileEntitySkull skull) {
-        if (skull == null) {
-            return false;
-        }
-        SkullProfileData profile = SkullProfileData.from(skull.getPlayerProfile());
-        return profile != null && Boolean.TRUE.equals(profile.getGlobalRender());
     }
 
     private static void disposeAndRemove(SkullModelKey key) {
@@ -142,13 +138,30 @@ public final class SkullModelManager {
         }
     }
 
-    public static void tickAnimations() {
+    public static void beginRenderFrame() {
+        if (renderFrameActive) {
+            return;
+        }
+        renderFrameActive = true;
+        currentRenderFrameId = ++renderFrameCounter;
+    }
+
+    public static void finishRenderFrame() {
+        if (!renderFrameActive) {
+            return;
+        }
+        renderFrameActive = false;
+        final long frameId = currentRenderFrameId;
         if (INSTANCES.isEmpty()) {
             return;
         }
         for (SkullModelInstance instance : INSTANCES.values()) {
-            if (instance != null) {
-                instance.updateAnimations();
+            if (instance == null) {
+                continue;
+            }
+            if (!instance.renderedThisFrame(frameId)) {
+                instance.updateAnimationsFrame();
+                instance.markRenderFrame(frameId);
             }
         }
     }
