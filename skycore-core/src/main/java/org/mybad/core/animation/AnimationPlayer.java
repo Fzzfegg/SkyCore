@@ -20,6 +20,10 @@ public class AnimationPlayer {
     private final float[] tmpRotation = new float[3];
     private final float[] tmpScale = new float[3];
     private final float[] tmpTarget = new float[3];
+    private final float[] tmpQuatA = new float[4];
+    private final float[] tmpQuatB = new float[4];
+    private final float[] tmpQuatOut = new float[4];
+    private final float[] tmpEuler = new float[3];
     private final Map<String, FrameCursor> frameCursors = new HashMap<>();
     private final Map<String, ModelBone> boneCache = new HashMap<>();
     private Model cachedModel;
@@ -303,11 +307,7 @@ public class AnimationPlayer {
         }
 
         float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
-        for (int i = 0; i < 3; i++) {
-            float p0 = start[i];
-            float p3 = end[i];
-            out[i] = p0 + shortestAngleDelta(p0, p3) * interpolated;
-        }
+        applyQuaternionInterpolation(start, end, interpolated, out);
         return afterIndex;
     }
 
@@ -327,6 +327,103 @@ public class AnimationPlayer {
             delta += 360f;
         }
         return delta;
+    }
+
+    private void applyQuaternionInterpolation(float[] startEuler, float[] endEuler, float t, float[] out) {
+        eulerToQuaternion(startEuler, tmpQuatA);
+        eulerToQuaternion(endEuler, tmpQuatB);
+        slerpQuaternion(tmpQuatA, tmpQuatB, t, tmpQuatOut);
+        quaternionToEuler(tmpQuatOut, tmpEuler);
+        setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
+    }
+
+    private void eulerToQuaternion(float[] euler, float[] out) {
+        float x = (float) Math.toRadians(euler[0]);
+        float y = (float) Math.toRadians(euler[1]);
+        float z = (float) Math.toRadians(euler[2]);
+
+        float cx = (float) Math.cos(x * 0.5f);
+        float sx = (float) Math.sin(x * 0.5f);
+        float cy = (float) Math.cos(y * 0.5f);
+        float sy = (float) Math.sin(y * 0.5f);
+        float cz = (float) Math.cos(z * 0.5f);
+        float sz = (float) Math.sin(z * 0.5f);
+
+        out[0] = sx * cy * cz - cx * sy * sz;
+        out[1] = cx * sy * cz + sx * cy * sz;
+        out[2] = cx * cy * sz - sx * sy * cz;
+        out[3] = cx * cy * cz + sx * sy * sz;
+    }
+
+    private void quaternionToEuler(float[] quat, float[] out) {
+        float x = quat[0];
+        float y = quat[1];
+        float z = quat[2];
+        float w = quat[3];
+
+        float sinr_cosp = 2 * (w * x + y * z);
+        float cosr_cosp = 1 - 2 * (x * x + y * y);
+        out[0] = (float) Math.toDegrees(Math.atan2(sinr_cosp, cosr_cosp));
+
+        float sinp = 2 * (w * y - z * x);
+        if (Math.abs(sinp) >= 1) {
+            out[1] = (float) Math.copySign(90, sinp);
+        } else {
+            out[1] = (float) Math.toDegrees(Math.asin(sinp));
+        }
+
+        float siny_cosp = 2 * (w * z + x * y);
+        float cosy_cosp = 1 - 2 * (y * y + z * z);
+        out[2] = (float) Math.toDegrees(Math.atan2(siny_cosp, cosy_cosp));
+    }
+
+    private void slerpQuaternion(float[] qa, float[] qb, float t, float[] out) {
+        float dot = qa[0] * qb[0] + qa[1] * qb[1] + qa[2] * qb[2] + qa[3] * qb[3];
+        float[] q2 = qb;
+        if (dot < 0f) {
+            dot = -dot;
+            q2 = tmpQuatB;
+            q2[0] = -qb[0];
+            q2[1] = -qb[1];
+            q2[2] = -qb[2];
+            q2[3] = -qb[3];
+        }
+        if (dot > 0.9995f) {
+            out[0] = qa[0] + (q2[0] - qa[0]) * t;
+            out[1] = qa[1] + (q2[1] - qa[1]) * t;
+            out[2] = qa[2] + (q2[2] - qa[2]) * t;
+            out[3] = qa[3] + (q2[3] - qa[3]) * t;
+            normalizeQuaternion(out);
+            return;
+        }
+
+        double theta0 = Math.acos(Math.max(-1.0f, Math.min(1.0f, dot)));
+        double sinTheta0 = Math.sin(theta0);
+        double theta = theta0 * t;
+        double sinTheta = Math.sin(theta);
+
+        double s0 = Math.cos(theta) - dot * sinTheta / sinTheta0;
+        double s1 = sinTheta / sinTheta0;
+
+        out[0] = (float) (s0 * qa[0] + s1 * q2[0]);
+        out[1] = (float) (s0 * qa[1] + s1 * q2[1]);
+        out[2] = (float) (s0 * qa[2] + s1 * q2[2]);
+        out[3] = (float) (s0 * qa[3] + s1 * q2[3]);
+        normalizeQuaternion(out);
+    }
+
+    private void normalizeQuaternion(float[] q) {
+        float len = (float) Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+        if (len == 0f) {
+            q[0] = q[1] = q[2] = 0f;
+            q[3] = 1f;
+            return;
+        }
+        float inv = 1.0f / len;
+        q[0] *= inv;
+        q[1] *= inv;
+        q[2] *= inv;
+        q[3] *= inv;
     }
 
     private float cubicBezier1D(float p0, float p1, float p2, float p3, float t) {
