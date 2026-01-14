@@ -39,7 +39,7 @@ public final class DebugRenderOverlay {
         GlStateManager.disableCull();
         GlStateManager.disableDepth();
         GlStateManager.glLineWidth(2.0F);
-
+        
         if (DebugRenderController.shouldDrawEntityBoxes()) {
             drawEntityBoxes(dispatcher, camX, camY, camZ);
         }

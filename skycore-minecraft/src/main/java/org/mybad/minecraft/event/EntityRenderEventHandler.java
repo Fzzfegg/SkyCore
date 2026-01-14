@@ -45,6 +45,8 @@ public class EntityRenderEventHandler {
     public void onRenderWorldLast(RenderWorldLastEvent event) {
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
+        System.out.println("AAA1");
+        org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
         BloomRenderer.get().endFrame();
     }
 
