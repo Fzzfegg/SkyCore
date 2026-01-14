@@ -140,15 +140,4 @@ final class EntityWrapperCache {
         return new EntityAnimationController(actions);
     }
 
-    EntityWrapperEntry findByUuid(UUID uuid) {
-        if (uuid == null) {
-            return null;
-        }
-        for (EntityWrapperEntry entry : cache.values()) {
-            if (entry != null && uuid.equals(entry.entityUuid)) {
-                return entry;
-            }
-        }
-        return null;
-    }
 }

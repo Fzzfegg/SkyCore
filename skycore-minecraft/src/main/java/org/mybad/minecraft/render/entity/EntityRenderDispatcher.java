@@ -25,7 +25,7 @@ public final class EntityRenderDispatcher {
         this.wrapperCache = new EntityWrapperCache(cacheManager);
         this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
-        this.renderPipeline = new EntityRenderPipeline(eventDispatcher);
+        this.renderPipeline = new EntityRenderPipeline(eventDispatcher, this::handleForcedAnimationFrame);
     }
 
     public void onRenderLivingPre(RenderLivingEvent.Pre<?> event) {
@@ -112,21 +112,7 @@ public final class EntityRenderDispatcher {
     }
 
     public void clearForcedAnimation(java.util.UUID entityUuid) {
-        Animation previous = forcedAnimations.remove(entityUuid);
-        if (entityUuid == null || previous == null) {
-            return;
-        }
-        EntityWrapperEntry entry = wrapperCache.findByUuid(entityUuid);
-        if (entry == null || entry.wrapper == null) {
-            return;
-        }
-        entry.wrapper.setAnimation(previous);
-        entry.wrapper.restartAnimation();
-        entry.wrapper.clearOverlayStates();
-        entry.setLastPrimaryAnimation(previous);
-        if (entry.controller != null) {
-            entry.controller.forcePrimaryRefresh();
-        }
+        forcedAnimations.clear(entityUuid);
     }
 
     public void clearAllForcedAnimations() {
@@ -169,6 +155,10 @@ public final class EntityRenderDispatcher {
         });
     }
 
+    private void handleForcedAnimationFrame(EntityLivingBase entity, EntityWrapperEntry entry) {
+        releaseForcedAnimation(entity, entry);
+    }
+
     private void tickEntry(EntityLivingBase entity, EntityWrapperEntry entry, long currentTick) {
         if (entry == null || entry.wrapper == null) {
             return;
@@ -176,26 +166,39 @@ public final class EntityRenderDispatcher {
         if (entry.lastAnimationTick == currentTick) {
             return;
         }
+        if (releaseForcedAnimation(entity, entry)) {
+            entry.lastAnimationTick = currentTick;
+            return;
+        }
         java.util.UUID uuid = entity.getUniqueID();
         Animation forced = forcedAnimations.get(uuid);
-        if (forced != null) {
-            AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
-            if (player == null || player.isFinished()) {
-                Animation previous = forcedAnimations.remove(uuid);
-                if (previous != null) {
-                    entry.wrapper.setAnimation(previous);
-                    entry.wrapper.restartAnimation();
-                    entry.wrapper.clearOverlayStates();
-                    entry.setLastPrimaryAnimation(previous);
-                }
-                if (entry.controller != null) {
-                    entry.controller.forcePrimaryRefresh();
-                }
-                forced = null;
-            }
-        }
         entry.overlayStates = AnimationStateApplier.apply(entity, entry, forced);
         entry.lastAnimationTick = currentTick;
+    }
+
+    private boolean releaseForcedAnimation(EntityLivingBase entity, EntityWrapperEntry entry) {
+        if (entity == null || entry == null || entry.wrapper == null) {
+            return false;
+        }
+        java.util.UUID uuid = entity.getUniqueID();
+        Animation forced = forcedAnimations.get(uuid);
+        if (forced == null) {
+            return false;
+        }
+        AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
+        if (player != null && !player.isFinished()) {
+            return false;
+        }
+        forcedAnimations.clear(uuid);
+        if (entry.controller != null) {
+            entry.controller.forcePrimaryRefresh();
+        }
+        entry.overlayStates = AnimationStateApplier.apply(entity, entry, null);
+        entry.wrapper.updateAnimations();
+        if (entity.world != null) {
+            entry.lastAnimationTick = entity.world.getTotalWorldTime();
+        }
+        return true;
     }
 
 }

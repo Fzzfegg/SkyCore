@@ -6,11 +6,16 @@ import org.mybad.minecraft.render.EntityNameTagRenderer;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.entity.events.AnimationEventMathUtil;
 
+import java.util.function.BiConsumer;
+
 final class EntityRenderPipeline {
     private final AnimationEventDispatcher eventDispatcher;
+    private final BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback;
 
-    EntityRenderPipeline(AnimationEventDispatcher eventDispatcher) {
+    EntityRenderPipeline(AnimationEventDispatcher eventDispatcher,
+                         BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback) {
         this.eventDispatcher = eventDispatcher;
+        this.preRenderCallback = preRenderCallback;
     }
 
     void render(EntityLivingBase entity, EntityWrapperEntry entry,
@@ -21,6 +26,9 @@ final class EntityRenderPipeline {
         BedrockModelHandle wrapper = entry.wrapper;
         // 每一帧渲染前推进动画，保持动画刷新率与渲染帧率一致
         wrapper.updateAnimations();
+        if (preRenderCallback != null) {
+            preRenderCallback.accept(entity, entry);
+        }
         float entityYaw = AnimationEventMathUtil.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
