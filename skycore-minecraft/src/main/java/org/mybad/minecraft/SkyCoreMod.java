@@ -1,5 +1,6 @@
 package org.mybad.minecraft;
 
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -8,9 +9,11 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.mybad.minecraft.audio.SoundExistenceCache;
+import org.mybad.minecraft.command.SkyCoreReloadCommand;
+import org.mybad.minecraft.client.input.HiddenReloadHotkey;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.debug.DebugRenderController;
-import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceCacheManager;
@@ -89,6 +92,10 @@ public class SkyCoreMod {
         renderEventHandler = new EntityRenderEventHandler(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
 
+        // 客户端指令与隐藏热键
+        ClientCommandHandler.instance.registerCommand(new SkyCoreReloadCommand());
+        MinecraftForge.EVENT_BUS.register(new HiddenReloadHotkey());
+
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
         channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
 
@@ -115,6 +122,7 @@ public class SkyCoreMod {
         }
         SkullModelManager.clear();
         DebugRenderController.clear();
+        net.minecraft.client.Minecraft.getMinecraft().refreshResources();
         
         LOGGER.info("[SkyCore] 重新加载完成");
     }
