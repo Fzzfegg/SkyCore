@@ -1,6 +1,8 @@
 package org.mybad.minecraft.config;
 
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -77,6 +79,9 @@ public class SkyCoreConfig {
         return mappings.get(entityName);
     }
 
+    public Collection<EntityModelMapping> getAllMappings() {
+        return Collections.unmodifiableCollection(mappings.values());
+    }
     
 
     public RenderConfig getRenderConfig() {

@@ -18,6 +18,7 @@ import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.resource.ResourcePackRegistrar;
+import org.mybad.minecraft.resource.TextureReloadHelper;
 import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
@@ -122,7 +123,7 @@ public class SkyCoreMod {
         }
         SkullModelManager.clear();
         DebugRenderController.clear();
-        net.minecraft.client.Minecraft.getMinecraft().refreshResources();
+        TextureReloadHelper.reloadSkyCoreTextures(resourceCacheManager);
         
         LOGGER.info("[SkyCore] 重新加载完成");
     }
