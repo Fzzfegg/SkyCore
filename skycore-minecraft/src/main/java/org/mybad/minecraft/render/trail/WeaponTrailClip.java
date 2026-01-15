@@ -37,6 +37,10 @@ public final class WeaponTrailClip {
     private final LocatorTransform locatorTransform = new LocatorTransform();
     private final float[] cachedBasis = new float[3];
     private boolean basisValid = false;
+    private final Vec3d[] rawPoints = new Vec3d[4];
+    private int rawCount = 0;
+    private int segmentDetail = 4;
+    private boolean stretchUv = false;
 
     public WeaponTrailClip(AnimationEventArgsParser.TrailParams params) {
         this.id = params != null && params.id != null ? params.id : "trail";
@@ -71,6 +75,12 @@ public final class WeaponTrailClip {
         this.sampleAccumulator = this.sampleInterval;
         this.uvOffset = 0.0f;
         this.samples.clear();
+        this.rawCount = 0;
+        for (int i = 0; i < rawPoints.length; i++) {
+            rawPoints[i] = null;
+        }
+        this.segmentDetail = Math.max(1, params.segments);
+        this.stretchUv = params.stretchUv;
     }
 
     private float clampPositive(float value, float min, float max) {
@@ -133,6 +143,10 @@ public final class WeaponTrailClip {
 
     public float getUvSpeed() {
         return uvSpeed;
+    }
+    
+    public boolean isStretchUv() {
+        return stretchUv;
     }
 
     public Deque<TrailSample> getSamples() {
@@ -214,18 +228,72 @@ public final class WeaponTrailClip {
         if (centerPos == null) {
             return false;
         }
-        Vec3d center = new Vec3d(centerPos[0], centerPos[1], centerPos[2]);
+        addRawPoint(centerPos[0], centerPos[1], centerPos[2]);
+        basisValid = false;
+        return true;
+    }
+
+    private void addRawPoint(double x, double y, double z) {
+        Vec3d point = new Vec3d(x, y, z);
+        if (rawCount < rawPoints.length) {
+            rawPoints[rawCount++] = point;
+        } else {
+            System.arraycopy(rawPoints, 1, rawPoints, 0, rawPoints.length - 1);
+            rawPoints[rawPoints.length - 1] = point;
+        }
+        if (rawCount >= 4) {
+            emitInterpolatedSamples();
+        } else {
+            emitLinearSample(point);
+        }
+    }
+
+    private void emitLinearSample(Vec3d center) {
         Vec3d[] edges = buildAutoWidthPoints(center);
         if (edges == null) {
-            return false;
+            return;
         }
-        TrailSample sample = new TrailSample(edges[0], edges[1]);
+        addSample(edges[0], edges[1]);
+    }
+
+    private void emitInterpolatedSamples() {
+        Vec3d p0 = rawPoints[0];
+        Vec3d p1 = rawPoints[1];
+        Vec3d p2 = rawPoints[2];
+        Vec3d p3 = rawPoints[3];
+        if (p0 == null || p1 == null || p2 == null || p3 == null) {
+            return;
+        }
+        int steps = Math.max(1, segmentDetail);
+        for (int i = 0; i <= steps; i++) {
+            float t = i / (float) steps;
+            double x = catmullRom(p0.x, p1.x, p2.x, p3.x, t);
+            double y = catmullRom(p0.y, p1.y, p2.y, p3.y, t);
+            double z = catmullRom(p0.z, p1.z, p2.z, p3.z, t);
+            Vec3d center = new Vec3d(x, y, z);
+            Vec3d[] edges = buildAutoWidthPoints(center);
+            if (edges == null) {
+                continue;
+            }
+            addSample(edges[0], edges[1]);
+        }
+    }
+
+    private double catmullRom(double p0, double p1, double p2, double p3, float t) {
+        double t2 = t * t;
+        double t3 = t2 * t;
+        return 0.5 * ((2.0 * p1) +
+            (-p0 + p2) * t +
+            (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
+            (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3);
+    }
+
+    private void addSample(Vec3d start, Vec3d end) {
+        TrailSample sample = new TrailSample(start, end);
         samples.addLast(sample);
         while (samples.size() > maxSamples) {
             samples.removeFirst();
         }
-        basisValid = false;
-        return true;
     }
 
     private double[] resolvePosition(EntityLivingBase entity,

@@ -80,19 +80,56 @@ public final class WeaponTrailRenderer {
         GlStateManager.enableTexture2D();
         mc.getTextureManager().bindTexture(texture != null ? texture : TextureMap.LOCATION_BLOCKS_TEXTURE);
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
+       BufferBuilder buffer = tessellator.getBuffer();
         buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_TEX_COLOR);
-        float u = clip.getUvOffset();
+        boolean stretchUv = clip.isStretchUv();
+        double totalLength = stretchUv ? computeTrailLength(clip) : 0.0;
+        if (stretchUv && totalLength <= 1.0e-4) {
+            stretchUv = false;
+        }
+        float baseOffset = clip.getUvOffset();
+        float uvScale = clip.getUvSpeed();
+        float tiledU = baseOffset;
         Vec3d previous = null;
+        double traveled = 0.0;
+        double prevCenterX = 0.0;
+        double prevCenterY = 0.0;
+        double prevCenterZ = 0.0;
+        boolean hasPrevCenter = false;
         for (WeaponTrailClip.TrailSample sample : clip.getSamples()) {
-            if (previous != null) {
-                double len = previous.distanceTo(sample.start);
-                if (Double.isFinite(len)) {
-                    u += len * clip.getUvSpeed();
+            float currentU;
+            if (stretchUv) {
+                double centerX = (sample.start.x + sample.end.x) * 0.5;
+                double centerY = (sample.start.y + sample.end.y) * 0.5;
+                double centerZ = (sample.start.z + sample.end.z) * 0.5;
+                if (hasPrevCenter) {
+                    double dx = centerX - prevCenterX;
+                    double dy = centerY - prevCenterY;
+                    double dz = centerZ - prevCenterZ;
+                    double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    if (Double.isFinite(len)) {
+                        traveled += len;
+                    }
                 }
+                currentU = baseOffset;
+                if (totalLength > 0.0) {
+                    currentU += (float) ((traveled / totalLength) * uvScale);
+                }
+                prevCenterX = centerX;
+                prevCenterY = centerY;
+                prevCenterZ = centerZ;
+                hasPrevCenter = true;
+            } else {
+                if (previous != null) {
+                    double len = previous.distanceTo(sample.start);
+                    if (Double.isFinite(len)) {
+                        tiledU += len * uvScale;
+                    }
+                }
+                currentU = tiledU;
             }
-            addVertex(buffer, sample.start, camX, camY, camZ, u, 0f, clip, sample);
-            addVertex(buffer, sample.end, camX, camY, camZ, u, 1f, clip, sample);
+            addVertex(buffer, sample.start, camX, camY, camZ, currentU, 0f, clip, sample);
+            addVertex(buffer, sample.end, camX, camY, camZ, currentU, 1f, clip, sample);
             previous = sample.start;
         }
         tessellator.draw();
@@ -112,6 +149,33 @@ public final class WeaponTrailRenderer {
             .tex(u, v)
             .color(clip.getColorR(), clip.getColorG(), clip.getColorB(), alpha)
             .endVertex();
+    }
+
+    private static double computeTrailLength(WeaponTrailClip clip) {
+        double total = 0.0;
+        double prevCenterX = 0.0;
+        double prevCenterY = 0.0;
+        double prevCenterZ = 0.0;
+        boolean hasPrev = false;
+        for (WeaponTrailClip.TrailSample sample : clip.getSamples()) {
+            double centerX = (sample.start.x + sample.end.x) * 0.5;
+            double centerY = (sample.start.y + sample.end.y) * 0.5;
+            double centerZ = (sample.start.z + sample.end.z) * 0.5;
+            if (hasPrev) {
+                double dx = centerX - prevCenterX;
+                double dy = centerY - prevCenterY;
+                double dz = centerZ - prevCenterZ;
+                double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (Double.isFinite(len)) {
+                    total += len;
+                }
+            }
+            prevCenterX = centerX;
+            prevCenterY = centerY;
+            prevCenterZ = centerZ;
+            hasPrev = true;
+        }
+        return total;
     }
 
 }

@@ -222,8 +222,14 @@ public final class AnimationEventArgsParser {
                 case "uv_speed":
                     params.uvSpeed = parseFloat(value, params.uvSpeed);
                     break;
+                case "segments":
+                    params.segments = Math.max(1, parseInt(value, params.segments));
+                    break;
                 case "axis":
                     params.axis = TrailAxis.fromString(value);
+                    break;
+                case "uv_mode":
+                    params.stretchUv = parseUvStretch(value, params.stretchUv);
                     break;
                 default:
                     break;
@@ -317,6 +323,29 @@ public final class AnimationEventArgsParser {
         return value;
     }
 
+    private static boolean parseUvStretch(String raw, boolean fallback) {
+        if (raw == null) {
+            return fallback;
+        }
+        String value = raw.trim().toLowerCase();
+        if (value.isEmpty()) {
+            return fallback;
+        }
+        if ("stretch".equals(value) || "stretched".equals(value) || "stretching".equals(value)) {
+            return true;
+        }
+        if ("tile".equals(value) || "tiled".equals(value) || "repeat".equals(value) || "tiling".equals(value)) {
+            return false;
+        }
+        if ("true".equals(value) || "yes".equals(value) || "1".equals(value)) {
+            return true;
+        }
+        if ("false".equals(value) || "no".equals(value) || "0".equals(value)) {
+            return false;
+        }
+        return fallback;
+    }
+
     public static final class TrailParams {
         public String id;
         public String rawEffect;
@@ -333,6 +362,8 @@ public final class AnimationEventArgsParser {
         public float alpha = 1.0f;
         public float uvSpeed = 1.0f;
         public float width = 0.3f;
+        public int segments = 4;
         public TrailAxis axis = TrailAxis.Z;
+        public boolean stretchUv = false;
     }
 }
