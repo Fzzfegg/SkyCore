@@ -77,12 +77,8 @@ public final class WeaponTrailRenderer {
         } else {
             GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         }
-        if (clip.isSolidColor()) {
-            GlStateManager.disableTexture2D();
-        } else {
-            GlStateManager.enableTexture2D();
-            mc.getTextureManager().bindTexture(texture != null ? texture : TextureMap.LOCATION_BLOCKS_TEXTURE);
-        }
+        GlStateManager.enableTexture2D();
+        mc.getTextureManager().bindTexture(texture != null ? texture : TextureMap.LOCATION_BLOCKS_TEXTURE);
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
         buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_TEX_COLOR);
@@ -100,9 +96,6 @@ public final class WeaponTrailRenderer {
             previous = sample.start;
         }
         tessellator.draw();
-        if (clip.isSolidColor()) {
-            GlStateManager.enableTexture2D();
-        }
     }
 
     private void addVertex(BufferBuilder buffer,

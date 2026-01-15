@@ -203,18 +203,11 @@ public final class AnimationEventDispatcher {
         }
         AnimationEventArgsParser.TrailParams params = AnimationEventArgsParser.parseTrail(event.getEffect());
         if (params == null) {
-            SkyCoreMod.LOGGER.info("[SkyTrail] 无法解析 trail 事件: {}", event.getEffect());
             return;
         }
         if ((params.locatorStart == null || params.locatorStart.isEmpty()) && event.getLocator() != null) {
             params.locatorStart = event.getLocator();
         }
-        SkyCoreMod.LOGGER.info("[SkyTrail] 触发 trail 事件 action={} id={} locatorA={} locatorB={} texture={}",
-            params.action,
-            params.id,
-            params.locatorStart,
-            params.locatorEnd,
-            params.texture);
         controller.handle(params);
     }
 

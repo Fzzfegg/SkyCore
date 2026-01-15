@@ -2,7 +2,6 @@ package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
-import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleTargetMode;
 import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
@@ -91,14 +90,6 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
             float sz = locatorTransform.scale[2] * scale;
             float uniformScale = (Math.abs(sx) + Math.abs(sy) + Math.abs(sz)) / 3.0f;
             transform.scale = uniformScale <= 0.0f ? 1.0f : uniformScale;
-            SkyCoreMod.LOGGER.info("[SkyParticle] locator {} world=({}, {}, {}) local=({}, {}, {})",
-                locatorName,
-                String.format("%.3f", transform.x),
-                String.format("%.3f", transform.y),
-                String.format("%.3f", transform.z),
-                String.format("%.3f", locatorTransform.position[0]),
-                String.format("%.3f", locatorTransform.position[1]),
-                String.format("%.3f", locatorTransform.position[2]));
             usedInitial = true;
             return;
         }

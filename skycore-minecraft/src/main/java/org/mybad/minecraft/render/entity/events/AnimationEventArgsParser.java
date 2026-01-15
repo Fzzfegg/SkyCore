@@ -185,52 +185,24 @@ public final class AnimationEventArgsParser {
                 continue;
             }
             switch (key) {
-                case "effect":
                 case "id":
-                case "trail":
                     params.id = value;
                     break;
-                case "event":
                 case "action":
                     params.action = TrailAction.fromString(value);
                     break;
                 case "locator":
-                case "locator_a":
-                case "locator_start":
                     params.locatorStart = value;
                     break;
-                case "locator_b":
-                case "locator_end":
-                case "locator2":
-                    params.locatorEnd = value;
-                    break;
-                case "offset_a":
-                case "start":
-                case "start_offset":
-                case "point_a":
-                    params.offsetStart = parseVec3(value, params.offsetStart);
-                    break;
-                case "offset_b":
-                case "end":
-                case "end_offset":
-                case "point_b":
-                    params.offsetEnd = parseVec3(value, params.offsetEnd);
-                    break;
                 case "texture":
-                case "tex":
                     params.texture = parseTexture(value);
                     break;
                 case "sample":
-                case "interval":
-                case "sample_interval":
                     params.sampleInterval = parseFloat(value, params.sampleInterval);
                     break;
                 case "lifetime":
-                case "life":
                     params.lifetime = parseFloat(value, params.lifetime);
                     break;
-                case "max":
-                case "max_sections":
                 case "max_samples":
                     params.maxSamples = parseInt(value, params.maxSamples);
                     break;
@@ -248,16 +220,9 @@ public final class AnimationEventArgsParser {
                     params.alpha = clamp01(parseFloat(value, params.alpha));
                     break;
                 case "uv_speed":
-                case "uv":
                     params.uvSpeed = parseFloat(value, params.uvSpeed);
                     break;
-                case "solid":
-                case "color_only":
-                case "pure_color":
-                    params.solidColor = parseBooleanFlag(value);
-                    break;
                 case "axis":
-                case "dir":
                     params.axis = TrailAxis.fromString(value);
                     break;
                 default:
@@ -352,42 +317,11 @@ public final class AnimationEventArgsParser {
         return value;
     }
 
-    private static boolean parseBooleanFlag(String raw) {
-        if (raw == null) {
-            return false;
-        }
-        String v = raw.trim().toLowerCase();
-        return "1".equals(v) || "true".equals(v) || "yes".equals(v) || "on".equals(v);
-    }
-
-    private static float[] parseVec3(String value, float[] fallback) {
-        if (value == null || value.isEmpty()) {
-            return fallback;
-        }
-        String cleaned = value.trim().replace("(", "").replace(")", "");
-        String[] parts = cleaned.split(",");
-        if (parts.length < 3) {
-            return fallback;
-        }
-        float[] vec = new float[3];
-        for (int i = 0; i < 3; i++) {
-            try {
-                vec[i] = Float.parseFloat(parts[i].trim());
-            } catch (NumberFormatException e) {
-                return fallback;
-            }
-        }
-        return vec;
-    }
-
     public static final class TrailParams {
         public String id;
         public String rawEffect;
         public TrailAction action = TrailAction.START;
         public String locatorStart;
-        public String locatorEnd;
-        public float[] offsetStart;
-        public float[] offsetEnd;
         public ResourceLocation texture;
         public float lifetime = 0.25f;
         public float sampleInterval = 0.02f;
@@ -399,7 +333,6 @@ public final class AnimationEventArgsParser {
         public float alpha = 1.0f;
         public float uvSpeed = 1.0f;
         public float width = 0.3f;
-        public boolean solidColor = false;
         public TrailAxis axis = TrailAxis.Z;
     }
 }

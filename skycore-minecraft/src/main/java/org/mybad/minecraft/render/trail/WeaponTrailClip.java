@@ -4,7 +4,6 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.ResourceLocation;
-import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser;
 import org.mybad.minecraft.render.transform.LocatorTransform;
@@ -20,9 +19,6 @@ public final class WeaponTrailClip {
     private final String id;
     private final ArrayDeque<TrailSample> samples = new ArrayDeque<>();
     private String locatorStart;
-    private String locatorEnd;
-    private float[] offsetStart;
-    private float[] offsetEnd;
     private ResourceLocation texture;
     private TrailBlendMode blendMode = TrailBlendMode.ADD;
     private float lifetime = 0.25f;
@@ -37,7 +33,6 @@ public final class WeaponTrailClip {
     private float sampleAccumulator = 0.0f;
     private boolean emitting = false;
     private float width = 0.3f;
-    private boolean solidColor = false;
     private TrailAxis axis = TrailAxis.Z;
     private final LocatorTransform locatorTransform = new LocatorTransform();
     private final float[] cachedBasis = new float[3];
@@ -55,22 +50,12 @@ public final class WeaponTrailClip {
         if (params.locatorStart != null && !params.locatorStart.isEmpty()) {
             this.locatorStart = params.locatorStart;
         }
-        if (params.locatorEnd != null && !params.locatorEnd.isEmpty()) {
-            this.locatorEnd = params.locatorEnd;
-        }
-        if (params.offsetStart != null) {
-            this.offsetStart = params.offsetStart.clone();
-        }
-        if (params.offsetEnd != null) {
-            this.offsetEnd = params.offsetEnd.clone();
-        }
         if (params.width > 0f) {
             this.width = params.width;
         }
         if (params.texture != null) {
             this.texture = params.texture;
         }
-        this.solidColor = params.solidColor || params.texture == null;
         if (params.axis != null) {
             this.axis = params.axis;
         }
@@ -154,10 +139,6 @@ public final class WeaponTrailClip {
         return samples;
     }
 
-    public boolean isSolidColor() {
-        return solidColor;
-    }
-
     public void startEmission() {
         this.emitting = true;
         this.sampleAccumulator = 0f;
@@ -229,38 +210,20 @@ public final class WeaponTrailClip {
                            float partialTicks,
                            float headYaw) {
         basisValid = false;
-        double[] startPos = resolvePosition(entity, wrapper, locatorStart, offsetStart, headYaw, partialTicks, true);
-        boolean captureEndBasis = (locatorStart == null || locatorStart.isEmpty());
-        double[] endPos = resolvePosition(entity, wrapper, locatorEnd, offsetEnd, headYaw, partialTicks, captureEndBasis);
-        Vec3d pointA = startPos != null ? new Vec3d(startPos[0], startPos[1], startPos[2]) : null;
-        Vec3d pointB = endPos != null ? new Vec3d(endPos[0], endPos[1], endPos[2]) : null;
-        if (pointA == null && pointB == null) {
-            SkyCoreMod.LOGGER.info("[SkyTrail] {} skip sample - no locator/offset", id);
+        double[] centerPos = resolvePosition(entity, wrapper, locatorStart, headYaw, partialTicks, true);
+        if (centerPos == null) {
             return false;
         }
-        if (pointB == null) {
-            Vec3d[] edges = buildAutoWidthPoints(pointA);
-            if (edges == null) {
-                SkyCoreMod.LOGGER.info("[SkyTrail] {} auto-width failed (start)", id);
-                return false;
-            }
-            pointA = edges[0];
-            pointB = edges[1];
-        } else if (pointA == null) {
-            Vec3d[] edges = buildAutoWidthPoints(pointB);
-            if (edges == null) {
-                SkyCoreMod.LOGGER.info("[SkyTrail] {} auto-width failed (end)", id);
-                return false;
-            }
-            pointA = edges[0];
-            pointB = edges[1];
+        Vec3d center = new Vec3d(centerPos[0], centerPos[1], centerPos[2]);
+        Vec3d[] edges = buildAutoWidthPoints(center);
+        if (edges == null) {
+            return false;
         }
-        TrailSample sample = new TrailSample(pointA, pointB);
+        TrailSample sample = new TrailSample(edges[0], edges[1]);
         samples.addLast(sample);
         while (samples.size() > maxSamples) {
             samples.removeFirst();
         }
-        SkyCoreMod.LOGGER.info("[SkyTrail] sample {} start={} end={}", id, sample.start, sample.end);
         basisValid = false;
         return true;
     }
@@ -268,7 +231,6 @@ public final class WeaponTrailClip {
     private double[] resolvePosition(EntityLivingBase entity,
                                      BedrockModelHandle wrapper,
                                      String locator,
-                                     float[] offset,
                                      float headYaw,
                                      float partialTicks,
                                      boolean captureBasis) {
@@ -279,34 +241,10 @@ public final class WeaponTrailClip {
                 if (captureBasis) {
                     cacheBasis(wrapper.getModelScale(), headYaw);
                 }
-                if (world != null) {
-                    SkyCoreMod.LOGGER.info("[SkyTrail] locator {} world=({}, {}, {}) local=({}, {}, {}) axis={}",
-                        locator,
-                        String.format("%.3f", world[0]),
-                        String.format("%.3f", world[1]),
-                        String.format("%.3f", world[2]),
-                        String.format("%.3f", locatorTransform.position[0]),
-                        String.format("%.3f", locatorTransform.position[1]),
-                        String.format("%.3f", locatorTransform.position[2]),
-                        axis);
-                    return world;
-                }
-            } else {
-                SkyCoreMod.LOGGER.info("[SkyTrail] {} locator {} resolve failed", id, locator);
+                return world;
             }
         }
-        if (entity == null || offset == null || offset.length < 3) {
-            return null;
-        }
-        double baseX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
-        double baseY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
-        double baseZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
-        float yawRad = (float) Math.toRadians(180.0F - headYaw);
-        float cos = (float) Math.cos(yawRad);
-        float sin = (float) Math.sin(yawRad);
-        double rx = offset[0] * cos + offset[2] * sin;
-        double rz = -offset[0] * sin + offset[2] * cos;
-        return new double[]{baseX + rx, baseY + offset[1], baseZ + rz};
+        return null;
     }
 
     private double[] transformLocatorToWorld(EntityLivingBase entity,
