@@ -14,6 +14,7 @@ import org.mybad.minecraft.render.BloomRenderer;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
 import org.mybad.minecraft.render.skull.SkullModelManager;
+import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
 /**
@@ -25,9 +26,11 @@ import org.mybad.minecraft.resource.ResourceCacheManager;
 public class EntityRenderEventHandler {
 
     private final EntityRenderDispatcher entityDispatcher;
+    private final WeaponTrailRenderer weaponTrailRenderer;
 
     public EntityRenderEventHandler(ResourceCacheManager cacheManager) {
-        this.entityDispatcher = new EntityRenderDispatcher(cacheManager);
+        this.weaponTrailRenderer = new WeaponTrailRenderer();
+        this.entityDispatcher = new EntityRenderDispatcher(cacheManager, weaponTrailRenderer);
     }
 
     /**
@@ -49,6 +52,7 @@ public class EntityRenderEventHandler {
         }
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
+        weaponTrailRenderer.render(event.getPartialTicks());
         org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
         BloomRenderer.get().endFrame();
     }
@@ -74,6 +78,7 @@ public class EntityRenderEventHandler {
         if (event.phase == TickEvent.Phase.START) {
             entityDispatcher.beginRenderFrame();
             SkullModelManager.beginRenderFrame();
+            weaponTrailRenderer.beginFrame();
         } else {
             entityDispatcher.finishRenderFrame();
             SkullModelManager.finishRenderFrame();
@@ -88,6 +93,7 @@ public class EntityRenderEventHandler {
         entityDispatcher.clearCache();
         BedrockModelWrapper.clearSharedResources();
         SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
+        weaponTrailRenderer.beginFrame();
     }
 
     /**

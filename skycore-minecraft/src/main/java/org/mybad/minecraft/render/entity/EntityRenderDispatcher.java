@@ -9,6 +9,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
+import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
 @SideOnly(Side.CLIENT)
@@ -21,11 +22,11 @@ public final class EntityRenderDispatcher {
     private long currentRenderFrameId = 0L;
     private boolean renderFrameActive = false;
 
-    public EntityRenderDispatcher(ResourceCacheManager cacheManager) {
+    public EntityRenderDispatcher(ResourceCacheManager cacheManager, WeaponTrailRenderer trailRenderer) {
         this.wrapperCache = new EntityWrapperCache(cacheManager);
         this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
-        this.renderPipeline = new EntityRenderPipeline(eventDispatcher, this::handleForcedAnimationFrame);
+        this.renderPipeline = new EntityRenderPipeline(eventDispatcher, this::handleForcedAnimationFrame, trailRenderer);
     }
 
     public void onRenderLivingPre(RenderLivingEvent.Pre<?> event) {

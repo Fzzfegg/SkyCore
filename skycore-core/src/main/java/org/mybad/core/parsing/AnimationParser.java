@@ -88,6 +88,7 @@ public class AnimationParser {
         public Map<String, BoneAnimation> boneAnimations;
         public List<AnimationEvent> soundEvents;
         public List<AnimationEvent> particleEvents;
+        public List<AnimationEvent> trailEvents;
 
         public AnimationData(String name) {
             this.name = name;
@@ -97,6 +98,7 @@ public class AnimationParser {
             this.boneAnimations = new HashMap<>();
             this.soundEvents = new ArrayList<>();
             this.particleEvents = new ArrayList<>();
+            this.trailEvents = new ArrayList<>();
         }
     }
 
@@ -249,6 +251,7 @@ public class AnimationParser {
         // 解析动画事件
         parseEventMap(animation.soundEvents, animJson, "sound_effects");
         parseEventMap(animation.particleEvents, animJson, "particle_effects");
+        parseEventMap(animation.trailEvents, animJson, "trail_effects");
 
         // 事件可能延长动画长度
         float eventMax = getMaxEventTime(animation);
@@ -431,6 +434,11 @@ public class AnimationParser {
                 max = Math.max(max, evt.timestamp);
             }
         }
+        for (AnimationEvent evt : animation.trailEvents) {
+            if (evt != null) {
+                max = Math.max(max, evt.timestamp);
+            }
+        }
         return max;
     }
 
@@ -478,6 +486,11 @@ public class AnimationParser {
         for (AnimationEvent evt : data.particleEvents) {
             if (evt != null) {
                 animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator);
+            }
+        }
+        for (AnimationEvent evt : data.trailEvents) {
+            if (evt != null) {
+                animation.addTrailEvent(evt.timestamp, evt.effect, evt.locator);
             }
         }
 

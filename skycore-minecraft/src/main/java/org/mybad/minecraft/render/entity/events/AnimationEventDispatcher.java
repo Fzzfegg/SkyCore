@@ -9,6 +9,7 @@ import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.audio.DirectSoundPlayer;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.trail.WeaponTrailController;
 
 import java.util.List;
 
@@ -44,7 +45,7 @@ public final class AnimationEventDispatcher {
             } else {
                 boolean looped = loopCount != renderState.lastPrimaryLoop ||
                     (animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < renderState.lastPrimaryTime);
-                dispatchEventsForAnimation(entity, target, wrapper, animation,
+                dispatchEventsForAnimation(entity, context, target, wrapper, animation,
                     renderState.lastPrimaryTime, currentTime, looped, partialTicks);
                 renderState.lastPrimaryTime = currentTime;
                 renderState.lastPrimaryLoop = loopCount;
@@ -57,6 +58,7 @@ public final class AnimationEventDispatcher {
     }
 
     void dispatchEventsForAnimation(EntityLivingBase entity,
+                                    AnimationEventContext context,
                                     AnimationEventTarget target,
                                     BedrockModelHandle wrapper,
                                     Animation animation,
@@ -72,16 +74,21 @@ public final class AnimationEventDispatcher {
         }
 
         if (!animation.getSoundEvents().isEmpty()) {
-            dispatchEventList(entity, target, wrapper, animation, animation.getSoundEvents(),
+            dispatchEventList(entity, context, target, wrapper, animation, animation.getSoundEvents(),
                 prevTime, currentTime, looped, partialTicks);
         }
         if (!animation.getParticleEvents().isEmpty()) {
-            dispatchEventList(entity, target, wrapper, animation, animation.getParticleEvents(),
+            dispatchEventList(entity, context, target, wrapper, animation, animation.getParticleEvents(),
+                prevTime, currentTime, looped, partialTicks);
+        }
+        if (!animation.getTrailEvents().isEmpty()) {
+            dispatchEventList(entity, context, target, wrapper, animation, animation.getTrailEvents(),
                 prevTime, currentTime, looped, partialTicks);
         }
     }
 
     private void dispatchEventList(EntityLivingBase entity,
+                                   AnimationEventContext context,
                                    AnimationEventTarget target,
                                    BedrockModelHandle wrapper,
                                    Animation animation,
@@ -100,7 +107,7 @@ public final class AnimationEventDispatcher {
                 }
                 float t = event.getTimestamp();
                 if (t > prevTime + EVENT_EPS && t <= currentTime + EVENT_EPS) {
-                    fireEvent(entity, target, wrapper, event, partialTicks);
+                    fireEvent(entity, context, target, wrapper, event, partialTicks);
                 }
             }
             return;
@@ -113,14 +120,15 @@ public final class AnimationEventDispatcher {
             }
             float t = event.getTimestamp();
             if (t > prevTime + EVENT_EPS && t <= length + EVENT_EPS) {
-                fireEvent(entity, target, wrapper, event, partialTicks);
+                fireEvent(entity, context, target, wrapper, event, partialTicks);
             } else if (t >= -EVENT_EPS && t <= currentTime + EVENT_EPS) {
-                fireEvent(entity, target, wrapper, event, partialTicks);
+                fireEvent(entity, context, target, wrapper, event, partialTicks);
             }
         }
     }
 
     private void fireEvent(EntityLivingBase entity,
+                           AnimationEventContext context,
                            AnimationEventTarget target,
                            BedrockModelHandle wrapper,
                            Animation.Event event,
@@ -132,6 +140,10 @@ public final class AnimationEventDispatcher {
         if (event.getType() == Animation.Event.Type.PARTICLE) {
             spawnParticleEffect(event.getEffect(), entity, target, wrapper, event.getLocator(),
                 positionYaw, partialTicks);
+            return;
+        }
+        if (event.getType() == Animation.Event.Type.TRAIL) {
+            triggerTrailEvent(context, event);
             return;
         }
         double[] pos = resolveEventPosition(entity, target, wrapper, event.getLocator(), positionYaw, partialTicks);
@@ -179,6 +191,31 @@ public final class AnimationEventDispatcher {
         double iz = initialPos != null && initialPos.length > 2 ? initialPos[2] : entity.posZ;
         system.spawn(params.path, new AnimationEventTransformProvider(entity, wrapper, locatorName, ix, iy, iz, emitterYaw,
             positionYaw, params.mode, params.yawOffset), params.count);
+    }
+
+    private void triggerTrailEvent(AnimationEventContext context, Animation.Event event) {
+        if (context == null || event == null) {
+            return;
+        }
+        WeaponTrailController controller = context.getTrailController();
+        if (controller == null) {
+            return;
+        }
+        AnimationEventArgsParser.TrailParams params = AnimationEventArgsParser.parseTrail(event.getEffect());
+        if (params == null) {
+            SkyCoreMod.LOGGER.info("[SkyTrail] 无法解析 trail 事件: {}", event.getEffect());
+            return;
+        }
+        if ((params.locatorStart == null || params.locatorStart.isEmpty()) && event.getLocator() != null) {
+            params.locatorStart = event.getLocator();
+        }
+        SkyCoreMod.LOGGER.info("[SkyTrail] 触发 trail 事件 action={} id={} locatorA={} locatorB={} texture={}",
+            params.action,
+            params.id,
+            params.locatorStart,
+            params.locatorEnd,
+            params.texture);
+        controller.handle(params);
     }
 
     private double[] resolveEventPosition(EntityLivingBase entity,

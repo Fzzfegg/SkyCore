@@ -39,7 +39,7 @@ public final class OverlayEventDispatcher {
                 continue;
             }
             boolean looped = animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < cursor.lastTime;
-            dispatcher.dispatchEventsForAnimation(entity, target, wrapper, animation, cursor.lastTime, currentTime, looped, partialTicks);
+            dispatcher.dispatchEventsForAnimation(entity, context, target, wrapper, animation, cursor.lastTime, currentTime, looped, partialTicks);
             cursor.lastTime = currentTime;
         }
         cursorCache.prune(active);

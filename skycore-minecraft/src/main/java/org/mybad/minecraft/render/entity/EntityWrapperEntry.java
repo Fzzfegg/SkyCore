@@ -5,6 +5,7 @@ import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventContext;
 import org.mybad.minecraft.render.entity.events.AnimationEventState;
 import org.mybad.minecraft.render.entity.events.OverlayEventCursorCache;
+import org.mybad.minecraft.render.trail.WeaponTrailController;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,7 @@ public final class EntityWrapperEntry implements AnimationEventContext {
     public List<EntityAnimationController.OverlayState> overlayStates = Collections.emptyList();
     public final OverlayEventCursorCache overlayCursors = new OverlayEventCursorCache();
     public final AnimationEventState renderState = new AnimationEventState();
+    public final WeaponTrailController trailController = new WeaponTrailController();
 
     EntityWrapperEntry(BedrockModelHandle wrapper, EntityAnimationController controller, UUID entityUuid, String mappingName, long lastSeenTick) {
         this.wrapper = wrapper;
@@ -42,5 +44,10 @@ public final class EntityWrapperEntry implements AnimationEventContext {
     @Override
     public OverlayEventCursorCache getOverlayCursorCache() {
         return overlayCursors;
+    }
+
+    @Override
+    public WeaponTrailController getTrailController() {
+        return trailController;
     }
 }

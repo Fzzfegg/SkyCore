@@ -5,17 +5,21 @@ import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.EntityNameTagRenderer;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.entity.events.AnimationEventMathUtil;
+import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 
 import java.util.function.BiConsumer;
 
 final class EntityRenderPipeline {
     private final AnimationEventDispatcher eventDispatcher;
     private final BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback;
+    private final WeaponTrailRenderer trailRenderer;
 
     EntityRenderPipeline(AnimationEventDispatcher eventDispatcher,
-                         BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback) {
+                         BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback,
+                         WeaponTrailRenderer trailRenderer) {
         this.eventDispatcher = eventDispatcher;
         this.preRenderCallback = preRenderCallback;
+        this.trailRenderer = trailRenderer;
     }
 
     void render(EntityLivingBase entity, EntityWrapperEntry entry,
@@ -33,6 +37,12 @@ final class EntityRenderPipeline {
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
         eventDispatcher.dispatchAnimationEvents(entity, entry, null, wrapper, partialTicks);
+        if (entry.trailController != null) {
+            entry.trailController.update(entity, wrapper, partialTicks);
+            if (trailRenderer != null) {
+                entry.trailController.forEachRenderable(trailRenderer::queueClip);
+            }
+        }
 
         if (EntityNameTagRenderer.shouldRenderNameTag(entity)) {
             EntityNameTagRenderer.render(entity, x, y, z);

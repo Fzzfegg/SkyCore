@@ -1,6 +1,7 @@
 package org.mybad.minecraft.render.entity.events;
 
 import org.mybad.minecraft.animation.EntityAnimationController;
+import org.mybad.minecraft.render.trail.WeaponTrailController;
 
 import java.util.List;
 
@@ -13,4 +14,8 @@ public interface AnimationEventContext {
     List<EntityAnimationController.OverlayState> getOverlayStates();
 
     OverlayEventCursorCache getOverlayCursorCache();
+
+    default WeaponTrailController getTrailController() {
+        return null;
+    }
 }
