@@ -17,15 +17,13 @@ import java.util.Map;
 
 import net.minecraft.entity.Entity;
 import org.mybad.minecraft.SkyCoreMod;
-import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.render.BloomRenderer;
+import org.mybad.minecraft.render.glow.GlowRenderer;
 
 
 public final class WeaponTrailRenderer {
     private final List<WeaponTrailClip> queue = new ArrayList<>();
     private final List<WeaponTrailClip> bloomQueue = new ArrayList<>();
     private final Map<WeaponTrailClip, List<TrailVertex>> bloomVertexCache = new HashMap<>();
-    private long lastBloomDisabledLog;
     private long lastBloomVertexLog;
     
     public void beginFrame() {
@@ -201,11 +199,6 @@ public final class WeaponTrailRenderer {
         if (bloomQueue.isEmpty()) {
             return;
         }
-        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
-        if (renderConfig == null || renderConfig.bloomStrength <= 0f) {
-            logBloomDisabled(renderConfig != null ? renderConfig.bloomStrength : -1f, bloomQueue.size());
-            return;
-        }
         Entity view = mc.getRenderViewEntity();
         if (view == null) {
             view = mc.player;
@@ -214,22 +207,17 @@ public final class WeaponTrailRenderer {
             return;
         }
         Entity finalView = (Entity) view;
-        BloomRenderer.get().renderParticleMask(finalView,
-                partialTicks,
-                renderConfig.bloomStrength,
-                renderConfig.bloomRadius,
-                renderConfig.bloomDownsample,
-                renderConfig.bloomThreshold,
-                renderConfig.bloomPasses,
-                renderConfig.bloomSpread,
-                renderConfig.bloomUseDepth,
-                () -> {
-                    GlStateManager.disableCull();
-                    GlStateManager.enableTexture2D();
-                    for (WeaponTrailClip clip : bloomQueue) {
-                        drawBloomClip(mc, clip, camX, camY, camZ);
-                    }
-                });
+        for (WeaponTrailClip clip : bloomQueue) {
+            if (!clip.isBloomEnabled()) {
+                continue;
+            }
+            float strength = Math.max(clip.getBloomIntensity(), 0.05f);
+            GlowRenderer.INSTANCE.renderCustomMask(finalView, partialTicks, strength, () -> {
+                GlStateManager.disableCull();
+                GlStateManager.enableTexture2D();
+                drawBloomClip(mc, clip, camX, camY, camZ);
+            });
+        }
     }
     
     private boolean drawBloomClip(Minecraft mc,
@@ -320,15 +308,6 @@ public final class WeaponTrailRenderer {
         }
         double orientation = reference.dotProduct(widthVec);
         return orientation < 0.0;
-    }
-    
-    private void logBloomDisabled(float strength, int queueSize) {
-        long now = System.currentTimeMillis();
-        if (now - lastBloomDisabledLog < 1000L) {
-            return;
-        }
-        lastBloomDisabledLog = now;
-        SkyCoreMod.LOGGER.info("[TrailBloom] Bloom disabled or strength zero (strength={}, clips={})", strength, queueSize);
     }
     
     private void logBloomMissingVertices(WeaponTrailClip clip) {

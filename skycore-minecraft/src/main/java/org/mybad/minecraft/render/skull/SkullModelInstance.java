@@ -3,7 +3,6 @@ package org.mybad.minecraft.render.skull;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
-import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.render.entity.events.AnimationEventContext;
@@ -192,16 +191,10 @@ final class SkullModelInstance implements AnimationEventContext {
         if (handle == null || mapping == null) {
             return;
         }
-        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
         handle.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
         handle.setEmissiveStrength(mapping.getEmissiveStrength());
-        handle.setBloomStrength(renderConfig.bloomStrength);
-        handle.setBloomRadius(renderConfig.bloomRadius);
-        handle.setBloomDownsample(renderConfig.bloomDownsample);
-        handle.setBloomThreshold(renderConfig.bloomThreshold);
-        handle.setBloomPasses(renderConfig.bloomPasses);
-        handle.setBloomSpread(renderConfig.bloomSpread);
-        handle.setBloomUseDepth(renderConfig.bloomUseDepth);
+        handle.setBloomStrength(mapping.getBloomStrength());
+        handle.setBloomColor(mapping.getBloomColor());
         handle.setModelScale(mapping.getModelScale());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());

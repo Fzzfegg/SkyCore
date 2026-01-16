@@ -28,6 +28,21 @@ public class EntityModelMapping {
     /** 泛光遮罩贴图路径 (如: skycore/textures/zombie_bloom.png) */
     @SerializedName(value = "bloom", alternate = {"bloomTexture"})
     private String bloom;
+    /** 泛光颜色 (RGBA)，默认白色 */
+    @SerializedName(value = "bloomColor", alternate = {"bloom_color"})
+    private int[] bloomColor;
+    /** 泛光强度 */
+    @SerializedName(value = "bloomStrength", alternate = {"bloom_strength"})
+    private float bloomStrength = 1.0f;
+    /** 泛光半径 */
+    @SerializedName(value = "bloomRadius", alternate = {"bloom_radius"})
+    private float bloomRadius = 24f;
+    /** 泛光阈值 */
+    @SerializedName(value = "bloomThreshold", alternate = {"bloom_threshold"})
+    private float bloomThreshold = 0f;
+    /** 泛光优先级 */
+    @SerializedName(value = "bloomPriority", alternate = {"bloom_priority"})
+    private int bloomPriority = 0;
     /** 叠色遮罩贴图路径 */
     @SerializedName(value = "blendTexture", alternate = {"blend"})
     private String blendTexture;
@@ -73,6 +88,11 @@ public class EntityModelMapping {
     public String getEmissive() { return emissive; }
     public float getEmissiveStrength() { return emissiveStrength; }
     public String getBloom() { return bloom; }
+    public int[] getBloomColor() { return bloomColor; }
+    public float getBloomStrength() { return bloomStrength; }
+    public float getBloomRadius() { return bloomRadius; }
+    public float getBloomThreshold() { return bloomThreshold; }
+    public int getBloomPriority() { return bloomPriority; }
     public String getBlendTexture() { return blendTexture; }
     public String getBlendMode() { return blendMode; }
     public float[] getBlendColor() { return blendColor; }
@@ -97,6 +117,11 @@ public class EntityModelMapping {
     public void setEmissive(String emissive) { this.emissive = emissive; }
     public void setEmissiveStrength(float emissiveStrength) { this.emissiveStrength = emissiveStrength; }
     public void setBloom(String bloom) { this.bloom = bloom; }
+    public void setBloomColor(int[] bloomColor) { this.bloomColor = bloomColor; }
+    public void setBloomStrength(float bloomStrength) { this.bloomStrength = bloomStrength; }
+    public void setBloomRadius(float bloomRadius) { this.bloomRadius = bloomRadius; }
+    public void setBloomThreshold(float bloomThreshold) { this.bloomThreshold = bloomThreshold; }
+    public void setBloomPriority(int bloomPriority) { this.bloomPriority = bloomPriority; }
     public void setBlendTexture(String blendTexture) { this.blendTexture = blendTexture; }
     public void setBlendMode(String blendMode) { this.blendMode = blendMode; }
     public void setBlendColor(float[] blendColor) { this.blendColor = blendColor; }
@@ -120,6 +145,10 @@ public class EntityModelMapping {
                 ", emissive='" + emissive + '\'' +
                 ", emissiveStrength=" + emissiveStrength +
                 ", bloom='" + bloom + '\'' +
+                ", bloomColor=" + (bloomColor == null ? "null" : java.util.Arrays.toString(bloomColor)) +
+                ", bloomStrength=" + bloomStrength +
+                ", bloomRadius=" + bloomRadius +
+                ", bloomPriority=" + bloomPriority +
                 ", blendTexture='" + blendTexture + '\'' +
                 ", blendMode='" + blendMode + '\'' +
                 ", blendColor=" + (blendColor == null ? "null" : java.util.Arrays.toString(blendColor)) +

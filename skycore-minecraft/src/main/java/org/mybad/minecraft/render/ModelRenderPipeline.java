@@ -10,6 +10,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 import org.mybad.minecraft.render.ModelBlendMode;
+import org.mybad.minecraft.render.glow.GlowRenderer;
 import org.lwjgl.BufferUtils;
 
 import java.nio.FloatBuffer;
@@ -31,6 +32,7 @@ final class ModelRenderPipeline {
                 int bloomPasses,
                 float bloomSpread,
                 boolean bloomUseDepth,
+                int[] bloomColor,
                 boolean renderHurtTint,
                 float hurtTintR,
                 float hurtTintG,
@@ -106,8 +108,8 @@ final class ModelRenderPipeline {
         if (blendTexture != null && blendA > 0.0f) {
             renderBlendPass(blendTexture, blendMode, blendR, blendG, blendB, blendA, lightX, lightY, skinningPipeline, texture);
         }
-        if (bloomTexture != null) {
-            BloomRenderer.get().renderBloomMask(entity, partialTicks, bloomTexture, bloomStrength, bloomRadius, bloomDownsample, bloomThreshold, bloomPasses, bloomSpread, bloomUseDepth, lightX, lightY, skinningPipeline, texture);
+        if (bloomTexture != null && bloomStrength > 0f) {
+            GlowRenderer.INSTANCE.renderSkinnedMask(entity, partialTicks, bloomTexture, bloomStrength, bloomColor, skinningPipeline, texture);
         }
 
         GlStateManager.popMatrix();
@@ -221,5 +223,5 @@ final class ModelRenderPipeline {
         GL11.glTexEnv(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_COLOR, MASK_COLOR);
     }
 
-    // bloom pass moved to BloomRenderer
+        // bloom pass handled by GlowRenderer
 }

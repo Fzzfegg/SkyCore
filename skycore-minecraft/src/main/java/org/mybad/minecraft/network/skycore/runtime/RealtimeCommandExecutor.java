@@ -72,7 +72,7 @@ public final class RealtimeCommandExecutor {
             mapping.setEmissiveStrength(packet.getEmissiveStrength());
         }
         if (packet.hasBloomStrength()) {
-            // reuse emissiveStrength field to simulate bloom adjustments if needed
+            mapping.setBloomStrength(packet.getBloomStrength());
         }
         if (packet.hasTexture()) {
             mapping.setTexture(packet.getTexture());

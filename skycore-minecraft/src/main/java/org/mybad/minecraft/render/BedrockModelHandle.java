@@ -88,6 +88,10 @@ public final class BedrockModelHandle {
         wrapper.setBloomStrength(strength);
     }
 
+    public void setBloomColor(int[] color) {
+        wrapper.setBloomColor(color);
+    }
+
     public void setBloomRadius(int radius) {
         wrapper.setBloomRadius(radius);
     }

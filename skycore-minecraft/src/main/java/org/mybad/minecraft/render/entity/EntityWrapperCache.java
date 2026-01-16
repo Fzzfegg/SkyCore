@@ -7,7 +7,6 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
-import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.resource.ResourceCacheManager;
@@ -48,16 +47,10 @@ final class EntityWrapperCache {
         if (wrapper == null) {
             return null;
         }
-        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
         wrapper.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
         wrapper.setEmissiveStrength(mapping.getEmissiveStrength());
-        wrapper.setBloomStrength(renderConfig.bloomStrength);
-        wrapper.setBloomRadius(renderConfig.bloomRadius);
-        wrapper.setBloomDownsample(renderConfig.bloomDownsample);
-        wrapper.setBloomThreshold(renderConfig.bloomThreshold);
-        wrapper.setBloomPasses(renderConfig.bloomPasses);
-        wrapper.setBloomSpread(renderConfig.bloomSpread);
-        wrapper.setBloomUseDepth(renderConfig.bloomUseDepth);
+        wrapper.setBloomStrength(mapping.getBloomStrength());
+        wrapper.setBloomColor(mapping.getBloomColor());
         wrapper.setModelScale(mapping.getModelScale());
         wrapper.setRenderHurtTint(mapping.isRenderHurtTint());
         wrapper.setHurtTint(mapping.getHurtTint());

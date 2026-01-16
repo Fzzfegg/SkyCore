@@ -235,8 +235,7 @@ public final class AnimationEventArgsParser {
                     params.stretchUv = parseUvStretch(value, params.stretchUv);
                     break;
                 case "bloom":
-                    params.enableBloom = parseBoolean(value, params.enableBloom);
-                    System.out.println("解析成功: " + params.enableBloom);
+                    parseBloom(value, params);
                     break;
                 default:
                     break;
@@ -344,6 +343,25 @@ public final class AnimationEventArgsParser {
         return fallback;
     }
 
+    private static void parseBloom(String raw, TrailParams params) {
+        if (raw == null) {
+            return;
+        }
+        float numeric = parseFloat(raw, Float.NaN);
+        if (!Float.isNaN(numeric)) {
+            params.bloomIntensity = Math.max(0f, numeric);
+            params.enableBloom = params.bloomIntensity > 0f;
+            return;
+        }
+        boolean enabled = parseBoolean(raw, params.enableBloom);
+        params.enableBloom = enabled;
+        if (!enabled) {
+            params.bloomIntensity = 0f;
+        } else if (params.bloomIntensity <= 0f) {
+            params.bloomIntensity = 1.0f;
+        }
+    }
+
     private static boolean parseBoolean(String raw, boolean fallback) {
         if (raw == null) {
             return fallback;
@@ -382,5 +400,6 @@ public final class AnimationEventArgsParser {
         public TrailAxis axis = TrailAxis.Z;
         public boolean stretchUv = true;
         public boolean enableBloom = false;
+        public float bloomIntensity = 0f;
     }
 }

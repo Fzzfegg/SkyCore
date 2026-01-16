@@ -104,7 +104,7 @@ final class ParticleBatcher {
             float blendB = particle.getBlendB();
             float blendA = particle.getBlendA();
 
-            BatchKey key = new BatchKey(texture, texture, blendMode, camMode, lit, bloom);
+            BatchKey key = new BatchKey(texture, texture, blendMode, camMode, lit, bloom, bloom ? particle.getBloomStrength() : 0f);
             BatchBucket bucket = buckets.get(key);
             if (bucket == null) {
                 bucket = new BatchBucket();
@@ -148,7 +148,7 @@ final class ParticleBatcher {
             totalParticles++;
 
             if (hasEmissive) {
-                BatchKey emissiveKey = new BatchKey(emissiveTexture, texture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false);
+                BatchKey emissiveKey = new BatchKey(emissiveTexture, texture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false, 0f);
                 BatchBucket emissiveBucket = emissiveBuckets.get(emissiveKey);
                 if (emissiveBucket == null) {
                     emissiveBucket = new BatchBucket();
@@ -164,7 +164,7 @@ final class ParticleBatcher {
             }
 
             if (blendTexture != null && blendA > 0.0f) {
-                BatchKey blendKey = new BatchKey(blendTexture, blendTexture, blendModeOverlay != null ? blendModeOverlay : BedrockParticleSystem.BlendMode.ALPHA, camMode, false, false);
+                BatchKey blendKey = new BatchKey(blendTexture, blendTexture, blendModeOverlay != null ? blendModeOverlay : BedrockParticleSystem.BlendMode.ALPHA, camMode, false, false, 0f);
                 BatchBucket blendBucket = blendBuckets.get(blendKey);
                 if (blendBucket == null) {
                     blendBucket = new BatchBucket();
@@ -348,19 +348,22 @@ final class ParticleBatcher {
         final int cameraMode;
         final boolean lit;
         final boolean bloom;
+        final float bloomStrength;
 
         BatchKey(ResourceLocation texture,
                  ResourceLocation baseTexture,
                  BedrockParticleSystem.BlendMode blendMode,
                  int cameraMode,
                  boolean lit,
-                 boolean bloom) {
+                 boolean bloom,
+                 float bloomStrength) {
             this.texture = texture;
             this.baseTexture = baseTexture;
             this.blendMode = blendMode;
             this.cameraMode = cameraMode;
             this.lit = lit;
             this.bloom = bloom;
+            this.bloomStrength = bloom ? Math.max(0f, bloomStrength) : 0f;
         }
 
         @Override
@@ -375,6 +378,7 @@ final class ParticleBatcher {
             return cameraMode == other.cameraMode
                 && lit == other.lit
                 && bloom == other.bloom
+                && Float.floatToIntBits(bloomStrength) == Float.floatToIntBits(other.bloomStrength)
                 && blendMode == other.blendMode
                 && texture.equals(other.texture)
                 && baseTexture.equals(other.baseTexture);
@@ -388,6 +392,7 @@ final class ParticleBatcher {
             result = 31 * result + cameraMode;
             result = 31 * result + (lit ? 1 : 0);
             result = 31 * result + (bloom ? 1 : 0);
+            result = 31 * result + Float.floatToIntBits(bloomStrength);
             return result;
         }
     }

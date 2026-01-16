@@ -4,6 +4,9 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+
+import org.mybad.minecraft.render.glow.GlowConfigManager;
+import org.mybad.minecraft.render.glow.GlowRenderer;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -16,17 +19,6 @@ public class SkyCoreConfig {
 
     /** 实体名字 -> 模型映射 */
     private final Map<String, EntityModelMapping> mappings = new ConcurrentHashMap<>();
-    private RenderConfig renderConfig = new RenderConfig();
-
-    public static final class RenderConfig {
-        public float bloomStrength = 0.0f;
-        public int bloomRadius = 8;
-        public int bloomDownsample = 2;
-        public float bloomThreshold = 0.0f;
-        public int bloomPasses = 1;
-        public float bloomSpread = 1.0f;
-        public boolean bloomUseDepth = true;
-    }
 
     private SkyCoreConfig(Path packRoot) {}
 
@@ -56,7 +48,6 @@ public class SkyCoreConfig {
      */
     public void load() {
         mappings.clear();
-        renderConfig = new RenderConfig();
     }
 
     /**
@@ -82,33 +73,22 @@ public class SkyCoreConfig {
     public Collection<EntityModelMapping> getAllMappings() {
         return Collections.unmodifiableCollection(mappings.values());
     }
-    
-
-    public RenderConfig getRenderConfig() {
-        return renderConfig;
-    }
-
     public synchronized void applyRemoteMappings(Map<String, EntityModelMapping> newMappings) {
         mappings.clear();
         if (newMappings != null) {
             mappings.putAll(newMappings);
         }
+        GlowConfigManager.INSTANCE.updateFromMappings(mappings.values());
     }
 
     public synchronized void applyRenderSettings(float bloomStrength,
                                                  int bloomRadius,
                                                  int bloomDownsample,
                                                  float bloomThreshold,
-                                                 int bloomPasses) {
-        RenderConfig updated = new RenderConfig();
-        updated.bloomStrength = bloomStrength;
-        updated.bloomRadius = bloomRadius;
-        updated.bloomDownsample = bloomDownsample;
-        updated.bloomThreshold = bloomThreshold;
-        updated.bloomPasses = bloomPasses;
-        updated.bloomSpread = renderConfig.bloomSpread;
-        updated.bloomUseDepth = renderConfig.bloomUseDepth;
-        renderConfig = updated;
+                                                 int bloomPasses,
+                                                 float bloomSpread) {
+        int safeDownsample = bloomDownsample <= 0 ? 1 : bloomDownsample;
+        GlowRenderer.INSTANCE.setDownsample(safeDownsample);
     }
 
     

@@ -86,12 +86,17 @@ public class RemoteConfigController {
     }
 
     private void applyRenderSettings(SkyCoreProto.RenderSettings settings) {
+        float spread = settings.getBloomSpread();
+        if (Float.isNaN(spread) || spread <= 0f) {
+            spread = 1.0f;
+        }
         SkyCoreConfig.getInstance().applyRenderSettings(
                 settings.getBloomStrength(),
                 settings.getBloomRadius(),
                 settings.getBloomDownsample(),
                 settings.getBloomThreshold(),
-                settings.getBloomPasses()
+                settings.getBloomPasses(),
+                spread
         );
         EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
         if (handler != null) {

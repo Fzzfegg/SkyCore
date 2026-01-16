@@ -25,6 +25,10 @@ message EntityMapping {
   float render_box_width = 17;
   float render_box_height = 18;
   float render_box_depth = 19;
+  repeated uint32 bloom_color = 20;
+  float bloom_strength = 21;
+  float bloom_radius = 22;
+  sint32 bloom_priority = 23;
 }
 
 message MappingFile {
@@ -54,6 +58,7 @@ message RenderSettings {
   uint32 bloom_downsample = 3;
   float bloom_threshold = 4;
   uint32 bloom_passes = 5;
+  float bloom_spread = 6;
 }
 
 message ForceAnimation {

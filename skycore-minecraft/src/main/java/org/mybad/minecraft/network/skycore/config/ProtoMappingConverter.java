@@ -37,6 +37,18 @@ public final class ProtoMappingConverter {
         if (proto.getRenderBoxDepth() > 0f) {
             mapping.setRenderBoxDepth(proto.getRenderBoxDepth());
         }
+        if (proto.getBloomColorCount() > 0) {
+            mapping.setBloomColor(toIntArray(proto.getBloomColorList()));
+        }
+        if (proto.getBloomStrength() > 0f) {
+            mapping.setBloomStrength(proto.getBloomStrength());
+        }
+        if (proto.getBloomRadius() > 0f) {
+            mapping.setBloomRadius(proto.getBloomRadius());
+        }
+        if (proto.getBloomPriority() != 0) {
+            mapping.setBloomPriority(proto.getBloomPriority());
+        }
         return mapping;
     }
 
@@ -50,5 +62,13 @@ public final class ProtoMappingConverter {
 
     private static String nullIfEmpty(String str) {
         return str == null || str.isEmpty() ? null : str;
+    }
+
+    private static int[] toIntArray(java.util.List<Integer> list) {
+        int[] arr = new int[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            arr[i] = list.get(i);
+        }
+        return arr;
     }
 }

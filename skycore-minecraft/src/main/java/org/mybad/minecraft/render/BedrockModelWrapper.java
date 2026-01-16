@@ -43,6 +43,7 @@ public class BedrockModelWrapper {
     private float emissiveStrength = 1.0f;
     private float bloomStrength = 0.0f;
     private int bloomRadius = 8;
+    private int[] bloomColor;
     private int bloomDownsample = 2;
     private float bloomThreshold = 0.0f;
     private int bloomPasses = 1;
@@ -162,6 +163,7 @@ public class BedrockModelWrapper {
             bloomPasses,
             bloomSpread,
             bloomUseDepth,
+            bloomColor,
             renderHurtTint,
             hurtTintR,
             hurtTintG,
@@ -248,6 +250,10 @@ public class BedrockModelWrapper {
 
     void setBloomStrength(float strength) {
         this.bloomStrength = strength;
+    }
+
+    void setBloomColor(int[] color) {
+        this.bloomColor = color;
     }
 
     void setBloomRadius(int radius) {

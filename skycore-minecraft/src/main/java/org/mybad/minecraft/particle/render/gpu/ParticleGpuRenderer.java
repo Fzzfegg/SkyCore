@@ -11,14 +11,14 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL31;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;
-import org.mybad.minecraft.config.SkyCoreConfig;
-import org.mybad.minecraft.render.BloomRenderer;
+import org.mybad.minecraft.render.glow.GlowRenderer;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 
 import java.lang.reflect.Field;
 import java.nio.FloatBuffer;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * SSBO + instanced 粒子渲染入口。
@@ -121,26 +121,20 @@ public final class ParticleGpuRenderer {
             restoreRenderState();
         }
 
-        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
-        if (renderConfig.bloomStrength > 0f) {
-            List<ParticleBatcher.Batch> bloomBatches = filterBloomBatches(result.batches);
-            if (!bloomBatches.isEmpty()) {
-                BloomRenderer.get().renderParticleMask(mc.player, partialTicks,
-                    renderConfig.bloomStrength,
-                    renderConfig.bloomRadius,
-                    renderConfig.bloomDownsample,
-                    renderConfig.bloomThreshold,
-                    renderConfig.bloomPasses,
-                    renderConfig.bloomSpread,
-                    renderConfig.bloomUseDepth,
-                    () -> {
-                        ssboBuffer.bind();
-                        quadMesh.bind();
-                        drawBatches(bloomBatches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true, false, false);
-                        quadMesh.unbind();
-                        ssboBuffer.unbind();
-                    }
-                );
+        List<ParticleBatcher.Batch> bloomBatches = filterBloomBatches(result.batches);
+        if (!bloomBatches.isEmpty()) {
+            for (ParticleBatcher.Batch batch : bloomBatches) {
+                float strength = Math.max(batch.key.bloomStrength, 0f);
+                if (strength <= 0f) {
+                    continue;
+                }
+                GlowRenderer.INSTANCE.renderCustomMask(mc.player, partialTicks, strength, () -> {
+                    ssboBuffer.bind();
+                    quadMesh.bind();
+                    drawBatches(Collections.singletonList(batch), mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true, false, false);
+                    quadMesh.unbind();
+                    ssboBuffer.unbind();
+                });
             }
         }
 
