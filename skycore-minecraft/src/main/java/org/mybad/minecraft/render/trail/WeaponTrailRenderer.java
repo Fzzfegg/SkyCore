@@ -13,9 +13,7 @@ import net.minecraft.client.renderer.texture.TextureMap;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Collects trail clips during entity rendering and draws them in RenderWorldLast.
- */
+
 public final class WeaponTrailRenderer {
     private final List<WeaponTrailClip> queue = new ArrayList<>();
 
@@ -46,7 +44,6 @@ public final class WeaponTrailRenderer {
         GlStateManager.disableLighting();
         GlStateManager.disableCull();
         GlStateManager.enableBlend();
-        GlStateManager.enableAlpha();
         GlStateManager.enableDepth();
         GlStateManager.depthMask(false);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
@@ -57,7 +54,6 @@ public final class WeaponTrailRenderer {
         GlStateManager.enableCull();
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();
-        GlStateManager.disableAlpha();
         GlStateManager.popMatrix();
         queue.clear();
     }
@@ -89,47 +85,67 @@ public final class WeaponTrailRenderer {
         float baseOffset = clip.getUvOffset();
         float uvScale = clip.getUvSpeed();
         float tiledU = baseOffset;
-        Vec3d previous = null;
         double traveled = 0.0;
         double prevCenterX = 0.0;
         double prevCenterY = 0.0;
         double prevCenterZ = 0.0;
         boolean hasPrevCenter = false;
+        boolean lastFlip = false;
+        int flipConfidence = 0;
         for (WeaponTrailClip.TrailSample sample : clip.getSamples()) {
+            double centerX = (sample.start.x + sample.end.x) * 0.5;
+            double centerY = (sample.start.y + sample.end.y) * 0.5;
+            double centerZ = (sample.start.z + sample.end.z) * 0.5;
+            Vec3d widthVec = sample.end.subtract(sample.start);
+            boolean desiredFlip = shouldFlip(widthVec, centerX, centerY, centerZ,
+                hasPrevCenter, prevCenterX, prevCenterY, prevCenterZ,
+                camX, camY, camZ);
+            if (desiredFlip != lastFlip) {
+                flipConfidence++;
+                if (flipConfidence >= 3) {
+                    lastFlip = desiredFlip;
+                    flipConfidence = 0;
+                }
+            } else {
+                flipConfidence = 0;
+            }
+            Vec3d first = lastFlip ? sample.end : sample.start;
+            Vec3d second = lastFlip ? sample.start : sample.end;
+            float vFirst = lastFlip ? 1f : 0f;
+            float vSecond = lastFlip ? 0f : 1f;
+
+            if (hasPrevCenter) {
+                double dx = centerX - prevCenterX;
+                double dy = centerY - prevCenterY;
+                double dz = centerZ - prevCenterZ;
+                double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (Double.isFinite(len) && len > 1.0e-5) {
+                    traveled += len;
+                    if (!stretchUv) {
+                        tiledU += (float) (len * uvScale);
+                    }
+                }
+            }
             float currentU;
             if (stretchUv) {
-                double centerX = (sample.start.x + sample.end.x) * 0.5;
-                double centerY = (sample.start.y + sample.end.y) * 0.5;
-                double centerZ = (sample.start.z + sample.end.z) * 0.5;
-                if (hasPrevCenter) {
-                    double dx = centerX - prevCenterX;
-                    double dy = centerY - prevCenterY;
-                    double dz = centerZ - prevCenterZ;
-                    double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    if (Double.isFinite(len)) {
-                        traveled += len;
-                    }
+                float normalized = totalLength > 0.0 ? (float) (traveled / totalLength) : 0f;
+                if (normalized > 1f) {
+                    normalized = 1f;
+                } else if (normalized < 0f) {
+                    normalized = 0f;
                 }
-                currentU = baseOffset;
-                if (totalLength > 0.0) {
-                    currentU += (float) ((traveled / totalLength) * uvScale);
-                }
-                prevCenterX = centerX;
-                prevCenterY = centerY;
-                prevCenterZ = centerZ;
-                hasPrevCenter = true;
+                currentU = baseOffset + normalized;
             } else {
-                if (previous != null) {
-                    double len = previous.distanceTo(sample.start);
-                    if (Double.isFinite(len)) {
-                        tiledU += len * uvScale;
-                    }
-                }
                 currentU = tiledU;
             }
-            addVertex(buffer, sample.start, camX, camY, camZ, currentU, 0f, clip, sample);
-            addVertex(buffer, sample.end, camX, camY, camZ, currentU, 1f, clip, sample);
-            previous = sample.start;
+
+            addVertex(buffer, first, camX, camY, camZ, currentU, vFirst, clip, sample);
+            addVertex(buffer, second, camX, camY, camZ, currentU, vSecond, clip, sample);
+
+            prevCenterX = centerX;
+            prevCenterY = centerY;
+            prevCenterZ = centerZ;
+            hasPrevCenter = true;
         }
         tessellator.draw();
     }
@@ -175,6 +191,44 @@ public final class WeaponTrailRenderer {
             hasPrev = true;
         }
         return total;
+    }
+
+    private static boolean shouldFlip(Vec3d widthVec,
+                                      double centerX,
+                                      double centerY,
+                                      double centerZ,
+                                      boolean hasPrevCenter,
+                                      double prevCenterX,
+                                      double prevCenterY,
+                                      double prevCenterZ,
+                                      double camX,
+                                      double camY,
+                                      double camZ) {
+        if (!hasPrevCenter || widthVec == null || widthVec.lengthSquared() < 1.0e-6) {
+            return false;
+        }
+        double tx = centerX - prevCenterX;
+        double ty = centerY - prevCenterY;
+        double tz = centerZ - prevCenterZ;
+        double tangentLenSq = tx * tx + ty * ty + tz * tz;
+        if (tangentLenSq < 1.0e-6) {
+            return false;
+        }
+        double vx = centerX - camX;
+        double vy = centerY - camY;
+        double vz = centerZ - camZ;
+        double viewLenSq = vx * vx + vy * vy + vz * vz;
+        if (viewLenSq < 1.0e-6) {
+            return false;
+        }
+        Vec3d tangent = new Vec3d(tx, ty, tz);
+        Vec3d viewDir = new Vec3d(vx, vy, vz);
+        Vec3d reference = tangent.crossProduct(viewDir);
+        if (reference.lengthSquared() < 1.0e-7) {
+            return false;
+        }
+        double orientation = reference.dotProduct(widthVec);
+        return orientation < 0.0;
     }
 
 }

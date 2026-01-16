@@ -12,7 +12,7 @@ public enum TrailAction {
             return START;
         }
         String value = raw.trim().toLowerCase();
-        if ("stop".equals(value) || "end".equals(value) || "off".equals(value)) {
+        if ("stop".equals(value)) {
             return STOP;
         }
         return START;

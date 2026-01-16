@@ -12,10 +12,10 @@ public enum TrailBlendMode {
             return ADD;
         }
         String value = raw.trim().toLowerCase();
-        if ("alpha".equals(value) || "normal".equals(value)) {
+        if ("alpha".equals(value)) {
             return ALPHA;
         }
-        if ("add".equals(value) || "additive".equals(value)) {
+        if ("add".equals(value)) {
             return ADD;
         }
         return ADD;

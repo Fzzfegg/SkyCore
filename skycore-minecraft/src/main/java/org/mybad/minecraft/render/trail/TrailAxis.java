@@ -12,13 +12,10 @@ public enum TrailAxis {
         String v = raw.trim().toLowerCase();
         switch (v) {
             case "x":
-            case "right":
                 return X;
             case "y":
-            case "up":
                 return Y;
             case "z":
-            case "forward":
             default:
                 return Z;
         }

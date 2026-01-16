@@ -10,9 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/**
- * Manages multiple weapon trail clips for a single entity.
- */
+
 public final class WeaponTrailController {
     private final Map<String, WeaponTrailClip> clips = new HashMap<>();
     private long lastUpdateNanos = 0L;

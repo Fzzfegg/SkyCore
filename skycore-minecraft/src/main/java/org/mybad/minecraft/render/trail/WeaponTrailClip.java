@@ -9,6 +9,7 @@ import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser;
 import org.mybad.minecraft.render.transform.LocatorTransform;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 
@@ -86,15 +87,7 @@ public final class WeaponTrailClip {
         this.sampleAccumulator = this.sampleInterval;
         this.uvOffset = 0.0f;
         this.samples.clear();
-        this.rawCount = 0;
-        this.rawDualCount = 0;
-        for (int i = 0; i < rawPoints.length; i++) {
-            rawPoints[i] = null;
-        }
-        for (int i = 0; i < rawStartPoints.length; i++) {
-            rawStartPoints[i] = null;
-            rawEndPoints[i] = null;
-        }
+        resetSamplingHistory();
         this.segmentDetail = Math.max(1, params.segments);
         this.stretchUv = params.stretchUv;
     }
@@ -172,6 +165,7 @@ public final class WeaponTrailClip {
     public void startEmission() {
         this.emitting = true;
         this.sampleAccumulator = 0f;
+        resetSamplingHistory();
     }
 
     public void stopEmission() {
@@ -449,6 +443,15 @@ public final class WeaponTrailClip {
 
     private boolean hasDualLocator() {
         return locatorEnd != null && !locatorEnd.isEmpty();
+    }
+
+    private void resetSamplingHistory() {
+        rawCount = 0;
+        rawDualCount = 0;
+        basisValid = false;
+        Arrays.fill(rawPoints, null);
+        Arrays.fill(rawStartPoints, null);
+        Arrays.fill(rawEndPoints, null);
     }
 
     public static final class TrailSample {
