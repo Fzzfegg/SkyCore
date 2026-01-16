@@ -7,6 +7,7 @@ import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
@@ -108,15 +109,37 @@ public final class GlowRenderer {
         }
         Minecraft mc = Minecraft.getMinecraft();
         Framebuffer main = mc != null ? mc.getFramebuffer() : null;
+        int prevActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        int prevTexture0 = captureTextureBinding(OpenGlHelper.defaultTexUnit);
+        int prevTexture1 = captureTextureBinding(OpenGlHelper.lightmapTexUnit);
+        OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
         Framebuffer result = effect.render(maskFbo, main, frameParams);
         if (result != null) {
+            if (main != null) {
+                main.bindFramebuffer(true);
+                GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
+            } else {
+                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+                GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
+            }
+            GlStateManager.disableDepth();
+            boolean blendWasEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
+            GlStateManager.disableBlend();
             OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, result.framebufferTexture);
             GlowShaderManager.INSTANCE.renderFullscreen(main, GlowShaderManager.INSTANCE.getProgramImage(), program ->
-                GlowShaderManager.INSTANCE.setUniform1i(program, "colourTexture", 0)
+                    GlowShaderManager.INSTANCE.setUniform1i(program, "colourTexture", 0)
             );
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+            if (blendWasEnabled) {
+                GlStateManager.enableBlend();
+            }
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            GlStateManager.enableDepth();
         }
+        restoreTextureBinding(OpenGlHelper.defaultTexUnit, prevTexture0);
+        restoreTextureBinding(OpenGlHelper.lightmapTexUnit, prevTexture1);
+        GL13.glActiveTexture(prevActiveTexture);
         usedThisFrame = false;
         clearMask();
     }
@@ -222,6 +245,16 @@ public final class GlowRenderer {
         if (baseTexture != null) {
             Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
         }
+    }
+
+    private int captureTextureBinding(int textureUnit) {
+        OpenGlHelper.setActiveTexture(textureUnit);
+        return GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+    }
+
+    private void restoreTextureBinding(int textureUnit, int textureId) {
+        OpenGlHelper.setActiveTexture(textureUnit);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
     }
 
     private static final float MIN_STRENGTH = 0.1f;

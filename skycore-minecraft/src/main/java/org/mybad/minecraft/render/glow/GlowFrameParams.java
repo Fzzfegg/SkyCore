@@ -45,4 +45,5 @@ public final class GlowFrameParams {
         this.tintR = this.tintG = this.tintB = 1.0f;
         this.useTint = false;
     }
+
 }

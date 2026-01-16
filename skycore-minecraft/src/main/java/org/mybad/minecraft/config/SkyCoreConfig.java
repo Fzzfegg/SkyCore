@@ -81,12 +81,7 @@ public class SkyCoreConfig {
         GlowConfigManager.INSTANCE.updateFromMappings(mappings.values());
     }
 
-    public synchronized void applyRenderSettings(float bloomStrength,
-                                                 int bloomRadius,
-                                                 int bloomDownsample,
-                                                 float bloomThreshold,
-                                                 int bloomPasses,
-                                                 float bloomSpread) {
+    public synchronized void applyRenderSettings(int bloomDownsample) {
         int safeDownsample = bloomDownsample <= 0 ? 1 : bloomDownsample;
         GlowRenderer.INSTANCE.setDownsample(safeDownsample);
     }

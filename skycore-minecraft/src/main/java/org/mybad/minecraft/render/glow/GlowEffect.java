@@ -156,4 +156,5 @@ public final class GlowEffect {
     public void setLowThreshold(float lowThreshold) {
         this.lowThreshold = lowThreshold;
     }
+
 }
