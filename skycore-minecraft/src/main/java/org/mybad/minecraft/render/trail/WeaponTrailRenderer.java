@@ -47,14 +47,13 @@ public final class WeaponTrailRenderer {
         GlStateManager.disableCull();
         GlStateManager.enableBlend();
         GlStateManager.enableAlpha();
-        GlStateManager.disableDepth();
+        GlStateManager.enableDepth();
         GlStateManager.depthMask(false);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         for (WeaponTrailClip clip : queue) {
             drawClip(mc, clip, camX, camY, camZ);
         }
         GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
         GlStateManager.enableCull();
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();

@@ -19,6 +19,7 @@ public final class WeaponTrailClip {
     private final String id;
     private final ArrayDeque<TrailSample> samples = new ArrayDeque<>();
     private String locatorStart;
+    private String locatorEnd;
     private ResourceLocation texture;
     private TrailBlendMode blendMode = TrailBlendMode.ADD;
     private float lifetime = 0.25f;
@@ -34,11 +35,15 @@ public final class WeaponTrailClip {
     private boolean emitting = false;
     private float width = 0.3f;
     private TrailAxis axis = TrailAxis.Z;
-    private final LocatorTransform locatorTransform = new LocatorTransform();
+    private final LocatorTransform locatorTransformStart = new LocatorTransform();
+    private final LocatorTransform locatorTransformEnd = new LocatorTransform();
     private final float[] cachedBasis = new float[3];
     private boolean basisValid = false;
     private final Vec3d[] rawPoints = new Vec3d[4];
     private int rawCount = 0;
+    private final Vec3d[] rawStartPoints = new Vec3d[4];
+    private final Vec3d[] rawEndPoints = new Vec3d[4];
+    private int rawDualCount = 0;
     private int segmentDetail = 4;
     private boolean stretchUv = false;
 
@@ -52,7 +57,13 @@ public final class WeaponTrailClip {
             return;
         }
         if (params.locatorStart != null && !params.locatorStart.isEmpty()) {
-            this.locatorStart = params.locatorStart;
+            this.locatorStart = params.locatorStart.trim();
+        }
+        if (params.locatorEnd != null) {
+            String trimmedEnd = params.locatorEnd.trim();
+            this.locatorEnd = trimmedEnd.isEmpty() ? null : trimmedEnd;
+        } else {
+            this.locatorEnd = null;
         }
         if (params.width > 0f) {
             this.width = params.width;
@@ -76,8 +87,13 @@ public final class WeaponTrailClip {
         this.uvOffset = 0.0f;
         this.samples.clear();
         this.rawCount = 0;
+        this.rawDualCount = 0;
         for (int i = 0; i < rawPoints.length; i++) {
             rawPoints[i] = null;
+        }
+        for (int i = 0; i < rawStartPoints.length; i++) {
+            rawStartPoints[i] = null;
+            rawEndPoints[i] = null;
         }
         this.segmentDetail = Math.max(1, params.segments);
         this.stretchUv = params.stretchUv;
@@ -224,11 +240,21 @@ public final class WeaponTrailClip {
                            float partialTicks,
                            float headYaw) {
         basisValid = false;
-        double[] centerPos = resolvePosition(entity, wrapper, locatorStart, headYaw, partialTicks, true);
-        if (centerPos == null) {
+        double[] startPos = resolvePosition(entity, wrapper, locatorStart, locatorTransformStart, headYaw, partialTicks, true);
+        if (startPos == null) {
             return false;
         }
-        addRawPoint(centerPos[0], centerPos[1], centerPos[2]);
+        Vec3d startVec = new Vec3d(startPos[0], startPos[1], startPos[2]);
+        if (hasDualLocator()) {
+            double[] endPos = resolvePosition(entity, wrapper, locatorEnd, locatorTransformEnd, headYaw, partialTicks, false);
+            if (endPos != null) {
+                Vec3d endVec = new Vec3d(endPos[0], endPos[1], endPos[2]);
+                addDualPoint(startVec, endVec);
+                basisValid = false;
+                return true;
+            }
+        }
+        addRawPoint(startPos[0], startPos[1], startPos[2]);
         basisValid = false;
         return true;
     }
@@ -245,6 +271,28 @@ public final class WeaponTrailClip {
             emitInterpolatedSamples();
         } else {
             emitLinearSample(point);
+        }
+    }
+
+    private void addDualPoint(Vec3d startEdge, Vec3d endEdge) {
+        if (startEdge == null || endEdge == null) {
+            return;
+        }
+        if (rawDualCount < rawStartPoints.length) {
+            rawStartPoints[rawDualCount] = startEdge;
+            rawEndPoints[rawDualCount] = endEdge;
+            rawDualCount++;
+        } else {
+            System.arraycopy(rawStartPoints, 1, rawStartPoints, 0, rawStartPoints.length - 1);
+            System.arraycopy(rawEndPoints, 1, rawEndPoints, 0, rawEndPoints.length - 1);
+            rawStartPoints[rawStartPoints.length - 1] = startEdge;
+            rawEndPoints[rawEndPoints.length - 1] = endEdge;
+            rawDualCount = rawStartPoints.length;
+        }
+        if (rawDualCount >= 4) {
+            emitDualInterpolatedSamples();
+        } else {
+            addSample(startEdge, endEdge);
         }
     }
 
@@ -279,6 +327,32 @@ public final class WeaponTrailClip {
         }
     }
 
+    private void emitDualInterpolatedSamples() {
+        Vec3d s0 = rawStartPoints[0];
+        Vec3d s1 = rawStartPoints[1];
+        Vec3d s2 = rawStartPoints[2];
+        Vec3d s3 = rawStartPoints[3];
+        Vec3d e0 = rawEndPoints[0];
+        Vec3d e1 = rawEndPoints[1];
+        Vec3d e2 = rawEndPoints[2];
+        Vec3d e3 = rawEndPoints[3];
+        if (s0 == null || s1 == null || s2 == null || s3 == null ||
+            e0 == null || e1 == null || e2 == null || e3 == null) {
+            return;
+        }
+        int steps = Math.max(1, segmentDetail);
+        for (int i = 0; i <= steps; i++) {
+            float t = i / (float) steps;
+            double sx = catmullRom(s0.x, s1.x, s2.x, s3.x, t);
+            double sy = catmullRom(s0.y, s1.y, s2.y, s3.y, t);
+            double sz = catmullRom(s0.z, s1.z, s2.z, s3.z, t);
+            double ex = catmullRom(e0.x, e1.x, e2.x, e3.x, t);
+            double ey = catmullRom(e0.y, e1.y, e2.y, e3.y, t);
+            double ez = catmullRom(e0.z, e1.z, e2.z, e3.z, t);
+            addSample(new Vec3d(sx, sy, sz), new Vec3d(ex, ey, ez));
+        }
+    }
+
     private double catmullRom(double p0, double p1, double p2, double p3, float t) {
         double t2 = t * t;
         double t3 = t2 * t;
@@ -299,15 +373,16 @@ public final class WeaponTrailClip {
     private double[] resolvePosition(EntityLivingBase entity,
                                      BedrockModelHandle wrapper,
                                      String locator,
+                                     LocatorTransform transform,
                                      float headYaw,
                                      float partialTicks,
                                      boolean captureBasis) {
-        if (locator != null && !locator.isEmpty() && wrapper != null) {
-            boolean transformOk = wrapper.resolveLocatorTransform(locator, locatorTransform);
+        if (locator != null && !locator.isEmpty() && wrapper != null && transform != null) {
+            boolean transformOk = wrapper.resolveLocatorTransform(locator, transform);
             if (transformOk) {
-                double[] world = transformLocatorToWorld(entity, headYaw, partialTicks, wrapper.getModelScale());
+                double[] world = transformLocatorToWorld(entity, headYaw, partialTicks, wrapper.getModelScale(), transform);
                 if (captureBasis) {
-                    cacheBasis(wrapper.getModelScale(), headYaw);
+                    cacheBasis(transform, wrapper.getModelScale(), headYaw);
                 }
                 return world;
             }
@@ -318,13 +393,14 @@ public final class WeaponTrailClip {
     private double[] transformLocatorToWorld(EntityLivingBase entity,
                                              float headYaw,
                                              float partialTicks,
-                                             float scale) {
+                                             float scale,
+                                             LocatorTransform transform) {
         double baseX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
         double baseY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
         double baseZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
-        float lx = locatorTransform.position[0] * scale;
-        float ly = locatorTransform.position[1] * scale;
-        float lz = locatorTransform.position[2] * scale;
+        float lx = transform.position[0] * scale;
+        float ly = transform.position[1] * scale;
+        float lz = transform.position[2] * scale;
         float yawRad = (float) Math.toRadians(180.0F - headYaw);
         float cos = MathHelper.cos(yawRad);
         float sin = MathHelper.sin(yawRad);
@@ -345,18 +421,18 @@ public final class WeaponTrailClip {
         return new Vec3d[]{center.add(dir), center.subtract(dir)};
     }
 
-    private void cacheBasis(float modelScale, float headYaw) {
+    private void cacheBasis(LocatorTransform transform, float modelScale, float headYaw) {
         float[] source;
         switch (axis) {
             case Y:
-                source = locatorTransform.basisY;
+                source = transform.basisY;
                 break;
             case X:
-                source = locatorTransform.basisX;
+                source = transform.basisX;
                 break;
             case Z:
             default:
-                source = locatorTransform.basisZ;
+                source = transform.basisZ;
                 break;
         }
         float yawRad = (float) Math.toRadians(180.0F - headYaw);
@@ -369,6 +445,10 @@ public final class WeaponTrailClip {
         cachedBasis[1] = y * modelScale;
         cachedBasis[2] = (-x * sin + z * cos) * modelScale;
         basisValid = true;
+    }
+
+    private boolean hasDualLocator() {
+        return locatorEnd != null && !locatorEnd.isEmpty();
     }
 
     public static final class TrailSample {

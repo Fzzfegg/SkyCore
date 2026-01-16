@@ -194,6 +194,9 @@ public final class AnimationEventArgsParser {
                 case "locator":
                     params.locatorStart = value;
                     break;
+                case "locator2":
+                    params.locatorEnd = value;
+                    break;
                 case "texture":
                     params.texture = parseTexture(value);
                     break;
@@ -328,19 +331,10 @@ public final class AnimationEventArgsParser {
             return fallback;
         }
         String value = raw.trim().toLowerCase();
-        if (value.isEmpty()) {
-            return fallback;
-        }
-        if ("stretch".equals(value) || "stretched".equals(value) || "stretching".equals(value)) {
+        if ("stretch".equals(value)) {
             return true;
         }
-        if ("tile".equals(value) || "tiled".equals(value) || "repeat".equals(value) || "tiling".equals(value)) {
-            return false;
-        }
-        if ("true".equals(value) || "yes".equals(value) || "1".equals(value)) {
-            return true;
-        }
-        if ("false".equals(value) || "no".equals(value) || "0".equals(value)) {
+        if ("tile".equals(value)) {
             return false;
         }
         return fallback;
@@ -351,6 +345,7 @@ public final class AnimationEventArgsParser {
         public String rawEffect;
         public TrailAction action = TrailAction.START;
         public String locatorStart;
+        public String locatorEnd;
         public ResourceLocation texture;
         public float lifetime = 0.25f;
         public float sampleInterval = 0.02f;
