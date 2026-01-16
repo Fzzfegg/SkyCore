@@ -11,23 +11,39 @@ import org.lwjgl.opengl.GL11;
 import net.minecraft.client.renderer.texture.TextureMap;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import net.minecraft.entity.Entity;
+import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.render.BloomRenderer;
 
 
 public final class WeaponTrailRenderer {
     private final List<WeaponTrailClip> queue = new ArrayList<>();
-
+    private final List<WeaponTrailClip> bloomQueue = new ArrayList<>();
+    private final Map<WeaponTrailClip, List<TrailVertex>> bloomVertexCache = new HashMap<>();
+    private long lastBloomDisabledLog;
+    private long lastBloomVertexLog;
+    
     public void beginFrame() {
         queue.clear();
+        bloomQueue.clear();
+        bloomVertexCache.clear();
     }
-
+    
     public void queueClip(WeaponTrailClip clip) {
         if (clip == null || !clip.hasRenderableGeometry()) {
             return;
         }
         queue.add(clip);
+        if (clip.isBloomEnabled()) {
+            bloomQueue.add(clip);
+        }
     }
-
+    
     public void render(float partialTicks) {
         if (queue.isEmpty()) {
             return;
@@ -48,34 +64,39 @@ public final class WeaponTrailRenderer {
         GlStateManager.depthMask(false);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         for (WeaponTrailClip clip : queue) {
-            drawClip(mc, clip, camX, camY, camZ);
+            drawClip(mc, clip, camX, camY, camZ, false);
         }
         GlStateManager.depthMask(true);
         GlStateManager.enableCull();
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
+        renderBloomPass(mc, partialTicks, camX, camY, camZ);
         queue.clear();
+        bloomQueue.clear();
     }
-
+    
     private void drawClip(Minecraft mc,
                           WeaponTrailClip clip,
                           double camX,
                           double camY,
-                          double camZ) {
+                          double camZ,
+                          boolean bloomPass) {
         ResourceLocation texture = clip.getTexture();
         if (!clip.hasRenderableGeometry()) {
             return;
         }
-        if (clip.getBlendMode() == TrailBlendMode.ADD) {
-            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-        } else {
-            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        if (!bloomPass) {
+            if (clip.getBlendMode() == TrailBlendMode.ADD) {
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            } else {
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            }
         }
         GlStateManager.enableTexture2D();
         mc.getTextureManager().bindTexture(texture != null ? texture : TextureMap.LOCATION_BLOCKS_TEXTURE);
         Tessellator tessellator = Tessellator.getInstance();
-       BufferBuilder buffer = tessellator.getBuffer();
+        BufferBuilder buffer = tessellator.getBuffer();
         buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_TEX_COLOR);
         boolean stretchUv = clip.isStretchUv();
         double totalLength = stretchUv ? computeTrailLength(clip) : 0.0;
@@ -98,8 +119,8 @@ public final class WeaponTrailRenderer {
             double centerZ = (sample.start.z + sample.end.z) * 0.5;
             Vec3d widthVec = sample.end.subtract(sample.start);
             boolean desiredFlip = shouldFlip(widthVec, centerX, centerY, centerZ,
-                hasPrevCenter, prevCenterX, prevCenterY, prevCenterZ,
-                camX, camY, camZ);
+                    hasPrevCenter, prevCenterX, prevCenterY, prevCenterZ,
+                    camX, camY, camZ);
             if (desiredFlip != lastFlip) {
                 flipConfidence++;
                 if (flipConfidence >= 3) {
@@ -113,7 +134,7 @@ public final class WeaponTrailRenderer {
             Vec3d second = lastFlip ? sample.start : sample.end;
             float vFirst = lastFlip ? 1f : 0f;
             float vSecond = lastFlip ? 0f : 1f;
-
+            
             if (hasPrevCenter) {
                 double dx = centerX - prevCenterX;
                 double dy = centerY - prevCenterY;
@@ -138,10 +159,10 @@ public final class WeaponTrailRenderer {
             } else {
                 currentU = tiledU;
             }
-
-            addVertex(buffer, first, camX, camY, camZ, currentU, vFirst, clip, sample);
-            addVertex(buffer, second, camX, camY, camZ, currentU, vSecond, clip, sample);
-
+            
+            addVertex(buffer, first, camX, camY, camZ, currentU, vFirst, clip, sample, bloomPass);
+            addVertex(buffer, second, camX, camY, camZ, currentU, vSecond, clip, sample, bloomPass);
+            
             prevCenterX = centerX;
             prevCenterY = centerY;
             prevCenterZ = centerZ;
@@ -149,7 +170,7 @@ public final class WeaponTrailRenderer {
         }
         tessellator.draw();
     }
-
+    
     private void addVertex(BufferBuilder buffer,
                            Vec3d position,
                            double camX,
@@ -158,14 +179,84 @@ public final class WeaponTrailRenderer {
                            float u,
                            float v,
                            WeaponTrailClip clip,
-                           WeaponTrailClip.TrailSample sample) {
+                           WeaponTrailClip.TrailSample sample,
+                           boolean bloomPass) {
         float alpha = clip.computeAlpha(sample);
         buffer.pos(position.x - camX, position.y - camY, position.z - camZ)
-            .tex(u, v)
-            .color(clip.getColorR(), clip.getColorG(), clip.getColorB(), alpha)
-            .endVertex();
+                .tex(u, v)
+                .color(clip.getColorR(), clip.getColorG(), clip.getColorB(), alpha)
+                .endVertex();
+        if (!bloomPass && clip.isBloomEnabled()) {
+            bloomVertexCache
+                    .computeIfAbsent(clip, key -> new ArrayList<>(clip.getSamples().size() * 2))
+                    .add(new TrailVertex(position.x, position.y, position.z, u, v, alpha));
+        }
     }
-
+    
+    private void renderBloomPass(Minecraft mc,
+                                 float partialTicks,
+                                 double camX,
+                                 double camY,
+                                 double camZ) {
+        if (bloomQueue.isEmpty()) {
+            return;
+        }
+        SkyCoreConfig.RenderConfig renderConfig = SkyCoreConfig.getInstance().getRenderConfig();
+        if (renderConfig == null || renderConfig.bloomStrength <= 0f) {
+            logBloomDisabled(renderConfig != null ? renderConfig.bloomStrength : -1f, bloomQueue.size());
+            return;
+        }
+        Entity view = mc.getRenderViewEntity();
+        if (view == null) {
+            view = mc.player;
+        }
+        if (view == null) {
+            return;
+        }
+        Entity finalView = (Entity) view;
+        BloomRenderer.get().renderParticleMask(finalView,
+                partialTicks,
+                renderConfig.bloomStrength,
+                renderConfig.bloomRadius,
+                renderConfig.bloomDownsample,
+                renderConfig.bloomThreshold,
+                renderConfig.bloomPasses,
+                renderConfig.bloomSpread,
+                renderConfig.bloomUseDepth,
+                () -> {
+                    GlStateManager.disableCull();
+                    GlStateManager.enableTexture2D();
+                    for (WeaponTrailClip clip : bloomQueue) {
+                        drawBloomClip(mc, clip, camX, camY, camZ);
+                    }
+                });
+    }
+    
+    private boolean drawBloomClip(Minecraft mc,
+                                  WeaponTrailClip clip,
+                                  double camX,
+                                  double camY,
+                                  double camZ) {
+        List<TrailVertex> vertices = bloomVertexCache.get(clip);
+        if (vertices == null || vertices.isEmpty()) {
+            logBloomMissingVertices(clip);
+            return false;
+        }
+        ResourceLocation texture = clip.getTexture();
+        mc.getTextureManager().bindTexture(texture != null ? texture : TextureMap.LOCATION_BLOCKS_TEXTURE);
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
+        buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_TEX_COLOR);
+        for (TrailVertex vertex : vertices) {
+            buffer.pos(vertex.x - camX, vertex.y - camY, vertex.z - camZ)
+                    .tex(vertex.u, vertex.v)
+                    .color(clip.getColorR(), clip.getColorG(), clip.getColorB(), vertex.alpha)
+                    .endVertex();
+        }
+        tessellator.draw();
+        return true;
+    }
+    
     private static double computeTrailLength(WeaponTrailClip clip) {
         double total = 0.0;
         double prevCenterX = 0.0;
@@ -192,7 +283,7 @@ public final class WeaponTrailRenderer {
         }
         return total;
     }
-
+    
     private static boolean shouldFlip(Vec3d widthVec,
                                       double centerX,
                                       double centerY,
@@ -230,5 +321,41 @@ public final class WeaponTrailRenderer {
         double orientation = reference.dotProduct(widthVec);
         return orientation < 0.0;
     }
-
+    
+    private void logBloomDisabled(float strength, int queueSize) {
+        long now = System.currentTimeMillis();
+        if (now - lastBloomDisabledLog < 1000L) {
+            return;
+        }
+        lastBloomDisabledLog = now;
+        SkyCoreMod.LOGGER.info("[TrailBloom] Bloom disabled or strength zero (strength={}, clips={})", strength, queueSize);
+    }
+    
+    private void logBloomMissingVertices(WeaponTrailClip clip) {
+        long now = System.currentTimeMillis();
+        if (now - lastBloomVertexLog < 1000L) {
+            return;
+        }
+        lastBloomVertexLog = now;
+        SkyCoreMod.LOGGER.info("[TrailBloom] Missing cached vertices for clip {}", clip.getId());
+    }
+    
+    private static final class TrailVertex {
+        final double x;
+        final double y;
+        final double z;
+        final float u;
+        final float v;
+        final float alpha;
+        
+        TrailVertex(double x, double y, double z, float u, float v, float alpha) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.u = u;
+            this.v = v;
+            this.alpha = alpha;
+        }
+    }
+    
 }

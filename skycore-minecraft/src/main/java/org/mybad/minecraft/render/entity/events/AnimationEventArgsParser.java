@@ -234,6 +234,10 @@ public final class AnimationEventArgsParser {
                 case "uv_mode":
                     params.stretchUv = parseUvStretch(value, params.stretchUv);
                     break;
+                case "bloom":
+                    params.enableBloom = parseBoolean(value, params.enableBloom);
+                    System.out.println("解析成功: " + params.enableBloom);
+                    break;
                 default:
                     break;
             }
@@ -340,6 +344,23 @@ public final class AnimationEventArgsParser {
         return fallback;
     }
 
+    private static boolean parseBoolean(String raw, boolean fallback) {
+        if (raw == null) {
+            return fallback;
+        }
+        String value = raw.trim().toLowerCase();
+        if (value.isEmpty()) {
+            return fallback;
+        }
+        if ("true".equals(value)) {
+            return true;
+        }
+        if ("false".equals(value)) {
+            return false;
+        }
+        return fallback;
+    }
+
     public static final class TrailParams {
         public String id;
         public String rawEffect;
@@ -359,6 +380,7 @@ public final class AnimationEventArgsParser {
         public float width = 0.3f;
         public int segments = 4;
         public TrailAxis axis = TrailAxis.Z;
-        public boolean stretchUv = false;
+        public boolean stretchUv = true;
+        public boolean enableBloom = false;
     }
 }

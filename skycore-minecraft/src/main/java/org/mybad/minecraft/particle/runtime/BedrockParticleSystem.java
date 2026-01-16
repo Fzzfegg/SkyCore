@@ -458,9 +458,8 @@ public class BedrockParticleSystem {
         if (message == null || message.isEmpty()) {
             return;
         }
-        if (SkyCoreMod.LOGGER.isDebugEnabled()) {
-            SkyCoreMod.LOGGER.debug("[Particle] {}", message);
-        }
+        SkyCoreMod.LOGGER.info("[Particle] {}", message);
+        
     }
 
     public static final class StaticTransformProvider implements EmitterTransformProvider {
