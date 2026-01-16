@@ -116,7 +116,7 @@ public class AnimationPlayer {
                 tmpTarget[0] = baseRotation[0] + tmpRotation[0];
                 tmpTarget[1] = baseRotation[1] + tmpRotation[1];
                 tmpTarget[2] = baseRotation[2] + tmpRotation[2];
-                applyBlendedTransform(bone.getRotation(), tmpTarget, weight);
+                applyBlendedRotation(bone.getRotation(), tmpTarget, weight);
             }
 
             // 应用缩放动画
@@ -518,6 +518,21 @@ public class AnimationPlayer {
         for (int i = 0; i < 3; i++) {
             original[i] = original[i] + (animated[i] - original[i]) * weight;
         }
+    }
+
+    private void applyBlendedRotation(float[] original, float[] animated, float weight) {
+        if (weight <= 0f) {
+            return;
+        }
+        if (weight >= 0.999f) {
+            setVec(original, animated[0], animated[1], animated[2]);
+            return;
+        }
+        eulerToQuaternion(original, tmpQuatA);
+        eulerToQuaternion(animated, tmpQuatB);
+        slerpQuaternion(tmpQuatA, tmpQuatB, weight, tmpQuatOut);
+        quaternionToEuler(tmpQuatOut, tmpEuler);
+        setVec(original, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
     }
 
     /**
