@@ -11,7 +11,6 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.GLDeletionQueue;
-import org.mybad.minecraft.render.glow.GlowRenderer;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
@@ -54,7 +53,6 @@ public class EntityRenderEventHandler {
         entityDispatcher.cleanupEntityWrappers();
         weaponTrailRenderer.render(event.getPartialTicks());
         org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
-        GlowRenderer.INSTANCE.endFrame();
     }
 
     @SubscribeEvent

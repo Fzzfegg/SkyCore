@@ -11,14 +11,12 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL31;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;
-import org.mybad.minecraft.render.glow.GlowRenderer;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 
 import java.lang.reflect.Field;
 import java.nio.FloatBuffer;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Collections;
 
 /**
  * SSBO + instanced 粒子渲染入口。
@@ -121,23 +119,6 @@ public final class ParticleGpuRenderer {
             restoreRenderState();
         }
 
-        List<ParticleBatcher.Batch> bloomBatches = filterBloomBatches(result.batches);
-        if (!bloomBatches.isEmpty()) {
-            for (ParticleBatcher.Batch batch : bloomBatches) {
-                float strength = Math.max(batch.key.bloomStrength, 0f);
-                if (strength <= 0f) {
-                    continue;
-                }
-                GlowRenderer.INSTANCE.renderCustomMask(mc.player, partialTicks, strength, () -> {
-                    ssboBuffer.bind();
-                    quadMesh.bind();
-                    drawBatches(Collections.singletonList(batch), mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, true, false, false);
-                    quadMesh.unbind();
-                    ssboBuffer.unbind();
-                });
-            }
-        }
-
         if (result.emissiveCount > 0 && !result.emissiveBatches.isEmpty()) {
             int emissiveBytes = result.emissiveParticleBuffer.remaining() * Float.BYTES;
             if (emissiveBytes > 0) {
@@ -234,16 +215,6 @@ public final class ParticleGpuRenderer {
         if (currentShader != null) {
             currentShader.stop();
         }
-    }
-
-    private List<ParticleBatcher.Batch> filterBloomBatches(List<ParticleBatcher.Batch> batches) {
-        List<ParticleBatcher.Batch> result = new java.util.ArrayList<>();
-        for (ParticleBatcher.Batch batch : batches) {
-            if (batch.key.bloom) {
-                result.add(batch);
-            }
-        }
-        return result;
     }
 
     private void ensureReady() {

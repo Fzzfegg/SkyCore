@@ -6,14 +6,12 @@
     <property name="version-marker" value="SKYCORE_OBF_2025"/>
 
     <!-- Core obfuscation features -->
-    <!-- Mixin 类需保持原样，避免注入的解密桩破坏静态检查 -->
-    <property name="string-encryption" value="disable" apply2class="class org.mybad.minecraft.mixin.**"/>
     <!-- 启用字符串加密，依赖忽略列表避开 Json/Gson 相关调用 -->
-    <property name="string-encryption" value="enable"/>
+    <property name="string-encryption" value="disable"/>
     <property name="string-encryption-ignored-strings" value="config/allatori-string-excludes.txt"/>
-    <!-- 尝试重新启用控制流混淆，如仍触发验证问题请在 config/excludes 内列出需跳过的类 -->
-    <property name="control-flow-obfuscation" value="enable"/>
-    <property name="extensive-flow-obfuscation" value="maximum"/>
+    <!-- Flow obfuscation disabled to avoid JVM verification issues observed with Gson calls -->
+    <property name="control-flow-obfuscation" value="disable"/>
+    <property name="extensive-flow-obfuscation" value="normal"/>
     <property name="packages-naming" value="custom(config/custom-packages.txt)"/>
     <property name="classes-naming" value="custom(config/custom-classes.txt)"/>
     <property name="methods-naming" value="custom(config/custom-methods.txt)"/>
@@ -54,7 +52,13 @@
         <class template="class org.mybad.minecraft.SkyCoreLoadingPlugin">
             <method template="*(**)"/>
             <field template="*"/>
+        </class>      
+        
+        <class template="class org.mybad.minecraft.resource.TextureReloadHelper">
+            <method template="*(**)"/>
+            <field template="*"/>
         </class>
+        
         <class template="class org.mybad.minecraft.mixin.**">
             <method template="*(**)"/>
             <field template="*"/>

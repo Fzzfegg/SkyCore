@@ -52,10 +52,6 @@ message ConfigFileRemoved {
   string file_name = 1;
 }
 
-message RenderSettings {
-  reserved 1, 2, 3, 4, 5, 6;
-}
-
 message ForceAnimation {
   reserved 1;
   string clip_name = 2;

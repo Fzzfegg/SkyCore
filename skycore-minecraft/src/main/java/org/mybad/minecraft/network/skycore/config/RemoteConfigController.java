@@ -61,10 +61,6 @@ public class RemoteConfigController {
         applyMappings();
     }
 
-    public void handleRenderSettings(SkyCoreProto.RenderSettings settings) {
-        cacheManager.saveRenderSettings(settings);
-    }
-
     private void applyMappings() {
         Map<String, EntityModelMapping> merged = Maps.newHashMap();
         for (SkyCoreProto.MappingFile file : mappingFiles.values()) {

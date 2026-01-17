@@ -11,12 +11,10 @@ import java.util.List;
 public class ConfigCacheManager {
     private final Path root;
     private final Path indexFile;
-    private final Path renderSettingsFile;
 
     public ConfigCacheManager(Path gameDir) {
         this.root = gameDir.resolve("skycore_cache");
         this.indexFile = root.resolve("config_index.pb");
-        this.renderSettingsFile = root.resolve("render_settings.pb");
     }
 
     public void saveIndex(SkyCoreProto.ConfigIndex index) {
@@ -63,8 +61,7 @@ public class ConfigCacheManager {
                 String name = path.getFileName().toString();
                 if (Files.isRegularFile(path)
                         && name.endsWith(".pb")
-                        && !path.equals(indexFile)
-                        && !path.equals(renderSettingsFile)) {
+                        && !path.equals(indexFile)) {
                     try {
                         byte[] bytes = Files.readAllBytes(path);
                         list.add(SkyCoreProto.MappingFile.parseFrom(bytes));
@@ -80,24 +77,6 @@ public class ConfigCacheManager {
     private Path resolveFile(String fileName) {
         String safe = fileName.replaceAll("[/\\\\]", "_");
         return root.resolve(safe + ".pb");
-    }
-
-    public void saveRenderSettings(SkyCoreProto.RenderSettings settings) {
-        try {
-            ensureRoot();
-            Files.write(renderSettingsFile, settings.toByteArray());
-        } catch (IOException ignored) {
-        }
-    }
-
-    public SkyCoreProto.RenderSettings loadRenderSettings() {
-        try {
-            if (Files.exists(renderSettingsFile)) {
-                return SkyCoreProto.RenderSettings.parseFrom(Files.readAllBytes(renderSettingsFile));
-            }
-        } catch (IOException ignored) {
-        }
-        return null;
     }
 
     private void ensureRoot() throws IOException {

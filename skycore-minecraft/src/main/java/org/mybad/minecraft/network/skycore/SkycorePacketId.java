@@ -7,7 +7,6 @@ public final class SkycorePacketId {
     public static final int CONFIG_INDEX = 2;
     public static final int CONFIG_FILE = 3;
     public static final int CONFIG_FILE_REMOVED = 4;
-    public static final int RENDER_SETTINGS = 5;
 
     public static final int FORCE_ANIMATION = 16;
     public static final int SET_MODEL_ATTRIBUTES = 18;

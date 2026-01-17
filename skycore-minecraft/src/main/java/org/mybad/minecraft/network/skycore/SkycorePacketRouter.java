@@ -21,9 +21,6 @@ public final class SkycorePacketRouter {
                     SkyCoreMod.LOGGER.info("[SkyCore] 服务器请求重新握手（原因：{}）", reason);
                     SkycoreClientHandshake.requestHelloFromServer("server");
                     return;
-                case SkycorePacketId.RENDER_SETTINGS:
-                    RemoteConfigController.getInstance().handleRenderSettings(SkyCoreProto.RenderSettings.parseFrom(payload));
-                    return;
                 case SkycorePacketId.CONFIG_INDEX:
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到配置索引。");
                     RemoteConfigController.getInstance().handleConfigIndex(SkyCoreProto.ConfigIndex.parseFrom(payload));
