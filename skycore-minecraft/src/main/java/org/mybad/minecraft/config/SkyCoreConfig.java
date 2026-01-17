@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
-import org.mybad.minecraft.render.glow.GlowConfigManager;
 import org.mybad.minecraft.render.glow.GlowRenderer;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -78,7 +77,6 @@ public class SkyCoreConfig {
         if (newMappings != null) {
             mappings.putAll(newMappings);
         }
-        GlowConfigManager.INSTANCE.updateFromMappings(mappings.values());
     }
 
     public synchronized void applyRenderSettings(int bloomDownsample) {

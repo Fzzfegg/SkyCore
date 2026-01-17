@@ -69,7 +69,6 @@ public final class GlowRenderer {
         beginMaskPass();
         Minecraft.getMinecraft().getTextureManager().bindTexture(glowTexture);
         float alpha = Math.min(1.0f, Math.max(0.0f, strength));
-        System.out.println("触发 tint1 !");
         boolean tinted = applyTint(tint, entity);
         if (tinted) {
             GlStateManager.color(frameParams.getTintR(), frameParams.getTintG(), frameParams.getTintB(), alpha);
@@ -288,7 +287,6 @@ public final class GlowRenderer {
     }
 
     private boolean applyTint(int[] tint, Entity entity) {
-        System.out.println("Tint: " + Arrays.toString(tint));
         if (tint == null || tint.length < 3) {
             return false;
         }
@@ -299,11 +297,6 @@ public final class GlowRenderer {
             return false;
         }
         frameParams.setTint(r, g, b);
-        if (entity != null) {
-            System.out.printf("[GlowRenderer] tint set for %s -> (%.3f, %.3f, %.3f)%n", entity.getName(), r, g, b);
-        } else {
-            System.out.printf("[GlowRenderer] tint set -> (%.3f, %.3f, %.3f)%n", r, g, b);
-        }
         return true;
     }
 
