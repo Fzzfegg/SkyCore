@@ -43,12 +43,6 @@ public final class ProtoMappingConverter {
         if (proto.getBloomStrength() > 0f) {
             mapping.setBloomStrength(proto.getBloomStrength());
         }
-        if (proto.getBloomRadius() > 0f) {
-            mapping.setBloomRadius(proto.getBloomRadius());
-        }
-        if (proto.getBloomPriority() != 0) {
-            mapping.setBloomPriority(proto.getBloomPriority());
-        }
         return mapping;
     }
 

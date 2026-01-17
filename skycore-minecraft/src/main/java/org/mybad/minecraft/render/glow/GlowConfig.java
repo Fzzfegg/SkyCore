@@ -9,15 +9,11 @@ public final class GlowConfig {
     private final String name;
     private final int[] color;
     private final float strength;
-    private final float radius;
-    private final int priority;
 
-    public GlowConfig(String name, int[] color, float strength, float radius, int priority) {
+    public GlowConfig(String name, int[] color, float strength) {
         this.name = name;
         this.color = color;
         this.strength = strength;
-        this.radius = radius;
-        this.priority = priority;
     }
 
     public static GlowConfig fromMapping(EntityModelMapping mapping) {
@@ -31,9 +27,7 @@ public final class GlowConfig {
         return new GlowConfig(
                 mapping.getName(),
                 color,
-                mapping.getBloomStrength(),
-                mapping.getBloomRadius(),
-                mapping.getBloomPriority()
+                mapping.getBloomStrength()
         );
     }
 
@@ -48,13 +42,4 @@ public final class GlowConfig {
     public float getStrength() {
         return strength;
     }
-
-    public float getRadius() {
-        return radius;
-    }
-
-    public int getPriority() {
-        return priority;
-    }
 }
-

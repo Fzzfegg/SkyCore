@@ -92,30 +92,6 @@ public final class BedrockModelHandle {
         wrapper.setBloomColor(color);
     }
 
-    public void setBloomRadius(int radius) {
-        wrapper.setBloomRadius(radius);
-    }
-
-    public void setBloomDownsample(int downsample) {
-        wrapper.setBloomDownsample(downsample);
-    }
-
-    public void setBloomThreshold(float threshold) {
-        wrapper.setBloomThreshold(threshold);
-    }
-
-    public void setBloomPasses(int passes) {
-        wrapper.setBloomPasses(passes);
-    }
-
-    public void setBloomSpread(float spread) {
-        wrapper.setBloomSpread(spread);
-    }
-
-    public void setBloomUseDepth(boolean useDepth) {
-        wrapper.setBloomUseDepth(useDepth);
-    }
-
     public void setModelScale(float scale) {
         wrapper.setModelScale(scale);
     }

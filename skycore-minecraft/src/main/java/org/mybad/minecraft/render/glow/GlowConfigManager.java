@@ -58,15 +58,19 @@ public final class GlowConfigManager {
             return null;
         }
         GlowConfig best = null;
+        int bestNameLength = -1;
+        String lowered = entityName.toLowerCase(Locale.ROOT);
         for (GlowConfig config : configs.values()) {
             if (config == null || config.getName() == null) {
                 continue;
             }
-            if (!entityName.toLowerCase(Locale.ROOT).contains(config.getName().toLowerCase(Locale.ROOT))) {
+            String configName = config.getName().toLowerCase(Locale.ROOT);
+            if (!lowered.contains(configName)) {
                 continue;
             }
-            if (best == null || config.getPriority() > best.getPriority()) {
+            if (configName.length() > bestNameLength) {
                 best = config;
+                bestNameLength = configName.length();
             }
         }
         return best;
@@ -76,4 +80,3 @@ public final class GlowConfigManager {
         return Collections.unmodifiableCollection(new ArrayList<>(configs.values()));
     }
 }
-

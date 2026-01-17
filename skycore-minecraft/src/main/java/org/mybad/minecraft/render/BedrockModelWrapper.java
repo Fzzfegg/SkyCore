@@ -42,13 +42,7 @@ public class BedrockModelWrapper {
     private final ResourceLocation blendTexture;
     private float emissiveStrength = 1.0f;
     private float bloomStrength = 0.0f;
-    private int bloomRadius = 8;
     private int[] bloomColor;
-    private int bloomDownsample = 2;
-    private float bloomThreshold = 0.0f;
-    private int bloomPasses = 1;
-    private float bloomSpread = 1.0f;
-    private boolean bloomUseDepth = true;
     private boolean renderHurtTint = true;
     private ModelBlendMode blendMode = ModelBlendMode.ALPHA;
     private float blendR = 1.0f;
@@ -157,12 +151,6 @@ public class BedrockModelWrapper {
             emissiveStrength,
             bloomTexture,
             bloomStrength,
-            bloomRadius,
-            bloomDownsample,
-            bloomThreshold,
-            bloomPasses,
-            bloomSpread,
-            bloomUseDepth,
             bloomColor,
             renderHurtTint,
             hurtTintR,
@@ -254,30 +242,6 @@ public class BedrockModelWrapper {
 
     void setBloomColor(int[] color) {
         this.bloomColor = color;
-    }
-
-    void setBloomRadius(int radius) {
-        this.bloomRadius = radius;
-    }
-
-    void setBloomDownsample(int downsample) {
-        this.bloomDownsample = downsample;
-    }
-
-    void setBloomThreshold(float threshold) {
-        this.bloomThreshold = threshold;
-    }
-
-    void setBloomPasses(int passes) {
-        this.bloomPasses = passes;
-    }
-
-    void setBloomSpread(float spread) {
-        this.bloomSpread = spread;
-    }
-
-    void setBloomUseDepth(boolean useDepth) {
-        this.bloomUseDepth = useDepth;
     }
 
     void setRenderHurtTint(boolean renderHurtTint) {
