@@ -237,6 +237,18 @@ public final class AnimationEventArgsParser {
                 case "bloom":
                     parseBloom(value, params);
                     break;
+                case "bloom_passes":
+                    params.bloomPasses = Math.max(0, parseInt(value, params.bloomPasses));
+                    break;
+                case "bloom_scale_step":
+                    params.bloomScaleStep = parseFloat(value, params.bloomScaleStep);
+                    break;
+                case "bloom_downscale":
+                    params.bloomDownscale = parseFloat(value, params.bloomDownscale);
+                    if (params.bloomDownscale <= 0f) {
+                        params.bloomDownscale = 1.0f;
+                    }
+                    break;
                 default:
                     break;
             }
@@ -401,5 +413,8 @@ public final class AnimationEventArgsParser {
         public boolean stretchUv = true;
         public boolean enableBloom = false;
         public float bloomIntensity = 0f;
+        public int bloomPasses = 5;
+        public float bloomScaleStep = 0.06f;
+        public float bloomDownscale = 1.0f;
     }
 }

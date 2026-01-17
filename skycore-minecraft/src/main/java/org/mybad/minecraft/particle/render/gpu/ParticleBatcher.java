@@ -35,6 +35,7 @@ final class ParticleBatcher {
         Map<ActiveEmitter, Integer> emitterIndex = new IdentityHashMap<>();
 
         int totalParticles = 0;
+        int bloomParticles = 0;
         int emissiveParticles = 0;
         int blendParticles = 0;
 
@@ -104,7 +105,11 @@ final class ParticleBatcher {
             float blendB = particle.getBlendB();
             float blendA = particle.getBlendA();
 
-            BatchKey key = new BatchKey(texture, texture, blendMode, camMode, lit, bloom, bloom ? particle.getBloomStrength() : 0f);
+            int bloomPasses = bloom ? Math.max(0, particle.getBloomPasses()) : 0;
+            float bloomScaleStep = particle.getBloomScaleStep();
+            float bloomDownscale = particle.getBloomDownscale();
+            BatchKey key = new BatchKey(texture, texture, blendMode, camMode, lit, bloom, bloom ? particle.getBloomStrength() : 0f,
+                bloomPasses, bloomScaleStep, bloomDownscale);
             BatchBucket bucket = buckets.get(key);
             if (bucket == null) {
                 bucket = new BatchBucket();
@@ -138,17 +143,21 @@ final class ParticleBatcher {
                 lightV = (ly + 8.0f) / 256.0f;
             }
 
+            float bloomStrength = bloom ? particle.getBloomStrength() : 0.0f;
             bucket.add((float) px, (float) py, (float) pz, roll,
                 width, height, camMode, 0.0f,
                 r, g, b, a,
                 renderProps.getUMin(), renderProps.getVMin(), renderProps.getUMax(), renderProps.getVMax(),
                 dir[0], dir[1], dir[2], (float) emitterIdx,
-                lightU, lightV, emissiveStrength, 0.0f);
+                lightU, lightV, emissiveStrength, bloomStrength);
 
             totalParticles++;
+            if (bloom && bloomStrength > 0f && bloomPasses > 0) {
+                bloomParticles++;
+            }
 
             if (hasEmissive) {
-                BatchKey emissiveKey = new BatchKey(emissiveTexture, texture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false, 0f);
+                BatchKey emissiveKey = new BatchKey(emissiveTexture, texture, BedrockParticleSystem.BlendMode.ADD, camMode, false, false, 0f, 0, 0.06f, 1.0f);
                 BatchBucket emissiveBucket = emissiveBuckets.get(emissiveKey);
                 if (emissiveBucket == null) {
                     emissiveBucket = new BatchBucket();
@@ -164,7 +173,7 @@ final class ParticleBatcher {
             }
 
             if (blendTexture != null && blendA > 0.0f) {
-                BatchKey blendKey = new BatchKey(blendTexture, blendTexture, blendModeOverlay != null ? blendModeOverlay : BedrockParticleSystem.BlendMode.ALPHA, camMode, false, false, 0f);
+                BatchKey blendKey = new BatchKey(blendTexture, blendTexture, blendModeOverlay != null ? blendModeOverlay : BedrockParticleSystem.BlendMode.ALPHA, camMode, false, false, 0f, 0, 0.06f, 1.0f);
                 BatchBucket blendBucket = blendBuckets.get(blendKey);
                 if (blendBucket == null) {
                     blendBucket = new BatchBucket();
@@ -263,6 +272,7 @@ final class ParticleBatcher {
         }
 
         return new Result(particleBuffer, emitterBuffer, batches, totalParticles, emitterCount,
+            bloomParticles,
             emissiveBuffer, emissiveBatches, emissiveParticles,
             blendBuffer, blendBatches, blendParticles);
     }
@@ -349,6 +359,9 @@ final class ParticleBatcher {
         final boolean lit;
         final boolean bloom;
         final float bloomStrength;
+        final int bloomPasses;
+        final float bloomScaleStep;
+        final float bloomDownscale;
 
         BatchKey(ResourceLocation texture,
                  ResourceLocation baseTexture,
@@ -356,7 +369,10 @@ final class ParticleBatcher {
                  int cameraMode,
                  boolean lit,
                  boolean bloom,
-                 float bloomStrength) {
+                 float bloomStrength,
+                 int bloomPasses,
+                 float bloomScaleStep,
+                 float bloomDownscale) {
             this.texture = texture;
             this.baseTexture = baseTexture;
             this.blendMode = blendMode;
@@ -364,6 +380,9 @@ final class ParticleBatcher {
             this.lit = lit;
             this.bloom = bloom;
             this.bloomStrength = bloom ? Math.max(0f, bloomStrength) : 0f;
+            this.bloomPasses = bloom ? Math.max(0, bloomPasses) : 0;
+            this.bloomScaleStep = bloomScaleStep > 0f ? bloomScaleStep : 0.06f;
+            this.bloomDownscale = bloomDownscale > 0f ? bloomDownscale : 1.0f;
         }
 
         @Override
@@ -379,6 +398,9 @@ final class ParticleBatcher {
                 && lit == other.lit
                 && bloom == other.bloom
                 && Float.floatToIntBits(bloomStrength) == Float.floatToIntBits(other.bloomStrength)
+                && bloomPasses == other.bloomPasses
+                && Float.floatToIntBits(bloomScaleStep) == Float.floatToIntBits(other.bloomScaleStep)
+                && Float.floatToIntBits(bloomDownscale) == Float.floatToIntBits(other.bloomDownscale)
                 && blendMode == other.blendMode
                 && texture.equals(other.texture)
                 && baseTexture.equals(other.baseTexture);
@@ -393,6 +415,9 @@ final class ParticleBatcher {
             result = 31 * result + (lit ? 1 : 0);
             result = 31 * result + (bloom ? 1 : 0);
             result = 31 * result + Float.floatToIntBits(bloomStrength);
+            result = 31 * result + bloomPasses;
+            result = 31 * result + Float.floatToIntBits(bloomScaleStep);
+            result = 31 * result + Float.floatToIntBits(bloomDownscale);
             return result;
         }
     }
@@ -415,6 +440,7 @@ final class ParticleBatcher {
         final List<Batch> batches;
         final int particleCount;
         final int emitterCount;
+        final int bloomCount;
         final FloatBuffer emissiveParticleBuffer;
         final List<Batch> emissiveBatches;
         final int emissiveCount;
@@ -427,6 +453,7 @@ final class ParticleBatcher {
                List<Batch> batches,
                int particleCount,
                int emitterCount,
+               int bloomCount,
                FloatBuffer emissiveParticleBuffer,
                List<Batch> emissiveBatches,
                int emissiveCount,
@@ -438,6 +465,7 @@ final class ParticleBatcher {
             this.batches = batches;
             this.particleCount = particleCount;
             this.emitterCount = emitterCount;
+            this.bloomCount = bloomCount;
             this.emissiveParticleBuffer = emissiveParticleBuffer;
             this.emissiveBatches = emissiveBatches;
             this.emissiveCount = emissiveCount;
@@ -448,6 +476,7 @@ final class ParticleBatcher {
 
         static Result empty() {
             return new Result(BufferUtilsHelper.emptyFloatBuffer(), BufferUtilsHelper.emptyFloatBuffer(), new ArrayList<>(), 0, 0,
+                0,
                 BufferUtilsHelper.emptyFloatBuffer(), new ArrayList<>(), 0,
                 BufferUtilsHelper.emptyFloatBuffer(), new ArrayList<>(), 0);
         }

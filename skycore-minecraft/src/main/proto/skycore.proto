@@ -29,6 +29,10 @@ message EntityMapping {
   float bloom_strength = 21;
   reserved 22;
   reserved 23;
+  repeated float bloom_offset = 24;
+  int32 bloom_passes = 25;
+  float bloom_scale_step = 26;
+  float bloom_downscale = 27;
 }
 
 message MappingFile {
@@ -81,6 +85,10 @@ message SetModelAttributes {
   optional bool render_shadow = 11;
   optional float primary_fade_seconds = 12;
   optional string entity_uuid = 13;
+  repeated float bloom_offset = 14;
+  optional int32 bloom_passes = 15;
+  optional float bloom_scale_step = 16;
+  optional float bloom_downscale = 17;
 }
 
 message SpawnParticle {

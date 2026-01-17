@@ -43,6 +43,10 @@ public class BedrockModelWrapper {
     private float emissiveStrength = 1.0f;
     private float bloomStrength = 0.0f;
     private int[] bloomColor;
+    private int bloomPasses = 5;
+    private float bloomScaleStep = 0.06f;
+    private float bloomDownscale = 1.0f;
+    private float[] bloomOffset;
     private boolean renderHurtTint = true;
     private ModelBlendMode blendMode = ModelBlendMode.ALPHA;
     private float blendR = 1.0f;
@@ -152,6 +156,10 @@ public class BedrockModelWrapper {
             bloomTexture,
             bloomStrength,
             bloomColor,
+            bloomPasses,
+            bloomScaleStep,
+            bloomDownscale,
+            bloomOffset,
             renderHurtTint,
             hurtTintR,
             hurtTintG,
@@ -242,6 +250,50 @@ public class BedrockModelWrapper {
 
     void setBloomColor(int[] color) {
         this.bloomColor = color;
+    }
+
+    void setBloomPasses(int passes) {
+        if (passes <= 0) {
+            this.bloomPasses = 0;
+        } else {
+            this.bloomPasses = passes;
+        }
+    }
+
+    void setBloomScaleStep(float step) {
+        if (Float.isNaN(step) || step <= 0f) {
+            return;
+        }
+        this.bloomScaleStep = step;
+    }
+
+    void setBloomDownscale(float downscale) {
+        if (Float.isNaN(downscale) || downscale <= 0f) {
+            return;
+        }
+        this.bloomDownscale = downscale;
+    }
+
+    void setBloomOffset(float[] offset) {
+        if (offset == null || offset.length < 3) {
+            this.bloomOffset = null;
+            return;
+        }
+        float x = sanitizeOffsetComponent(offset[0]);
+        float y = sanitizeOffsetComponent(offset[1]);
+        float z = sanitizeOffsetComponent(offset[2]);
+        if (x == 0f && y == 0f && z == 0f) {
+            this.bloomOffset = null;
+        } else {
+            this.bloomOffset = new float[]{x, y, z};
+        }
+    }
+
+    private float sanitizeOffsetComponent(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            return 0f;
+        }
+        return value;
     }
 
     void setRenderHurtTint(boolean renderHurtTint) {

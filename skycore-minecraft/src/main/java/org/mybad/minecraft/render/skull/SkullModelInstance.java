@@ -195,6 +195,10 @@ final class SkullModelInstance implements AnimationEventContext {
         handle.setEmissiveStrength(mapping.getEmissiveStrength());
         handle.setBloomStrength(mapping.getBloomStrength());
         handle.setBloomColor(mapping.getBloomColor());
+        handle.setBloomPasses(mapping.getBloomPasses());
+        handle.setBloomScaleStep(mapping.getBloomScaleStep());
+        handle.setBloomDownscale(mapping.getBloomDownscale());
+        handle.setBloomOffset(mapping.getBloomOffset());
         handle.setModelScale(mapping.getModelScale());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());

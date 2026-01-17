@@ -92,6 +92,22 @@ public final class BedrockModelHandle {
         wrapper.setBloomColor(color);
     }
 
+    public void setBloomPasses(int passes) {
+        wrapper.setBloomPasses(passes);
+    }
+
+    public void setBloomScaleStep(float step) {
+        wrapper.setBloomScaleStep(step);
+    }
+
+    public void setBloomDownscale(float downscale) {
+        wrapper.setBloomDownscale(downscale);
+    }
+
+    public void setBloomOffset(float[] offset) {
+        wrapper.setBloomOffset(offset);
+    }
+
     public void setModelScale(float scale) {
         wrapper.setModelScale(scale);
     }

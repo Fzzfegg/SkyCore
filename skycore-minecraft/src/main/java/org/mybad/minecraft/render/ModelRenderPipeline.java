@@ -15,6 +15,10 @@ import org.lwjgl.BufferUtils;
 import java.nio.FloatBuffer;
 
 final class ModelRenderPipeline {
+    private static final int DEFAULT_BLOOM_PASSES = 5;
+    private static final float DEFAULT_BLOOM_SCALE_STEP = 0.06f;
+    private static final float DEFAULT_BLOOM_DOWNSCALE = 1.0f;
+
     void render(Entity entity,
                 double x, double y, double z,
                 float entityYaw, float partialTicks,
@@ -26,6 +30,10 @@ final class ModelRenderPipeline {
                 ResourceLocation bloomTexture,
                 float bloomStrength,
                 int[] bloomColor,
+                int bloomPasses,
+                float bloomScaleStep,
+                float bloomDownscale,
+                float[] bloomOffset,
                 boolean renderHurtTint,
                 float hurtTintR,
                 float hurtTintG,
@@ -94,6 +102,23 @@ final class ModelRenderPipeline {
         skinningPipeline.updateBoneMatrices();
         skinningPipeline.runSkinningPass();
         skinningPipeline.draw();
+
+        if (bloomStrength > 0f) {
+            int passes = bloomPasses > 0 ? bloomPasses : DEFAULT_BLOOM_PASSES;
+            float scaleStep = bloomScaleStep > 0f ? bloomScaleStep : DEFAULT_BLOOM_SCALE_STEP;
+            float downscale = bloomDownscale > 0f ? bloomDownscale : DEFAULT_BLOOM_DOWNSCALE;
+            renderPseudoBloomPass(bloomTexture != null ? bloomTexture : texture,
+                bloomStrength,
+                bloomColor,
+                passes,
+                scaleStep,
+                downscale,
+                bloomOffset,
+                lightX,
+                lightY,
+                skinningPipeline,
+                texture);
+        }
 
         if (emissiveTexture != null) {
             renderEmissivePass(emissiveTexture, emissiveStrength, lightX, lightY, skinningPipeline, texture);
@@ -210,6 +235,125 @@ final class ModelRenderPipeline {
         MASK_COLOR.clear();
         MASK_COLOR.put(1.0f).put(1.0f).put(1.0f).put(1.0f).flip();
         GL11.glTexEnv(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_COLOR, MASK_COLOR);
+    }
+
+    private void renderPseudoBloomPass(ResourceLocation bloomTexture,
+                                       float bloomStrength,
+                                       int[] bloomColor,
+                                       int bloomPasses,
+                                       float bloomScaleStep,
+                                       float bloomDownscale,
+                                       float[] bloomOffset,
+                                       int lightX,
+                                       int lightY,
+                                       SkinningPipeline skinningPipeline,
+                                       ResourceLocation baseTexture) {
+        ResourceLocation texture = bloomTexture != null ? bloomTexture : baseTexture;
+        float effectiveStrength = Math.max(0f, bloomStrength);
+        if (effectiveStrength <= 0f || texture == null) {
+            return;
+        }
+
+        float[] color = decodeBloomColor(bloomColor);
+        float colorAlpha = color[3];
+        if (colorAlpha > 0f) {
+            effectiveStrength *= colorAlpha;
+        }
+
+        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        GlStateManager.depthMask(false);
+        GlStateManager.colorMask(true, true, true, false);
+
+        int fullBright = 240;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, fullBright, fullBright);
+
+        float offsetX = 0f;
+        float offsetY = 0f;
+        float offsetZ = 0f;
+        boolean hasOffset = bloomOffset != null && bloomOffset.length >= 3;
+        if (hasOffset) {
+            offsetX = sanitizeOffsetComponent(bloomOffset[0]);
+            offsetY = sanitizeOffsetComponent(bloomOffset[1]);
+            offsetZ = sanitizeOffsetComponent(bloomOffset[2]);
+            hasOffset = (offsetX != 0f || offsetY != 0f || offsetZ != 0f);
+        }
+
+        for (int pass = 0; pass < bloomPasses; pass++) {
+            float passIntensity = effectiveStrength / (pass + 1f);
+            if (passIntensity <= 0.0001f) {
+                continue;
+            }
+            float scale = 1.0f + ((pass + 1f) * bloomScaleStep) / Math.max(0.001f, bloomDownscale);
+            float r = clampColor(color[0] * passIntensity);
+            float g = clampColor(color[1] * passIntensity);
+            float b = clampColor(color[2] * passIntensity);
+            GlStateManager.pushMatrix();
+            if (hasOffset) {
+                GlStateManager.translate(offsetX, offsetY, offsetZ);
+            }
+            GlStateManager.scale(scale, scale, scale);
+            GlStateManager.color(r, g, b, 1.0f);
+            skinningPipeline.draw();
+            GlStateManager.popMatrix();
+        }
+
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        GlStateManager.colorMask(true, true, true, true);
+        GlStateManager.depthMask(true);
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+    }
+
+    private float[] decodeBloomColor(int[] rgba) {
+        float r = 1.0f;
+        float g = 1.0f;
+        float b = 1.0f;
+        float a = 1.0f;
+        if (rgba != null) {
+            if (rgba.length >= 3) {
+                r = clampColorComponent(rgba[0]);
+                g = clampColorComponent(rgba[1]);
+                b = clampColorComponent(rgba[2]);
+            }
+            if (rgba.length >= 4) {
+                a = clampColorComponent(rgba[3]);
+            }
+        }
+        return new float[]{r, g, b, a};
+    }
+
+    private float clampColorComponent(int value) {
+        if (value <= 0) {
+            return 0f;
+        }
+        if (value >= 255) {
+            return 1.0f;
+        }
+        return value / 255.0f;
+    }
+
+    private float clampColor(float value) {
+        if (value < 0f) {
+            return 0f;
+        }
+        if (value > 4f) {
+            return 4f;
+        }
+        return value;
+    }
+
+    private float sanitizeOffsetComponent(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            return 0f;
+        }
+        return value;
     }
 
 }

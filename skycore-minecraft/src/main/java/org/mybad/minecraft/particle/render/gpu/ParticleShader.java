@@ -29,6 +29,9 @@ final class ParticleShader {
     private int uBaseTexture = -1;
     private int uLightmap = -1;
     private int uInstanceOffset = -1;
+    private int uBloomPass = -1;
+    private int uBloomScale = -1;
+    private int uBloomIntensity = -1;
 
     ParticleShader(boolean lit) {
         this.lit = lit;
@@ -69,6 +72,9 @@ final class ParticleShader {
         uBaseTexture = GL20.glGetUniformLocation(programId, "u_baseTexture");
         uLightmap = GL20.glGetUniformLocation(programId, "u_lightmap");
         uInstanceOffset = GL20.glGetUniformLocation(programId, "u_instanceOffset");
+        uBloomPass = GL20.glGetUniformLocation(programId, "u_bloomPass");
+        uBloomScale = GL20.glGetUniformLocation(programId, "u_bloomScale");
+        uBloomIntensity = GL20.glGetUniformLocation(programId, "u_bloomIntensity");
 
         GL20.glUseProgram(programId);
         if (uTexture != -1) {
@@ -88,6 +94,15 @@ final class ParticleShader {
         }
         if (uOverlayPass != -1) {
             GL20.glUniform1i(uOverlayPass, 0);
+        }
+        if (uBloomPass != -1) {
+            GL20.glUniform1i(uBloomPass, 0);
+        }
+        if (uBloomScale != -1) {
+            GL20.glUniform1f(uBloomScale, 1.0f);
+        }
+        if (uBloomIntensity != -1) {
+            GL20.glUniform1f(uBloomIntensity, 1.0f);
         }
         GL20.glUseProgram(0);
     }
@@ -161,6 +176,18 @@ final class ParticleShader {
         }
     }
 
+    void setBloomOverlay(boolean active, float scale, float intensity) {
+        if (uBloomPass != -1) {
+            GL20.glUniform1i(uBloomPass, active ? 1 : 0);
+        }
+        if (uBloomScale != -1) {
+            GL20.glUniform1f(uBloomScale, scale);
+        }
+        if (uBloomIntensity != -1) {
+            GL20.glUniform1f(uBloomIntensity, intensity);
+        }
+    }
+
     void setInstanceOffset(int offset) {
         if (uInstanceOffset != -1) {
             GL20.glUniform1i(uInstanceOffset, offset);
@@ -214,12 +241,15 @@ final class ParticleShader {
             + "uniform vec3 u_cameraUp;\n"
             + "uniform vec3 u_cameraOffset;\n"
             + "uniform int u_instanceOffset;\n"
+            + "uniform int u_bloomPass;\n"
+            + "uniform float u_bloomScale;\n"
             + "\n"
             + "out vec2 v_uv;\n"
             + "out vec4 v_color;\n"
             + "out vec2 v_lightUV;\n"
             + "out float v_emissive;\n"
             + "out float v_fogDist;\n"
+            + "out float v_bloomStrength;\n"
             + "\n"
             + "const int MODE_ROTATE_XYZ = 0;\n"
             + "const int MODE_ROTATE_Y = 1;\n"
@@ -294,6 +324,9 @@ final class ParticleShader {
             + "    vec3 pos = worldPos - u_cameraOffset;\n"
             + "    float rollRad = radians(p.pos_roll.w);\n"
             + "    vec2 size = p.size_mode.xy;\n"
+            + "    if (u_bloomPass != 0) {\n"
+            + "        size *= max(1.0, u_bloomScale);\n"
+            + "    }\n"
             + "    int mode = int(p.size_mode.z + 0.5);\n"
             + "    vec3 dir = p.dir.xyz;\n"
             + "\n"
@@ -402,6 +435,7 @@ final class ParticleShader {
             + "    v_lightUV = p.extra.xy;\n"
             + "    v_emissive = p.extra.z;\n"
             + "    v_fogDist = length(u_cameraPos - worldPos);\n"
+            + "    v_bloomStrength = p.extra.w;\n"
             + "}\n";
     }
 
@@ -425,11 +459,23 @@ final class ParticleShader {
         sb.append("uniform int u_fogEnabled;\n");
         sb.append("uniform int u_emissivePass;\n");
         sb.append("uniform int u_overlayPass;\n");
+        sb.append("uniform int u_bloomPass;\n");
+        sb.append("uniform float u_bloomIntensity;\n");
         sb.append("\n");
+        sb.append("in float v_bloomStrength;\n");
         sb.append("out vec4 fragColor;\n\n");
         sb.append("void main() {\n");
         sb.append("    vec4 tex = texture(u_texture, v_uv);\n");
         sb.append("    float alpha = tex.a;\n");
+        sb.append("    if (u_bloomPass != 0) {\n");
+        sb.append("        vec4 color = tex * v_color;\n");
+        sb.append("        float strength = max(v_bloomStrength, 0.0);\n");
+        sb.append("        float bloom = u_bloomIntensity * max(strength, 0.0001);\n");
+        sb.append("        float outAlpha = color.a * bloom;\n");
+        sb.append("        if (outAlpha <= 0.01) discard;\n");
+        sb.append("        fragColor = vec4(color.rgb * bloom, outAlpha);\n");
+        sb.append("        return;\n");
+        sb.append("    }\n");
         sb.append("    if (u_overlayPass != 0) {\n");
         sb.append("        alpha = tex.a * v_color.a;\n");
         sb.append("        if (alpha <= 0.01) discard;\n");

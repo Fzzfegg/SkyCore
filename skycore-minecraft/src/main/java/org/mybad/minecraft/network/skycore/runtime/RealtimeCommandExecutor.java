@@ -74,6 +74,24 @@ public final class RealtimeCommandExecutor {
         if (packet.hasBloomStrength()) {
             mapping.setBloomStrength(packet.getBloomStrength());
         }
+        if (packet.hasBloomPasses()) {
+            mapping.setBloomPasses(packet.getBloomPasses());
+        }
+        if (packet.hasBloomScaleStep()) {
+            mapping.setBloomScaleStep(packet.getBloomScaleStep());
+        }
+        if (packet.hasBloomDownscale()) {
+            mapping.setBloomDownscale(packet.getBloomDownscale());
+        }
+        if (packet.getBloomOffsetCount() >= 3) {
+            mapping.setBloomOffset(toArray(packet.getBloomOffsetList()));
+        }
+        SkyCoreMod.LOGGER.info("[SkyCore] realtime bloom params for '{}' -> strength={}, passes={}, scaleStep={}, downscale={}",
+            mappingName,
+            mapping.getBloomStrength(),
+            mapping.getBloomPasses(),
+            mapping.getBloomScaleStep(),
+            mapping.getBloomDownscale());
         if (packet.hasTexture()) {
             mapping.setTexture(packet.getTexture());
         }
@@ -106,6 +124,14 @@ public final class RealtimeCommandExecutor {
             return;
         }
         system.spawn(packet.getEffect(), packet.getX(), packet.getY(), packet.getZ(), packet.getCount());
+    }
+
+    private static float[] toArray(java.util.List<Float> list) {
+        float[] arr = new float[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            arr[i] = list.get(i);
+        }
+        return arr;
     }
 
 }

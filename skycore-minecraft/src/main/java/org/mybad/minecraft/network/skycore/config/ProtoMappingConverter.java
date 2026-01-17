@@ -43,6 +43,18 @@ public final class ProtoMappingConverter {
         if (proto.getBloomStrength() > 0f) {
             mapping.setBloomStrength(proto.getBloomStrength());
         }
+        if (proto.getBloomPasses() > 0) {
+            mapping.setBloomPasses(proto.getBloomPasses());
+        }
+        if (proto.getBloomScaleStep() > 0f) {
+            mapping.setBloomScaleStep(proto.getBloomScaleStep());
+        }
+        if (proto.getBloomDownscale() > 0f) {
+            mapping.setBloomDownscale(proto.getBloomDownscale());
+        }
+        if (proto.getBloomOffsetCount() >= 3) {
+            mapping.setBloomOffset(toArray(proto.getBloomOffsetList()));
+        }
         return mapping;
     }
 

@@ -48,6 +48,9 @@ public final class WeaponTrailClip {
     private int segmentDetail = 4;
     private boolean stretchUv = false;
     private float bloomIntensity = 0f;
+    private int bloomPasses = 5;
+    private float bloomScaleStep = 0.06f;
+    private float bloomDownscale = 1.0f;
 
     public WeaponTrailClip(AnimationEventArgsParser.TrailParams params) {
         this.id = params != null && params.id != null ? params.id : "trail";
@@ -94,6 +97,9 @@ public final class WeaponTrailClip {
         this.bloomIntensity = params.enableBloom
                 ? (params.bloomIntensity > 0f ? params.bloomIntensity : 1.0f)
                 : 0f;
+        this.bloomPasses = params.bloomPasses > 0 ? params.bloomPasses : 0;
+        this.bloomScaleStep = params.bloomScaleStep > 0f ? params.bloomScaleStep : 0.06f;
+        this.bloomDownscale = params.bloomDownscale > 0f ? params.bloomDownscale : 1.0f;
     }
 
     private float clampPositive(float value, float min, float max) {
@@ -168,6 +174,18 @@ public final class WeaponTrailClip {
 
     public float getBloomIntensity() {
         return bloomIntensity;
+    }
+
+    public int getBloomPasses() {
+        return bloomPasses;
+    }
+
+    public float getBloomScaleStep() {
+        return bloomScaleStep;
+    }
+
+    public float getBloomDownscale() {
+        return bloomDownscale;
     }
 
     public Deque<TrailSample> getSamples() {

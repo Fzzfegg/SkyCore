@@ -58,6 +58,9 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
         private final BedrockParticleSystem.BlendMode blendMode;
     private final boolean bloom;
     private final float bloomStrength;
+    private final int bloomPasses;
+    private final float bloomScaleStep;
+    private final float bloomDownscale;
     private final ParticleInitialSpeedComponent speed;
     private final ParticleInitialSpinComponent initialSpin;
     private final ParticleMotionDynamicComponent motionDynamic;
@@ -163,9 +166,19 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             this.localRotation = emitter != null && emitter.isLocalRotation();
             this.localVelocity = emitter != null && emitter.isLocalVelocity();
             BedrockParticleSystem.BlendMode blendMode = system.resolveBlendMode(data);
-            this.blendMode = blendMode;
-            this.bloom = data.description() != null && data.description().isBloom();
-            this.bloomStrength = this.bloom && data.description() != null ? Math.max(0f, data.description().getBloomStrength()) : 0f;
+        this.blendMode = blendMode;
+        this.bloom = data.description() != null && data.description().isBloom();
+        if (this.bloom && data.description() != null) {
+            this.bloomStrength = Math.max(0f, data.description().getBloomStrength());
+            this.bloomPasses = Math.max(0, data.description().getBloomPasses());
+            this.bloomScaleStep = data.description().getBloomScaleStep();
+            this.bloomDownscale = data.description().getBloomDownscale();
+        } else {
+            this.bloomStrength = 0f;
+            this.bloomPasses = 0;
+            this.bloomScaleStep = 0.06f;
+            this.bloomDownscale = 1.0f;
+        }
             this.expireInBlockIds = system.resolveBlocks(expireInBlocks);
             this.expireNotInBlockIds = system.resolveBlocks(expireNotInBlocks);
             this.blockPos = new BlockPos.MutableBlockPos();
@@ -492,6 +505,18 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
 
     public float getBloomStrength() {
         return bloomStrength;
+    }
+
+    public int getBloomPasses() {
+        return bloomPasses;
+    }
+
+    public float getBloomScaleStep() {
+        return bloomScaleStep;
+    }
+
+    public float getBloomDownscale() {
+        return bloomDownscale;
     }
 
         private void runEvent(String name) {

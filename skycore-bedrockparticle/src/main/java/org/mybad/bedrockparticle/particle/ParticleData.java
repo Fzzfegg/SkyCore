@@ -61,6 +61,9 @@ public final class ParticleData {
             description.getMaterial(),
             description.isBloom(),
             description.getBloomStrength(),
+            description.getBloomPasses(),
+            description.getBloomScaleStep(),
+            description.getBloomDownscale(),
             description.getEmissiveTexture(),
             description.getEmissiveStrength(),
             description.getBlendTexture(),
@@ -74,6 +77,9 @@ public final class ParticleData {
             description.getMaterial(),
             description.isBloom(),
             description.getBloomStrength(),
+            description.getBloomPasses(),
+            description.getBloomScaleStep(),
+            description.getBloomDownscale(),
             resourceLocation,
             description.getEmissiveStrength(),
             description.getBlendTexture(),
@@ -87,6 +93,9 @@ public final class ParticleData {
             description.getMaterial(),
             description.isBloom(),
             description.getBloomStrength(),
+            description.getBloomPasses(),
+            description.getBloomScaleStep(),
+            description.getBloomDownscale(),
             description.getEmissiveTexture(),
             description.getEmissiveStrength(),
             resourceLocation,
@@ -113,7 +122,7 @@ public final class ParticleData {
 
 
     private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
-    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false, 0f, null, 0f, null, "alpha", null), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false, 0f, 0, 0.06f, 1.0f, null, 0f, null, "alpha", null), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
 
     /**
      * The different types of curves for calculating particle variables.
@@ -137,6 +146,9 @@ public final class ParticleData {
         private final String material;
         private final boolean bloom;
         private final float bloomStrength;
+        private final int bloomPasses;
+        private final float bloomScaleStep;
+        private final float bloomDownscale;
         private final BedrockResourceLocation emissiveTexture;
         private final float emissiveStrength;
         private final BedrockResourceLocation blendTexture;
@@ -148,6 +160,9 @@ public final class ParticleData {
                            @Nullable String material,
                            boolean bloom,
                            float bloomStrength,
+                           int bloomPasses,
+                           float bloomScaleStep,
+                           float bloomDownscale,
                            @Nullable BedrockResourceLocation emissiveTexture,
                            float emissiveStrength,
                            @Nullable BedrockResourceLocation blendTexture,
@@ -158,6 +173,9 @@ public final class ParticleData {
             this.material = material;
             this.bloom = bloom;
             this.bloomStrength = bloom ? Math.max(0f, bloomStrength) : 0f;
+            this.bloomPasses = bloom ? Math.max(0, bloomPasses) : 0;
+            this.bloomScaleStep = bloomScaleStep > 0f ? bloomScaleStep : 0.06f;
+            this.bloomDownscale = bloomDownscale > 0f ? bloomDownscale : 1.0f;
             this.emissiveTexture = emissiveTexture;
             this.emissiveStrength = emissiveStrength;
             this.blendTexture = blendTexture;
@@ -184,6 +202,18 @@ public final class ParticleData {
 
         public float getBloomStrength() {
             return bloomStrength;
+        }
+
+        public int getBloomPasses() {
+            return bloomPasses;
+        }
+
+        public float getBloomScaleStep() {
+            return bloomScaleStep;
+        }
+
+        public float getBloomDownscale() {
+            return bloomDownscale;
         }
 
         @Nullable
@@ -233,6 +263,20 @@ public final class ParticleData {
                 String material = ParticleGsonHelper.getAsString(basicRenderParams, "material", null);
                 boolean bloom = ParticleGsonHelper.getAsBoolean(basicRenderParams, "bloom", false);
                 float bloomStrength = ParticleGsonHelper.getAsFloat(basicRenderParams, "bloom_strength", bloom ? 1.0f : 0.0f);
+                int bloomPasses = ParticleGsonHelper.getAsInt(basicRenderParams, "bloom_passes", 7);
+                if (basicRenderParams.has("bloomPasses")) {
+                    bloomPasses = ParticleGsonHelper.getAsInt(basicRenderParams, "bloomPasses", bloomPasses);
+                }
+                float bloomScale = ParticleGsonHelper.getAsFloat(basicRenderParams, "bloom_scale", 0.06f);
+                if (basicRenderParams.has("bloom_scale_step")) {
+                    bloomScale = ParticleGsonHelper.getAsFloat(basicRenderParams, "bloom_scale_step", bloomScale);
+                } else if (basicRenderParams.has("bloomScale") || basicRenderParams.has("bloomScaleStep")) {
+                    bloomScale = ParticleGsonHelper.getAsFloat(basicRenderParams, basicRenderParams.has("bloomScaleStep") ? "bloomScaleStep" : "bloomScale", bloomScale);
+                }
+                float bloomDownscale = ParticleGsonHelper.getAsFloat(basicRenderParams, "bloom_downscale", 1.0f);
+                if (basicRenderParams.has("bloomDownscale")) {
+                    bloomDownscale = ParticleGsonHelper.getAsFloat(basicRenderParams, "bloomDownscale", bloomDownscale);
+                }
                 BedrockResourceLocation emissiveTexture = null;
                 if (basicRenderParams.has("emissive_texture")) {
                     String emissiveText = ParticleGsonHelper.getAsString(basicRenderParams, "emissive_texture");
@@ -274,7 +318,7 @@ public final class ParticleData {
                     blendColor = readColorArray(basicRenderParams.getAsJsonArray("blend_color"));
                 }
 
-                return new Description(identifier, texture, material, bloom, bloomStrength, emissiveTexture, emissiveStrength, blendTexture, blendMode, blendColor);
+                return new Description(identifier, texture, material, bloom, bloomStrength, bloomPasses, bloomScale, bloomDownscale, emissiveTexture, emissiveStrength, blendTexture, blendMode, blendColor);
             }
 
             private float[] readColorArray(JsonArray array) {

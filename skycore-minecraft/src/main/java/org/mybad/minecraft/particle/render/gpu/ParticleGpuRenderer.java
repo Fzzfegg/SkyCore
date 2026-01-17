@@ -36,6 +36,13 @@ public final class ParticleGpuRenderer {
     private final float[] projTmp = new float[16];
     private final float[] modelTmp = new float[16];
     private final float[] viewProjTmp = new float[16];
+    private static final int DEFAULT_BLOOM_PASSES = 5;
+    private static final float DEFAULT_BLOOM_SCALE_STEP = 0.06f;
+    private static final float DEFAULT_BLOOM_DOWNSCALE = 1.0f;
+    private boolean bloomOverlayActive;
+    private float bloomOverlayScale = 1.0f;
+    private float bloomOverlayIntensity = 1.0f;
+    private final java.util.List<ParticleBatcher.Batch> singleBloomBatch = new ArrayList<>(1);
 
     private boolean ready;
 
@@ -89,6 +96,7 @@ public final class ParticleGpuRenderer {
         FogState fog = captureFogState();
         int lightmapId = getLightmapTextureId(mc);
         boolean lightmapAvailable = lightmapId != 0;
+        boolean hasBloom = result.bloomCount > 0;
 
         setupRenderState();
         OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
@@ -96,7 +104,33 @@ public final class ParticleGpuRenderer {
         ssboBuffer.bind();
         quadMesh.bind();
 
+        bloomOverlayActive = false;
         drawBatches(result.batches, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, lightmapAvailable, false, false, false);
+
+        if (hasBloom) {
+            GlStateManager.colorMask(true, true, true, false);
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            bloomOverlayActive = true;
+            for (ParticleBatcher.Batch batch : result.batches) {
+                ParticleBatcher.BatchKey key = batch.key;
+                if (!key.bloom || key.bloomPasses <= 0) {
+                    continue;
+                }
+                int passes = key.bloomPasses > 0 ? key.bloomPasses : DEFAULT_BLOOM_PASSES;
+                float scaleStep = key.bloomScaleStep > 0f ? key.bloomScaleStep : DEFAULT_BLOOM_SCALE_STEP;
+                float downscale = key.bloomDownscale > 0f ? key.bloomDownscale : DEFAULT_BLOOM_DOWNSCALE;
+                for (int pass = 0; pass < passes; pass++) {
+                    bloomOverlayScale = 1.0f + ((pass + 1f) * scaleStep) / Math.max(0.001f, downscale);
+                    bloomOverlayIntensity = 1.0f / (pass + 1f);
+                    singleBloomBatch.clear();
+                    singleBloomBatch.add(batch);
+                    drawBatches(singleBloomBatch, mc, viewProj, fog, camX, camY, camZ, rightX, rightY, rightZ, upX, upY, upZ, cameraOffset, lightmapId, false, true, false, false);
+                }
+            }
+            bloomOverlayActive = false;
+            GlStateManager.colorMask(true, true, true, true);
+            GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        }
 
         quadMesh.unbind();
         ssboBuffer.unbind();
@@ -157,6 +191,14 @@ public final class ParticleGpuRenderer {
         ResourceLocation currentBaseTexture = null;
 
         for (ParticleBatcher.Batch batch : batches) {
+            if (bloomPass) {
+                if (!batch.key.bloom) {
+                    continue;
+                }
+                if (batch.key.bloomPasses <= 0) {
+                    continue;
+                }
+            }
             ParticleBatcher.BatchKey key = batch.key;
             ParticleShader shader = ((bloomPass || emissivePass || overlayPass) ? shaderUnlit : ((key.lit && lightmapAvailable) ? shaderLit : shaderUnlit));
             if (shader != currentShader) {
@@ -174,6 +216,7 @@ public final class ParticleGpuRenderer {
                 }
                 shader.setEmissivePass(emissivePass);
                 shader.setOverlayPass(overlayPass);
+                shader.setBloomOverlay(bloomPass && bloomOverlayActive, bloomOverlayScale, bloomOverlayIntensity);
                 currentShader = shader;
             }
 

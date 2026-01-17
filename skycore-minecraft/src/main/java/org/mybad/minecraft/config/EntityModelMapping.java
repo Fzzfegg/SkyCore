@@ -20,22 +20,34 @@ public class EntityModelMapping {
     private String texture;
 
     /** 发光贴图路径 (如: skycore/textures/zombie_emissive.png) */
-    @SerializedName(value = "emissive", alternate = {"emissiveTexture"})
+    @SerializedName(value = "emissive")
     private String emissive;
     /** 发光强度 [0,1]，默认 1.0 */
     private float emissiveStrength = 1.0f;
 
     /** 泛光遮罩贴图路径 (如: skycore/textures/zombie_bloom.png) */
-    @SerializedName(value = "bloom", alternate = {"bloomTexture"})
+    @SerializedName(value = "bloom")
     private String bloom;
     /** 泛光颜色 (RGBA)，默认白色 */
-    @SerializedName(value = "bloomColor", alternate = {"bloom_color"})
+    @SerializedName(value = "bloomColor")
     private int[] bloomColor;
     /** 泛光强度 */
-    @SerializedName(value = "bloomStrength", alternate = {"bloom_strength"})
+    @SerializedName(value = "bloomStrength")
     private float bloomStrength = 1.0f;
+    /** 泛光叠加圈数（伪 bloom pass 数） */
+    @SerializedName(value = "bloomPasses")
+    private int bloomPasses = 5;
+    /** 每一圈的放大增量 */
+    @SerializedName(value = "bloomScaleStep")
+    private float bloomScaleStep = 0.06f;
+    /** 伪 bloom 伪 downscale（越大越接近原分辨率） */
+    @SerializedName(value = "bloomDownscale")
+    private float bloomDownscale = 1.0f;
+    /** 伪 bloom 静态偏移 (XYZ，单位: 格) */
+    @SerializedName(value = "bloomOffset")
+    private float[] bloomOffset;
     /** 叠色遮罩贴图路径 */
-    @SerializedName(value = "blendTexture", alternate = {"blend"})
+    @SerializedName(value = "blendTexture")
     private String blendTexture;
     /** 叠色模式: alpha | add */
     private String blendMode;
@@ -81,6 +93,10 @@ public class EntityModelMapping {
     public String getBloom() { return bloom; }
     public int[] getBloomColor() { return bloomColor; }
     public float getBloomStrength() { return bloomStrength; }
+    public int getBloomPasses() { return bloomPasses; }
+    public float getBloomScaleStep() { return bloomScaleStep; }
+    public float getBloomDownscale() { return bloomDownscale; }
+    public float[] getBloomOffset() { return bloomOffset; }
     public String getBlendTexture() { return blendTexture; }
     public String getBlendMode() { return blendMode; }
     public float[] getBlendColor() { return blendColor; }
@@ -107,6 +123,16 @@ public class EntityModelMapping {
     public void setBloom(String bloom) { this.bloom = bloom; }
     public void setBloomColor(int[] bloomColor) { this.bloomColor = bloomColor; }
     public void setBloomStrength(float bloomStrength) { this.bloomStrength = bloomStrength; }
+    public void setBloomPasses(int bloomPasses) { this.bloomPasses = bloomPasses; }
+    public void setBloomScaleStep(float bloomScaleStep) { this.bloomScaleStep = bloomScaleStep; }
+    public void setBloomDownscale(float bloomDownscale) { this.bloomDownscale = bloomDownscale; }
+    public void setBloomOffset(float[] bloomOffset) {
+        if (bloomOffset == null || bloomOffset.length < 3) {
+            this.bloomOffset = null;
+            return;
+        }
+        this.bloomOffset = new float[]{bloomOffset[0], bloomOffset[1], bloomOffset[2]};
+    }
     public void setBlendTexture(String blendTexture) { this.blendTexture = blendTexture; }
     public void setBlendMode(String blendMode) { this.blendMode = blendMode; }
     public void setBlendColor(float[] blendColor) { this.blendColor = blendColor; }
@@ -120,30 +146,5 @@ public class EntityModelMapping {
     public void setRenderBoxHeight(float renderBoxHeight) { this.renderBoxHeight = renderBoxHeight; }
     public void setRenderBoxDepth(float renderBoxDepth) { this.renderBoxDepth = renderBoxDepth; }
 
-    @Override
-    public String toString() {
-        return "EntityModelMapping{" +
-                "name='" + name + '\'' +
-                ", model='" + model + '\'' +
-                ", animation='" + animation + '\'' +
-                ", texture='" + texture + '\'' +
-                ", emissive='" + emissive + '\'' +
-                ", emissiveStrength=" + emissiveStrength +
-                ", bloom='" + bloom + '\'' +
-                ", bloomColor=" + (bloomColor == null ? "null" : java.util.Arrays.toString(bloomColor)) +
-                ", bloomStrength=" + bloomStrength +
-                ", blendTexture='" + blendTexture + '\'' +
-                ", blendMode='" + blendMode + '\'' +
-                ", blendColor=" + (blendColor == null ? "null" : java.util.Arrays.toString(blendColor)) +
-                ", enableCull=" + enableCull +
-                ", modelScale=" + modelScale +
-                ", primaryFadeSeconds=" + primaryFadeSeconds +
-                ", renderHurtTint=" + renderHurtTint +
-                ", hurtTint=" + (hurtTint == null ? "null" : java.util.Arrays.toString(hurtTint)) +
-                ", renderShadow=" + renderShadow +
-                ", renderBoxWidth=" + renderBoxWidth +
-                ", renderBoxHeight=" + renderBoxHeight +
-                ", renderBoxDepth=" + renderBoxDepth +
-                '}';
-    }
+
 }
