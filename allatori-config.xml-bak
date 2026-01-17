@@ -2,36 +2,36 @@
 <config>
     <!-- General run configuration -->
     <property name="log-file" value="build/obfuscation/allatori-log.xml"/>
-    <property name="random-seed" value="auto"/>
+    <property name="random-seed" value="godlike-20251018"/>
     <property name="version-marker" value="GODLIKE_OBF_2025"/>
 
     <!-- Core obfuscation features -->
-    <!-- 启用字符串加密，依赖忽略列表避开 Json/Gson 相关调用 -->
-    <property name="string-encryption" value="enable"/>
+    <!-- 禁用字符串加密，避免 Json/Gson 相关调用在解密桩里出现类型擦除 -->
+    <property name="string-encryption" value="disable"/>
     <property name="string-encryption-ignored-strings" value="config/allatori-string-excludes.txt"/>
-    <!-- 尝试重新启用控制流混淆，如仍触发验证问题请在 config/excludes 内列出需跳过的类 -->
-    <property name="control-flow-obfuscation" value="enable"/>
-    <property name="extensive-flow-obfuscation" value="enable"/>
+    <!-- Flow obfuscation disabled to avoid JVM verification issues observed with Gson calls -->
+    <property name="control-flow-obfuscation" value="disable"/>
+    <property name="extensive-flow-obfuscation" value="disable"/>
     <property name="packages-naming" value="custom(config/custom-packages.txt)"/>
     <property name="classes-naming" value="custom(config/custom-classes.txt)"/>
     <property name="methods-naming" value="custom(config/custom-methods.txt)"/>
     <property name="fields-naming" value="custom(config/custom-fields.txt)"/>
-    <property name="local-variables-naming" value="obfuscate"/>
+    <property name="local-variables-naming" value="keep"/>
     <property name="methods-naming-prefix" value="do"/>
     <property name="fields-naming-prefix" value="_"/>
     <property name="unique-renaming" value="enable"/>
 
     <!-- Metadata trimming -->
-    <property name="line-numbers" value="remove"/>
-    <property name="generics" value="remove"/>
-    <property name="inner-classes" value="remove"/>
-    <property name="throws-clause" value="remove"/>
+    <property name="line-numbers" value="obfuscate"/>
+    <property name="generics" value="keep"/>
+    <property name="inner-classes" value="keep"/>
+    <property name="throws-clause" value="keep"/>
     <property name="member-reorder" value="random"/>
     <property name="synthetize-methods" value="disable"/>
     <property name="synthetize-fields" value="disable"/>
     <property name="remove-toString" value="disable"/>
-    <property name="update-resource-names" value="enable"/>
-    <property name="update-resource-contents" value="enable"/>
+    <property name="update-resource-names" value="disable"/>
+    <property name="update-resource-contents" value="disable"/>
 
     <!-- Jar input/output -->
     <input basedir="build/libs">
@@ -64,7 +64,7 @@
         <class template="class org.mybad.skycoreproto.**">
             <method template="*(**)"/>
             <field template="*"/>
-        </class>
+        </class>·
         <class template="class org.mybad.bedrockparticle.**">
             <method template="*(**)"/>
             <field template="*"/>

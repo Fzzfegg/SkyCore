@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
-import org.mybad.minecraft.render.glow.GlowRenderer;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -77,11 +76,6 @@ public class SkyCoreConfig {
         if (newMappings != null) {
             mappings.putAll(newMappings);
         }
-    }
-
-    public synchronized void applyRenderSettings(int bloomDownsample) {
-        int safeDownsample = bloomDownsample <= 0 ? 1 : bloomDownsample;
-        GlowRenderer.INSTANCE.setDownsample(safeDownsample);
     }
 
     

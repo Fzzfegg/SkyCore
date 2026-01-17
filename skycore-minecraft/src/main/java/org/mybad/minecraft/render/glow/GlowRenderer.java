@@ -11,8 +11,6 @@ import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
 
-import java.util.Arrays;
-
 /**
  * Accumulates glow masks each frame and composites them using {@link GlowEffect}.
  */
@@ -23,7 +21,7 @@ public final class GlowRenderer {
     private Framebuffer maskFbo;
     private int maskWidth;
     private int maskHeight;
-    private int downsample = 2;
+    private final int downsample = 1;
 
     private boolean usedThisFrame;
     private boolean depthSynced;
@@ -32,16 +30,6 @@ public final class GlowRenderer {
     private final GlowFrameParams frameParams = new GlowFrameParams();
 
     private GlowRenderer() {}
-
-    public void setDownsample(int downsample) {
-        if (downsample <= 0) {
-            downsample = 1;
-        }
-        if (this.downsample != downsample) {
-            this.downsample = downsample;
-            disposeMask();
-        }
-    }
 
     public void renderSkinnedMask(Entity entity,
                                   float partialTicks,

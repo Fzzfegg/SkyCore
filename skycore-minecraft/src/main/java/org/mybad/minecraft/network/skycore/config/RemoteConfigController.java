@@ -40,10 +40,6 @@ public class RemoteConfigController {
             mappingFiles.put(file.getFileName(), file);
         }
         applyMappings();
-        SkyCoreProto.RenderSettings renderSettings = cacheManager.loadRenderSettings();
-        if (renderSettings != null) {
-            applyRenderSettings(renderSettings);
-        }
     }
 
     public void handleConfigIndex(SkyCoreProto.ConfigIndex index) {
@@ -67,7 +63,6 @@ public class RemoteConfigController {
 
     public void handleRenderSettings(SkyCoreProto.RenderSettings settings) {
         cacheManager.saveRenderSettings(settings);
-        applyRenderSettings(settings);
     }
 
     private void applyMappings() {
@@ -83,14 +78,6 @@ public class RemoteConfigController {
             handler.clearCache();
         }
         SkullModelManager.clear();
-    }
-
-    private void applyRenderSettings(SkyCoreProto.RenderSettings settings) {
-        SkyCoreConfig.getInstance().applyRenderSettings(settings.getBloomDownsample());
-        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
-        if (handler != null) {
-            handler.clearCache();
-        }
     }
 
     public byte[] getCurrentHash() {

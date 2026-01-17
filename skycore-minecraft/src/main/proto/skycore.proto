@@ -53,8 +53,7 @@ message ConfigFileRemoved {
 }
 
 message RenderSettings {
-  reserved 1, 2, 4, 5, 6;
-  uint32 bloom_downsample = 3;
+  reserved 1, 2, 3, 4, 5, 6;
 }
 
 message ForceAnimation {
