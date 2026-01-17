@@ -21,7 +21,7 @@ public final class GlowRenderer {
     private Framebuffer maskFbo;
     private int maskWidth;
     private int maskHeight;
-    private final int downsample = 1;
+    private final int downsample = 4;
 
     private boolean usedThisFrame;
     private boolean depthSynced;

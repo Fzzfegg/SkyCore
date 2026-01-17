@@ -11,19 +11,19 @@ public final class GlowEffect {
     // 最低发光强度。即便模型给的 bloomStrength 很低，合成时也会至少用 0.25，防止光晕太弱看不见。
     private static final float MIN_STRENGTH = 0.3f;
     // 主高光（核心）模糊时的采样步长，单位是像素。值越大，核心光区越快扩散。
-    private static final float CORE_BLUR_STEP = 4f;
+    private static final float CORE_BLUR_STEP = 3.0f;
     // 在第一次纵/横模糊之后，再追加的核心模糊迭代次数；越多，中心亮区越柔。
-    private static final int EXTRA_CORE_BLUR_LOOPS = 3;
+    private static final int EXTRA_CORE_BLUR_LOOPS = 1;
     // 给 halo 缓冲做超大半径模糊时的采样步长。越大，外圈“漫出去”得越宽。
-    private static final float HALO_BLUR_STEP = 12f;
+    private static final float HALO_BLUR_STEP = 9f;
     // halo 模糊的迭代次数；越多，外圈越平滑、半径越大。
-    private static final int HALO_BLUR_LOOPS = 4;
+    private static final int HALO_BLUR_LOOPS = 2;
     // 合成阶段给 halo 贡献的亮度倍数，和 bloomStrength 相乘。调大就让外圈更亮。
-    private static final float HALO_WEIGHT_MULTIPLIER = 3f;
+    private static final float HALO_WEIGHT_MULTIPLIER = 3.2f;
     // 合成 shader 中 sampling halo 时使用的 UV 偏移尺度，决定我们向外取样多远来生成“超出原图”的光晕。
-    private static final float HALO_OFFSET_SCALE = 8f;
+    private static final float HALO_OFFSET_SCALE = 8.5f;
     //  是合成阶段的基础增益，控制“全局发光底座”：
-    private float baseBrightness = 0.45f;
+    private float baseBrightness = 0.48f;
     private float highThreshold = 0.0f;
     private float lowThreshold = 0.0f;
 
