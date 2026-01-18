@@ -21,6 +21,7 @@ import org.mybad.minecraft.resource.ResourcePackRegistrar;
 import org.mybad.minecraft.resource.TextureReloadHelper;
 import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.minecraft.render.skull.SkullModelManager;
+import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 
 import java.io.File;
@@ -124,6 +125,7 @@ public class SkyCoreMod {
         SkullModelManager.clear();
         DebugRenderController.clear();
         TextureReloadHelper.reloadSkyCoreTextures(resourceCacheManager);
+        SkycoreClientHandshake.requestHelloFromServer("reload");
         
         LOGGER.info("[SkyCore] 重新加载完成");
     }

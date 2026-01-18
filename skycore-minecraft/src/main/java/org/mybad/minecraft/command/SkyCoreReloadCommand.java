@@ -128,11 +128,11 @@ public class SkyCoreReloadCommand extends CommandBase {
         });
     }
 
-    private void notifySuccess(ICommandSender sender, String message) {
+    public  static void notifySuccess(ICommandSender sender, String message) {
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + message));
     }
 
-    private void notifyFailure(ICommandSender sender, String message) {
+    public static void notifyFailure(ICommandSender sender, String message) {
         sender.sendMessage(new TextComponentString(TextFormatting.RED + message));
     }
 

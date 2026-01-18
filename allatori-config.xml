@@ -74,28 +74,7 @@
         <class template="class org.mybad.bedrockparticle.**">
             <method template="*(**)"/>
             <field template="*"/>
-        </class>   
-        <class template="class org.mybad.minecraft.render.trail.**">
-            <method template="*(**)"/>
-            <field template="*"/>
-        </class>     
-        <class template="class org.mybad.minecraft.event.**">
-            <method template="*(**)"/>
-            <field template="*"/>
-        </class>    
-        <class template="class org.mybad.minecraft.debug.**">
-            <method template="*(**)"/>
-            <field template="*"/>
-        </class>       
-        <class template="class org.mybad.minecraft.config.**">
-            <method template="*(**)"/>
-            <field template="*"/>
-        </class>   
-        <class template="class org.mybad.minecraft.render.BloomRenderer">
-            <method template="*(**)"/>
-            <field template="*"/>
         </class>
-        
     </keep-names>
     
 </config>

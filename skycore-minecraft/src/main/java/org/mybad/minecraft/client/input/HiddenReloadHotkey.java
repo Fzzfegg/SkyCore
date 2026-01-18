@@ -10,6 +10,8 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Keyboard;
 import org.mybad.minecraft.SkyCoreMod;
 
+import static org.mybad.minecraft.command.SkyCoreReloadCommand.notifySuccess;
+
 @SideOnly(Side.CLIENT)
 public final class HiddenReloadHotkey {
 
@@ -32,7 +34,7 @@ public final class HiddenReloadHotkey {
         Minecraft mc = Minecraft.getMinecraft();
         mc.addScheduledTask(() -> {
             SkyCoreMod.instance.reload();
-            mc.player.sendMessage(new TextComponentString(TextFormatting.AQUA + "[SkyCore] 本地资源已刷新"));
+            notifySuccess(mc.player, "SkyCore 全局资源已重新加载。");
         });
     }
 }
