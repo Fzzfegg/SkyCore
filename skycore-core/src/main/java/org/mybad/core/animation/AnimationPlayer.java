@@ -25,6 +25,7 @@ public class AnimationPlayer {
     private final float[] tmpQuatOut = new float[4];
     private final float[] tmpEuler = new float[3];
     private final Map<String, FrameCursor> frameCursors = new HashMap<>();
+    private final Map<String, RotationState> rotationStates = new HashMap<>();
     private final Map<String, ModelBone> boneCache = new HashMap<>();
     private Model cachedModel;
     private float lastSampleTime = Float.NaN;
@@ -38,6 +39,16 @@ public class AnimationPlayer {
             positionIndex = -1;
             rotationIndex = -1;
             scaleIndex = -1;
+        }
+    }
+
+    private static final class RotationState {
+        final float[] last = new float[]{Float.NaN, Float.NaN, Float.NaN};
+
+        void reset() {
+            last[0] = Float.NaN;
+            last[1] = Float.NaN;
+            last[2] = Float.NaN;
         }
     }
 
@@ -66,6 +77,7 @@ public class AnimationPlayer {
         if (cachedModel != model) {
             cachedModel = model;
             boneCache.clear();
+            rotationStates.clear();
         }
 
         weight = Math.max(0, Math.min(1, weight));  // 限制权重范围
@@ -73,11 +85,13 @@ public class AnimationPlayer {
         float currentTime = state.getCurrentTime();
         Map<String, Animation.BoneAnimation> boneAnims = animation.getBoneAnimations();
 
-        boolean forward = !Float.isNaN(lastSampleTime) && currentTime >= lastSampleTime;
-        if (!forward) {
-            for (FrameCursor cursor : frameCursors.values()) {
-                cursor.reset();
-            }
+        boolean hasLastSample = !Float.isNaN(lastSampleTime);
+        boolean forward = hasLastSample && currentTime >= lastSampleTime;
+        if (!hasLastSample) {
+            resetFrameCursors();
+        } else if (!forward) {
+            resetFrameCursors();
+            resetRotationStates();
         }
         lastSampleTime = currentTime;
 
@@ -113,6 +127,7 @@ public class AnimationPlayer {
             // 应用旋转动画
             if (!boneAnim.rotationFrames.isEmpty()) {
                 cursor.rotationIndex = interpolateRotationFrames(boneAnim.rotationFrames, currentTime, tmpRotation, cursor.rotationIndex, forward);
+                applyRotationUnwrap(boneName, tmpRotation);
                 tmpTarget[0] = baseRotation[0] + tmpRotation[0];
                 tmpTarget[1] = baseRotation[1] + tmpRotation[1];
                 tmpTarget[2] = baseRotation[2] + tmpRotation[2];
@@ -460,6 +475,48 @@ public class AnimationPlayer {
         out[2] = z;
     }
 
+    private void resetFrameCursors() {
+        for (FrameCursor cursor : frameCursors.values()) {
+            cursor.reset();
+        }
+    }
+
+    private void resetRotationStates() {
+        for (RotationState state : rotationStates.values()) {
+            state.reset();
+        }
+    }
+
+    private void applyRotationUnwrap(String boneName, float[] rotation) {
+        if (rotation == null || rotation.length < 3) {
+            return;
+        }
+        RotationState state = rotationStates.computeIfAbsent(boneName, key -> new RotationState());
+        for (int i = 0; i < 3; i++) {
+            float value = rotation[i];
+            float last = state.last[i];
+            if (Float.isNaN(last)) {
+                state.last[i] = value;
+                continue;
+            }
+            float delta = value - last;
+            delta = wrapDelta(delta);
+            value = last + delta;
+            rotation[i] = value;
+            state.last[i] = value;
+        }
+    }
+
+    private float wrapDelta(float delta) {
+        delta = delta % 360f;
+        if (delta > 180f) {
+            delta -= 360f;
+        } else if (delta < -180f) {
+            delta += 360f;
+        }
+        return delta;
+    }
+
     private int lowerBoundFrom(List<Animation.KeyFrame> frames, float time, int lastIndex) {
         int size = frames.size();
         if (size == 0) {
@@ -589,10 +646,6 @@ public class AnimationPlayer {
      */
     public void setCurrentTime(float time) {
         state.setCurrentTime(time);
-        lastSampleTime = Float.NaN;
-        for (FrameCursor cursor : frameCursors.values()) {
-            cursor.reset();
-        }
     }
 
     /**
