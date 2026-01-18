@@ -507,27 +507,7 @@ public final class ParticleRenderer {
     }
 
     private boolean resolveFacingDirection(ActiveParticle particle, float[] out) {
-        if (billboard != null && billboard.customDirection() != null) {
-            out[0] = particle.getEnvironment().safeResolve(billboard.customDirection()[0]);
-            out[1] = particle.getEnvironment().safeResolve(billboard.customDirection()[1]);
-            out[2] = particle.getEnvironment().safeResolve(billboard.customDirection()[2]);
-        } else {
-            float speed = (float) Math.sqrt(particle.getVx() * particle.getVx()
-                + particle.getVy() * particle.getVy()
-                + particle.getVz() * particle.getVz());
-            float threshold = billboard != null ? billboard.minSpeedThreshold() : 0.0f;
-            if (speed <= threshold) {
-                return false;
-            }
-            out[0] = (float) particle.getVx();
-            out[1] = (float) particle.getVy();
-            out[2] = (float) particle.getVz();
-        }
-        if (out[0] == 0.0f && out[1] == 0.0f && out[2] == 0.0f) {
-            return false;
-        }
-        BedrockParticleSystem.normalize(out);
-        return true;
+        return particle.resolveFacingDirection(billboard, out);
     }
 
     private boolean applyDirectionAsNormal(float[] direction) {

@@ -38,6 +38,7 @@ final class ParticleBatcher {
         int bloomParticles = 0;
         int emissiveParticles = 0;
         int blendParticles = 0;
+        final float[] scratchDir = new float[3];
 
         for (ActiveParticle particle : particles) {
             particle.prepareRender(partialTicks);
@@ -83,12 +84,14 @@ final class ParticleBatcher {
 
             float roll = particle.getPrevRoll() + (particle.getRoll() - particle.getPrevRoll()) * partialTicks;
 
-            float[] dir = resolveFacingDirection(particle, billboard, env);
-            if (dir == null) {
+            boolean hasDirection = particle.resolveFacingDirection(billboard, scratchDir);
+            if (!hasDirection) {
                 if (isDirectionMode(billboard.cameraMode())) {
                     continue;
                 }
-                dir = new float[]{0.0f, 0.0f, 0.0f};
+                scratchDir[0] = 0.0f;
+                scratchDir[1] = 0.0f;
+                scratchDir[2] = 0.0f;
             }
 
             int camMode = encodeCameraMode(billboard.cameraMode());
@@ -148,7 +151,7 @@ final class ParticleBatcher {
                 width, height, camMode, 0.0f,
                 r, g, b, a,
                 renderProps.getUMin(), renderProps.getVMin(), renderProps.getUMax(), renderProps.getVMax(),
-                dir[0], dir[1], dir[2], (float) emitterIdx,
+                scratchDir[0], scratchDir[1], scratchDir[2], (float) emitterIdx,
                 lightU, lightV, emissiveStrength, bloomStrength);
 
             totalParticles++;
@@ -167,7 +170,7 @@ final class ParticleBatcher {
                     width, height, camMode, 0.0f,
                     r, g, b, a,
                     renderProps.getUMin(), renderProps.getVMin(), renderProps.getUMax(), renderProps.getVMax(),
-                    dir[0], dir[1], dir[2], (float) emitterIdx,
+                    scratchDir[0], scratchDir[1], scratchDir[2], (float) emitterIdx,
                     lightU, lightV, emissiveStrength, 0.0f);
                 emissiveParticles++;
             }
@@ -183,7 +186,7 @@ final class ParticleBatcher {
                     width, height, camMode, 0.0f,
                     blendR, blendG, blendB, blendA,
                     renderProps.getUMin(), renderProps.getVMin(), renderProps.getUMax(), renderProps.getVMax(),
-                    dir[0], dir[1], dir[2], (float) emitterIdx,
+                    scratchDir[0], scratchDir[1], scratchDir[2], (float) emitterIdx,
                     lightU, lightV, 0.0f, 0.0f);
                 blendParticles++;
             }
@@ -313,32 +316,6 @@ final class ParticleBatcher {
             default:
                 return 0;
         }
-    }
-
-    private static float[] resolveFacingDirection(ActiveParticle particle,
-                                                  ParticleAppearanceBillboardComponent billboard,
-                                                  MolangEnvironment env) {
-        if (billboard.customDirection() != null) {
-            float dx = env.safeResolve(billboard.customDirection()[0]);
-            float dy = env.safeResolve(billboard.customDirection()[1]);
-            float dz = env.safeResolve(billboard.customDirection()[2]);
-            float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (len <= 1.0e-6f) {
-                return null;
-            }
-            return new float[]{dx / len, dy / len, dz / len};
-        }
-        double vx = particle.getVx();
-        double vy = particle.getVy();
-        double vz = particle.getVz();
-        double speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
-        if (speed <= billboard.minSpeedThreshold()) {
-            return null;
-        }
-        if (speed <= 1.0e-6) {
-            return null;
-        }
-        return new float[]{(float) (vx / speed), (float) (vy / speed), (float) (vz / speed)};
     }
 
     private static float clamp01(float value) {

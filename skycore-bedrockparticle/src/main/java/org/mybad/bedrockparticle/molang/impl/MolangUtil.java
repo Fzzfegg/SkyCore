@@ -59,7 +59,19 @@ public class MolangUtil {
     }
 
     public static float random(float low, float high) {
-        return (float) (low + Math.random() * (high - low));
+        if (Float.isNaN(low) || Float.isNaN(high)) {
+            return 0f;
+        }
+        if (high < low) {
+            float tmp = high;
+            high = low;
+            low = tmp;
+        }
+        float delta = high - low;
+        if (delta == 0f) {
+            return low;
+        }
+        return (float) (low + Math.random() * delta);
     }
 
     public static float triangleWave(float x, float wavelength) {
