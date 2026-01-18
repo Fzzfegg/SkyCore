@@ -582,24 +582,15 @@ public class ActiveEmitter implements ParticleContext {
         }
 
         boolean isLocalPosition() {
-            if (localSpace != null) {
-                return localSpace.position();
-            }
-            return locatorBound;
+            return localSpace != null && localSpace.position();
         }
 
         boolean isLocalRotation() {
-            if (localSpace != null) {
-                return localSpace.rotation();
-            }
-            return locatorBound;
+            return localSpace != null && localSpace.rotation();
         }
 
         boolean isLocalVelocity() {
-            if (localSpace != null) {
-                return localSpace.velocity();
-            }
-            return locatorBound;
+            return localSpace != null && localSpace.velocity();
         }
 
         double getDeltaX() {
