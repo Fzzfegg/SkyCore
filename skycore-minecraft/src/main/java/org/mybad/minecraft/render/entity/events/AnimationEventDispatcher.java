@@ -106,7 +106,7 @@ public final class AnimationEventDispatcher {
                     continue;
                 }
                 float t = event.getTimestamp();
-                if (t > prevTime + EVENT_EPS && t <= currentTime + EVENT_EPS) {
+                if (t >= prevTime - EVENT_EPS && t <= currentTime + EVENT_EPS) {
                     fireEvent(entity, context, target, wrapper, event, partialTicks);
                 }
             }

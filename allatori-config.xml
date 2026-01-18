@@ -74,6 +74,18 @@
         <class template="class org.mybad.bedrockparticle.**">
             <method template="*(**)"/>
             <field template="*"/>
+        </class>      
+        <class template="class org.mybad.minecraft.render.entity.EntityRenderPipeline">
+            <method template="*(**)"/>
+            <field template="*"/>
+        </class>  
+        <class template="class org.mybad.minecraft.render.ModelRenderPipeline">
+            <method template="*(**)"/>
+            <field template="*"/>
+        </class>     
+        <class template="class org.mybad.minecraft.render.BedrockModelWrapper">
+            <method template="*(**)"/>
+            <field template="*"/>
         </class>
     </keep-names>
     

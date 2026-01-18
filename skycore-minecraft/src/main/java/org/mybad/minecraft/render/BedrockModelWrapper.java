@@ -17,15 +17,6 @@ import org.mybad.minecraft.render.transform.LocatorTransform;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/**
- * Bedrock 模型包装器
- * 参考 Chameleon 的 ChameleonRenderer 和 HammerAnimations 的 BedrockModelWrapper
- *
- * 特性：
- * - Chameleon 风格的骨骼变换顺序
- * - 预计算顶点（模型加载时生成四边形）
- * - 批量渲染
- */
 @SideOnly(Side.CLIENT)
 public class BedrockModelWrapper {
 
