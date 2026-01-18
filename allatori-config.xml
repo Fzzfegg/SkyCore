@@ -17,7 +17,7 @@
     <property name="methods-naming" value="custom(config/custom-methods.txt)"/>
     <property name="fields-naming" value="custom(config/custom-fields.txt)"/>
     <property name="local-variables-naming" value="abc"/>
-    <property name="methods-naming-prefix" value="do"/>
+    <property name="methods-naming-prefix" value="__"/>
     <property name="fields-naming-prefix" value="_"/>
     <property name="unique-renaming" value="enable"/>
 

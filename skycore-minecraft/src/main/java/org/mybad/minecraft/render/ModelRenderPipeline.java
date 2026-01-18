@@ -103,11 +103,11 @@ final class ModelRenderPipeline {
         skinningPipeline.runSkinningPass();
         skinningPipeline.draw();
 
-        if (bloomStrength > 0f) {
+        if (bloomStrength > 0f && bloomTexture != null) {
             int passes = bloomPasses > 0 ? bloomPasses : DEFAULT_BLOOM_PASSES;
             float scaleStep = bloomScaleStep > 0f ? bloomScaleStep : DEFAULT_BLOOM_SCALE_STEP;
             float downscale = bloomDownscale > 0f ? bloomDownscale : DEFAULT_BLOOM_DOWNSCALE;
-            renderPseudoBloomPass(bloomTexture != null ? bloomTexture : texture,
+            renderPseudoBloomPass(bloomTexture,
                 bloomStrength,
                 bloomColor,
                 passes,
@@ -248,9 +248,8 @@ final class ModelRenderPipeline {
                                        int lightY,
                                        SkinningPipeline skinningPipeline,
                                        ResourceLocation baseTexture) {
-        ResourceLocation texture = bloomTexture != null ? bloomTexture : baseTexture;
         float effectiveStrength = Math.max(0f, bloomStrength);
-        if (effectiveStrength <= 0f || texture == null) {
+        if (effectiveStrength <= 0f || bloomTexture == null) {
             return;
         }
 
@@ -260,7 +259,7 @@ final class ModelRenderPipeline {
             effectiveStrength *= colorAlpha;
         }
 
-        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(bloomTexture);
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
         GlStateManager.enableBlend();

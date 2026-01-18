@@ -33,7 +33,7 @@ public class EntityModelMapping {
     private int[] bloomColor;
     /** 泛光强度 */
     @SerializedName(value = "bloomStrength")
-    private float bloomStrength = 1.0f;
+    private float bloomStrength = 0.0f;
     /** 泛光叠加圈数（伪 bloom pass 数） */
     @SerializedName(value = "bloomPasses")
     private int bloomPasses = 5;
