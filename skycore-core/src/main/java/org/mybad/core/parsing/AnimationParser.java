@@ -405,21 +405,38 @@ public class AnimationParser {
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
             float time = parseTime(entry.getKey());
             JsonElement value = entry.getValue();
-            String effect = null;
-            String locator = null;
-            if (value.isJsonObject()) {
-                JsonObject data = value.getAsJsonObject();
-                effect = ParseUtils.getString(data, "effect", null);
-                locator = ParseUtils.getString(data, "locator", null);
-            } else if (value.isJsonPrimitive()) {
-                effect = value.getAsString();
+            if (value.isJsonArray()) {
+                for (JsonElement item : value.getAsJsonArray()) {
+                    appendEvent(target, time, item);
+                }
+            } else {
+                appendEvent(target, time, value);
             }
-            if (effect == null || effect.trim().isEmpty()) {
-                continue;
-            }
-            target.add(new AnimationEvent(time, effect.trim(), locator));
         }
         target.sort(Comparator.comparingDouble(e -> e.timestamp));
+    }
+
+    private void appendEvent(List<AnimationEvent> target, float time, JsonElement value) {
+        if (value == null) {
+            return;
+        }
+        String effect = null;
+        String locator = null;
+        if (value.isJsonObject()) {
+            JsonObject data = value.getAsJsonObject();
+            effect = ParseUtils.getString(data, "effect", null);
+            locator = ParseUtils.getString(data, "locator", null);
+        } else if (value.isJsonPrimitive()) {
+            effect = value.getAsString();
+        }
+        if (effect == null) {
+            return;
+        }
+        effect = effect.trim();
+        if (effect.isEmpty()) {
+            return;
+        }
+        target.add(new AnimationEvent(time, effect, locator));
     }
 
     private float getMaxEventTime(AnimationData animation) {
