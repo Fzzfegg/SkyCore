@@ -143,6 +143,7 @@ final class ModelRenderPipeline {
         if (emissiveStrength <= 0f) {
             return;
         }
+        pushDepthOffset();
         Minecraft.getMinecraft().getTextureManager().bindTexture(emissiveTexture);
         GlStateManager.enableTexture2D();
         GlStateManager.color(1.0f, 1.0f, 1.0f, emissiveStrength);
@@ -164,6 +165,7 @@ final class ModelRenderPipeline {
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+        popDepthOffset();
     }
 
     private void renderBlendPass(ResourceLocation blendTexture,
@@ -186,6 +188,7 @@ final class ModelRenderPipeline {
         GL11.glAlphaFunc(GL11.GL_GREATER, 0.01f);
         GlStateManager.depthMask(false);
         GlStateManager.depthFunc(GL11.GL_LEQUAL);
+        pushDepthOffset();
 
         int fullBright = 240;
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) fullBright, (float) fullBright);
@@ -203,6 +206,7 @@ final class ModelRenderPipeline {
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+        popDepthOffset();
     }
 
     private void applyBlendMode(ModelBlendMode mode) {
@@ -259,6 +263,7 @@ final class ModelRenderPipeline {
             effectiveStrength *= colorAlpha;
         }
 
+        pushDepthOffset();
         Minecraft.getMinecraft().getTextureManager().bindTexture(bloomTexture);
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
@@ -308,6 +313,7 @@ final class ModelRenderPipeline {
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
+        popDepthOffset();
     }
 
     private float[] decodeBloomColor(int[] rgba) {
@@ -353,6 +359,16 @@ final class ModelRenderPipeline {
             return 0f;
         }
         return value;
+    }
+
+    private void pushDepthOffset() {
+        GlStateManager.enablePolygonOffset();
+        GlStateManager.doPolygonOffset(-1f, -10f);
+    }
+
+    private void popDepthOffset() {
+        GlStateManager.doPolygonOffset(0f, 0f);
+        GlStateManager.disablePolygonOffset();
     }
 
 }

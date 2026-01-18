@@ -11,6 +11,8 @@ import java.nio.FloatBuffer;
 import java.util.Map;
 
 final class SharedGeometryBuilder {
+    private static final float NORMAL_OFFSET_EPS = 0.0002f;
+
     private final Model model;
     private final int textureWidth;
     private final int textureHeight;
@@ -32,6 +34,7 @@ final class SharedGeometryBuilder {
         FloatBuffer buffer = SkinnedMesh.allocateInputBuffer(vertexCount);
         int vertexIndex = 0;
 
+        int quadCounter = 0;
         for (ModelBone bone : model.getBones()) {
             if (bone.isNeverRender()) {
                 continue;
@@ -46,6 +49,10 @@ final class SharedGeometryBuilder {
                 }
                 MatrixStack cubeRotation = BedrockModelTransforms.buildCubeRotationStack(cube);
                 for (ModelQuad quad : cube.getQuads()) {
+                    int pattern = quadCounter % 8;
+                    float magnitude = NORMAL_OFFSET_EPS * (1 + (pattern >> 1));
+                    float bias = ((pattern & 1) == 0 ? 1f : -1f) * magnitude;
+                    quadCounter++;
                     int[] order = new int[]{0, 1, 2, 2, 3, 0};
                     for (int idx : order) {
                         float[] pos = new float[]{quad.vertices[idx].x, quad.vertices[idx].y, quad.vertices[idx].z};
@@ -53,6 +60,12 @@ final class SharedGeometryBuilder {
                         if (cubeRotation != null) {
                             cubeRotation.transform(pos);
                             cubeRotation.transformNormal(normal);
+                        }
+                        float lenSq = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
+                        if (lenSq > 1.0e-8f) {
+                            pos[0] += normal[0] * bias;
+                            pos[1] += normal[1] * bias;
+                            pos[2] += normal[2] * bias;
                         }
 
                         buffer.put(pos[0]).put(pos[1]).put(pos[2]);

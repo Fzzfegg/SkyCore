@@ -226,25 +226,24 @@ public class ActiveEmitter implements ParticleContext {
         }
 
         boolean tick() {
-            if (expired) {
-                return activeParticles > 0;
-            }
             updateTransform(BedrockParticleSystem.TICK_SECONDS);
             updateContext(age);
             if (emitterInitialization != null && emitterInitialization.tickExpression() != null) {
                 environment.safeResolve(emitterInitialization.tickExpression());
             }
-            tickLifetimeEvents();
-            applyLifetimeLogic();
-            updateContext(age);
-            if (!expired && isActive()) {
-                if (rateInstant != null) {
-                    if (!instantEmitted) {
-                        emitParticles(resolveInstantCount(), system.getRemainingParticleRoom());
-                        instantEmitted = true;
+            if (!expired) {
+                tickLifetimeEvents();
+                applyLifetimeLogic();
+                updateContext(age);
+                if (!expired && isActive()) {
+                    if (rateInstant != null) {
+                        if (!instantEmitted) {
+                            emitParticles(resolveInstantCount(), system.getRemainingParticleRoom());
+                            instantEmitted = true;
+                        }
+                    } else if (rateSteady != null) {
+                        emitSteady();
                     }
-                } else if (rateSteady != null) {
-                    emitSteady();
                 }
             }
             age += BedrockParticleSystem.TICK_SECONDS;

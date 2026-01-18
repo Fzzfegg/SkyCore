@@ -42,11 +42,26 @@ public final class AnimationEventDispatcher {
                 renderState.lastPrimaryTime = currentTime;
                 renderState.lastPrimaryLoop = loopCount;
                 renderState.primaryValid = true;
+                if (currentTime >= -EVENT_EPS) {
+                    dispatchEventsForAnimation(entity, context, target, wrapper, animation,
+                        0f, currentTime, false, partialTicks);
+                }
             } else {
                 boolean looped = loopCount != renderState.lastPrimaryLoop ||
                     (animation.getLoopMode() == Animation.LoopMode.LOOP && currentTime + EVENT_EPS < renderState.lastPrimaryTime);
-                dispatchEventsForAnimation(entity, context, target, wrapper, animation,
-                    renderState.lastPrimaryTime, currentTime, looped, partialTicks);
+                float prevTime = renderState.lastPrimaryTime;
+                boolean wrapAtEnd = !looped
+                    && Math.abs(prevTime - animation.getLength()) <= EVENT_EPS
+                    && Math.abs(currentTime - 0f) <= EVENT_EPS;
+                if (wrapAtEnd) {
+                    dispatchEventsForAnimation(entity, context, target, wrapper, animation,
+                        prevTime, animation.getLength(), false, partialTicks);
+                    dispatchEventsForAnimation(entity, context, target, wrapper, animation,
+                        0f, currentTime, false, partialTicks);
+                } else {
+                    dispatchEventsForAnimation(entity, context, target, wrapper, animation,
+                        prevTime, currentTime, looped, partialTicks);
+                }
                 renderState.lastPrimaryTime = currentTime;
                 renderState.lastPrimaryLoop = loopCount;
             }
@@ -69,10 +84,27 @@ public final class AnimationEventDispatcher {
         if (animation == null) {
             return;
         }
-        if (!looped && currentTime + EVENT_EPS < prevTime) {
+        if (!looped && currentTime + EVENT_EPS < prevTime - EVENT_EPS) {
+            if (!animation.getSoundEvents().isEmpty()) {
+                dispatchEventList(entity, context, target, wrapper, animation, animation.getSoundEvents(),
+                    prevTime, animation.getLength(), false, partialTicks);
+                dispatchEventList(entity, context, target, wrapper, animation, animation.getSoundEvents(),
+                    0f, currentTime, false, partialTicks);
+            }
+            if (!animation.getParticleEvents().isEmpty()) {
+                dispatchEventList(entity, context, target, wrapper, animation, animation.getParticleEvents(),
+                    prevTime, animation.getLength(), false, partialTicks);
+                dispatchEventList(entity, context, target, wrapper, animation, animation.getParticleEvents(),
+                    0f, currentTime, false, partialTicks);
+            }
+            if (!animation.getTrailEvents().isEmpty()) {
+                dispatchEventList(entity, context, target, wrapper, animation, animation.getTrailEvents(),
+                    prevTime, animation.getLength(), false, partialTicks);
+                dispatchEventList(entity, context, target, wrapper, animation, animation.getTrailEvents(),
+                    0f, currentTime, false, partialTicks);
+            }
             return;
         }
-
         if (!animation.getSoundEvents().isEmpty()) {
             dispatchEventList(entity, context, target, wrapper, animation, animation.getSoundEvents(),
                 prevTime, currentTime, looped, partialTicks);

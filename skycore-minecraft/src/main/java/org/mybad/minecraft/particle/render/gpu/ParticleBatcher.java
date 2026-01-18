@@ -7,6 +7,7 @@ import org.mybad.bedrockparticle.particle.component.ParticleAppearanceLightingCo
 import org.mybad.bedrockparticle.particle.component.ParticleAppearanceTintingComponent;
 import org.mybad.bedrockparticle.particle.render.QuadRenderProperties;
 import net.minecraft.util.ResourceLocation;
+import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.particle.runtime.ActiveEmitter;
 import org.mybad.minecraft.particle.runtime.ActiveParticle;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
@@ -23,6 +24,7 @@ final class ParticleBatcher {
     static final int FLOATS_PER_EMITTER = 16;
 
     private final QuadRenderProperties renderProps = new QuadRenderProperties();
+    private boolean emitterIndexWarningShown;
 
     Result build(List<ActiveParticle> particles, float partialTicks) {
         if (particles.isEmpty()) {
@@ -129,6 +131,9 @@ final class ParticleBatcher {
                 } else {
                     emitterIdx = existing;
                 }
+            } else if (isEmitterTransformMode(camMode) && !emitterIndexWarningShown) {
+                emitterIndexWarningShown = true;
+                SkyCoreMod.LOGGER.warn("[SkyCore] 粒子使用 emitter_transform_* 模式但未绑定发射器，姿态将回退为默认值。请确认动画事件提供了 locator 且 emitter_local_space.rotation 已开启。");
             }
 
             double px = particle.getPrevX() + (particle.getX() - particle.getPrevX()) * partialTicks;
@@ -285,6 +290,10 @@ final class ParticleBatcher {
             || mode == ParticleAppearanceBillboardComponent.FaceCameraMode.DIRECTION_Y
             || mode == ParticleAppearanceBillboardComponent.FaceCameraMode.DIRECTION_Z
             || mode == ParticleAppearanceBillboardComponent.FaceCameraMode.LOOKAT_DIRECTION;
+    }
+
+    private static boolean isEmitterTransformMode(int camMode) {
+        return camMode == 8 || camMode == 9 || camMode == 10;
     }
 
     private static int encodeCameraMode(ParticleAppearanceBillboardComponent.FaceCameraMode mode) {

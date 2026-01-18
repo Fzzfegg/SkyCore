@@ -2,6 +2,7 @@ package org.mybad.minecraft.render.entity.events;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
+import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.entity.events.AnimationEventArgsParser.ParticleTargetMode;
 import org.mybad.minecraft.particle.transform.EmitterTransform;
 import org.mybad.minecraft.particle.transform.EmitterTransformProvider;
@@ -22,6 +23,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
     private final LocatorTransform locatorTransform;
     private final float modelScale;
     private boolean usedInitial;
+    private boolean missingLocatorWarned;
 
     AnimationEventTransformProvider(EntityLivingBase entity,
                                     BedrockModelHandle wrapper,
@@ -46,6 +48,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         this.locatorTransform = new LocatorTransform();
         this.modelScale = wrapper != null ? wrapper.getModelScale() : 1.0f;
         this.usedInitial = false;
+        this.missingLocatorWarned = false;
     }
 
     @Override
@@ -92,6 +95,11 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
             transform.scale = uniformScale <= 0.0f ? 1.0f : uniformScale;
             usedInitial = true;
             return;
+        } else if (wrapper != null && locatorName != null && !missingLocatorWarned) {
+            missingLocatorWarned = true;
+            SkyCoreMod.LOGGER.warn("[SkyCore] 粒子事件定位点 '{}' 无法解析（实体：{}）。将回退到世界坐标/默认姿态。",
+                locatorName,
+                entity != null ? entity.getName() : "unknown");
         }
         if (!usedInitial) {
             transform.x = initialX;
