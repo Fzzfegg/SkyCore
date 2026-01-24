@@ -23,12 +23,16 @@ public class AnimationPlayer {
     private final float[] tmpQuatA = new float[4];
     private final float[] tmpQuatB = new float[4];
     private final float[] tmpQuatOut = new float[4];
+    private final float[] tmpQuatC = new float[4];
+    private final float[] tmpQuatD = new float[4];
+    private final float[] tmpQuatE = new float[4];
     private final float[] tmpEuler = new float[3];
     private final Map<String, FrameCursor> frameCursors = new HashMap<>();
-    private final Map<String, RotationState> rotationStates = new HashMap<>();
+    private final IdentityHashMap<float[], float[]> quaternionCache = new IdentityHashMap<>();
     private final Map<String, ModelBone> boneCache = new HashMap<>();
     private Model cachedModel;
     private float lastSampleTime = Float.NaN;
+    private static final float[] IDENTITY_QUATERNION = new float[]{0f, 0f, 0f, 1f};
 
     private static final class FrameCursor {
         int positionIndex = -1;
@@ -39,16 +43,6 @@ public class AnimationPlayer {
             positionIndex = -1;
             rotationIndex = -1;
             scaleIndex = -1;
-        }
-    }
-
-    private static final class RotationState {
-        final float[] last = new float[]{Float.NaN, Float.NaN, Float.NaN};
-
-        void reset() {
-            last[0] = Float.NaN;
-            last[1] = Float.NaN;
-            last[2] = Float.NaN;
         }
     }
 
@@ -77,7 +71,6 @@ public class AnimationPlayer {
         if (cachedModel != model) {
             cachedModel = model;
             boneCache.clear();
-            rotationStates.clear();
         }
 
         weight = Math.max(0, Math.min(1, weight));  // 限制权重范围
@@ -91,7 +84,6 @@ public class AnimationPlayer {
             resetFrameCursors();
         } else if (!forward) {
             resetFrameCursors();
-            resetRotationStates();
         }
         lastSampleTime = currentTime;
 
@@ -127,7 +119,6 @@ public class AnimationPlayer {
             // 应用旋转动画
             if (!boneAnim.rotationFrames.isEmpty()) {
                 cursor.rotationIndex = interpolateRotationFrames(boneAnim.rotationFrames, currentTime, tmpRotation, cursor.rotationIndex, forward);
-                applyRotationUnwrap(boneName, tmpRotation);
                 tmpTarget[0] = baseRotation[0] + tmpRotation[0];
                 tmpTarget[1] = baseRotation[1] + tmpRotation[1];
                 tmpTarget[2] = baseRotation[2] + tmpRotation[2];
@@ -286,43 +277,69 @@ public class AnimationPlayer {
         float[] end = getNextValue(after);
 
         if ("step".equalsIgnoreCase(mode)) {
-            setVec(out, start[0], start[1], start[2]);
+            quaternionToEuler(getQuaternion(start), tmpEuler);
+            setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
             return afterIndex;
         }
+
+        boolean requiresEuler = requiresEulerInterpolation(start, end);
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
             Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
             Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
-
-            float[] p0v = getPrevValue(prev);
-            float[] p1v = start;
-            float[] p2v = end;
-            float[] p3v = getNextValue(next);
-            for (int i = 0; i < 3; i++) {
-                float p1 = p1v[i];
-                float p2 = p1 + shortestAngleDelta(p1, p2v[i]);
-                float p0 = p1 + shortestAngleDelta(p1, p0v[i]);
-                float p3 = p2 + shortestAngleDelta(p2, p3v[i]);
-                out[i] = cubicHermite(p0, p1, p2, p3, t);
+            if (requiresEuler) {
+                float[] p0 = getPrevValue(prev);
+                float[] p1 = start;
+                float[] p2 = end;
+                float[] p3 = getNextValue(next);
+                for (int i = 0; i < 3; i++) {
+                    out[i] = cubicHermite(p0[i], p1[i], p2[i], p3[i], t);
+                }
+                return afterIndex;
             }
+
+            float[] q0 = getQuaternion(getPrevValue(prev));
+            float[] q1 = getQuaternion(start);
+            float[] q2 = getQuaternion(end);
+            float[] q3 = getQuaternion(getNextValue(next));
+            squad(q0, q1, q2, q3, t, tmpQuatOut);
+            quaternionToEuler(tmpQuatOut, tmpEuler);
+            setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
             return afterIndex;
         }
 
         if ("bezier".equalsIgnoreCase(mode)) {
-            for (int i = 0; i < 3; i++) {
-                float p0 = before.value[i];
-                float p3 = p0 + shortestAngleDelta(p0, after.value[i]);
-                float p1 = before.post != null ? before.post[i] : p0;
-                float p2 = after.pre != null ? after.pre[i] : after.value[i];
-                float p1u = p0 + shortestAngleDelta(p0, p1);
-                float p2u = p3 + shortestAngleDelta(p3, p2);
-                out[i] = cubicBezier1D(p0, p1u, p2u, p3, t);
+            if (requiresEuler) {
+                float[] p0 = before.value;
+                float[] p1 = before.post != null ? before.post : p0;
+                float[] p2 = after.pre != null ? after.pre : after.value;
+                float[] p3 = after.value;
+                cubicBezier(p0, p1, p2, p3, t, out);
+                return afterIndex;
             }
+            float[] q0 = getQuaternion(before.value);
+            float[] q1 = getQuaternion(before.post != null ? before.post : before.value);
+            float[] q2 = getQuaternion(after.pre != null ? after.pre : after.value);
+            float[] q3 = getQuaternion(after.value);
+            quaternionBezier(q0, q1, q2, q3, t, tmpQuatOut);
+            quaternionToEuler(tmpQuatOut, tmpEuler);
+            setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
             return afterIndex;
         }
 
         float interpolated = interpolation != null ? interpolation.interpolate(t) : t;
-        applyQuaternionInterpolation(start, end, interpolated, out);
+        if (requiresEuler) {
+            for (int i = 0; i < 3; i++) {
+                out[i] = start[i] + (end[i] - start[i]) * interpolated;
+            }
+            return afterIndex;
+        }
+
+        float[] startQuat = getQuaternion(start);
+        float[] endQuat = getQuaternion(end);
+        slerpQuaternion(startQuat, endQuat, interpolated, tmpQuatOut);
+        quaternionToEuler(tmpQuatOut, tmpEuler);
+        setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
         return afterIndex;
     }
 
@@ -332,24 +349,6 @@ public class AnimationPlayer {
 
     private float[] getNextValue(Animation.KeyFrame frame) {
         return frame.pre != null ? frame.pre : frame.value;
-    }
-
-    private float shortestAngleDelta(float from, float to) {
-        float delta = (to - from) % 360f;
-        if (delta > 180f) {
-            delta -= 360f;
-        } else if (delta < -180f) {
-            delta += 360f;
-        }
-        return delta;
-    }
-
-    private void applyQuaternionInterpolation(float[] startEuler, float[] endEuler, float t, float[] out) {
-        eulerToQuaternion(startEuler, tmpQuatA);
-        eulerToQuaternion(endEuler, tmpQuatB);
-        slerpQuaternion(tmpQuatA, tmpQuatB, t, tmpQuatOut);
-        quaternionToEuler(tmpQuatOut, tmpEuler);
-        setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
     }
 
     private void eulerToQuaternion(float[] euler, float[] out) {
@@ -441,15 +440,6 @@ public class AnimationPlayer {
         q[3] *= inv;
     }
 
-    private float cubicBezier1D(float p0, float p1, float p2, float p3, float t) {
-        float u = 1.0f - t;
-        float tt = t * t;
-        float uu = u * u;
-        float uuu = uu * u;
-        float ttt = tt * t;
-        return uuu * p0 + 3f * uu * t * p1 + 3f * u * tt * p2 + ttt * p3;
-    }
-
     private void cubicBezier(float[] p0, float[] p1, float[] p2, float[] p3, float t, float[] out) {
         float u = 1.0f - t;
         float tt = t * t;
@@ -479,42 +469,6 @@ public class AnimationPlayer {
         for (FrameCursor cursor : frameCursors.values()) {
             cursor.reset();
         }
-    }
-
-    private void resetRotationStates() {
-        for (RotationState state : rotationStates.values()) {
-            state.reset();
-        }
-    }
-
-    private void applyRotationUnwrap(String boneName, float[] rotation) {
-        if (rotation == null || rotation.length < 3) {
-            return;
-        }
-        RotationState state = rotationStates.computeIfAbsent(boneName, key -> new RotationState());
-        for (int i = 0; i < 3; i++) {
-            float value = rotation[i];
-            float last = state.last[i];
-            if (Float.isNaN(last)) {
-                state.last[i] = value;
-                continue;
-            }
-            float delta = value - last;
-            delta = wrapDelta(delta);
-            value = last + delta;
-            rotation[i] = value;
-            state.last[i] = value;
-        }
-    }
-
-    private float wrapDelta(float delta) {
-        delta = delta % 360f;
-        if (delta > 180f) {
-            delta -= 360f;
-        } else if (delta < -180f) {
-            delta += 360f;
-        }
-        return delta;
     }
 
     private int lowerBoundFrom(List<Animation.KeyFrame> frames, float time, int lastIndex) {
@@ -585,11 +539,128 @@ public class AnimationPlayer {
             setVec(original, animated[0], animated[1], animated[2]);
             return;
         }
+        if (requiresEulerInterpolation(original, animated)) {
+            for (int i = 0; i < 3; i++) {
+                original[i] = original[i] + (animated[i] - original[i]) * weight;
+            }
+            return;
+        }
         eulerToQuaternion(original, tmpQuatA);
         eulerToQuaternion(animated, tmpQuatB);
         slerpQuaternion(tmpQuatA, tmpQuatB, weight, tmpQuatOut);
         quaternionToEuler(tmpQuatOut, tmpEuler);
         setVec(original, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
+    }
+
+    private boolean requiresEulerInterpolation(float[] start, float[] end) {
+        for (int i = 0; i < 3; i++) {
+            if (Math.abs(end[i] - start[i]) > 180f + 1e-3f) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private float[] getQuaternion(float[] euler) {
+        if (euler == null || euler.length < 3) {
+            return IDENTITY_QUATERNION;
+        }
+        return quaternionCache.computeIfAbsent(euler, key -> {
+            float[] q = new float[4];
+            eulerToQuaternion(key, q);
+            return q;
+        });
+    }
+
+    private void quaternionBezier(float[] q0, float[] q1, float[] q2, float[] q3, float t, float[] out) {
+        slerpQuaternion(q0, q1, t, tmpQuatA);
+        slerpQuaternion(q1, q2, t, tmpQuatB);
+        slerpQuaternion(q2, q3, t, tmpQuatC);
+
+        slerpQuaternion(tmpQuatA, tmpQuatB, t, tmpQuatD);
+        slerpQuaternion(tmpQuatB, tmpQuatC, t, tmpQuatE);
+
+        slerpQuaternion(tmpQuatD, tmpQuatE, t, out);
+    }
+
+    private void squad(float[] q0, float[] q1, float[] q2, float[] q3, float t, float[] out) {
+        computeSquadControl(q0, q1, q2, tmpQuatC);
+        computeSquadControl(q1, q2, q3, tmpQuatD);
+
+        slerpQuaternion(q1, q2, t, tmpQuatA);
+        slerpQuaternion(tmpQuatC, tmpQuatD, t, tmpQuatB);
+
+        float slerpT = 2f * t * (1f - t);
+        slerpQuaternion(tmpQuatA, tmpQuatB, slerpT, out);
+    }
+
+    private void computeSquadControl(float[] qm1, float[] q, float[] qp1, float[] out) {
+        conjugateQuaternion(q, tmpQuatE);
+
+        multiplyQuaternion(tmpQuatE, qm1, tmpQuatC);
+        normalizeQuaternion(tmpQuatC);
+        quaternionLog(tmpQuatC, tmpQuatC);
+
+        multiplyQuaternion(tmpQuatE, qp1, tmpQuatD);
+        normalizeQuaternion(tmpQuatD);
+        quaternionLog(tmpQuatD, tmpQuatD);
+
+        tmpQuatE[0] = -0.25f * (tmpQuatC[0] + tmpQuatD[0]);
+        tmpQuatE[1] = -0.25f * (tmpQuatC[1] + tmpQuatD[1]);
+        tmpQuatE[2] = -0.25f * (tmpQuatC[2] + tmpQuatD[2]);
+        tmpQuatE[3] = 0f;
+
+        quaternionExp(tmpQuatE, tmpQuatE);
+        multiplyQuaternion(q, tmpQuatE, out);
+        normalizeQuaternion(out);
+    }
+
+    private void multiplyQuaternion(float[] a, float[] b, float[] out) {
+        float ax = a[0], ay = a[1], az = a[2], aw = a[3];
+        float bx = b[0], by = b[1], bz = b[2], bw = b[3];
+        out[0] = aw * bx + ax * bw + ay * bz - az * by;
+        out[1] = aw * by - ax * bz + ay * bw + az * bx;
+        out[2] = aw * bz + ax * by - ay * bx + az * bw;
+        out[3] = aw * bw - ax * bx - ay * by - az * bz;
+    }
+
+    private void conjugateQuaternion(float[] q, float[] out) {
+        out[0] = -q[0];
+        out[1] = -q[1];
+        out[2] = -q[2];
+        out[3] = q[3];
+    }
+
+    private void quaternionLog(float[] q, float[] out) {
+        float x = q[0];
+        float y = q[1];
+        float z = q[2];
+        float w = q[3];
+        float vecLength = (float) Math.sqrt(x * x + y * y + z * z);
+        float angle = (float) Math.atan2(vecLength, w);
+        if (vecLength > 1e-6f) {
+            float coeff = angle / vecLength;
+            out[0] = x * coeff;
+            out[1] = y * coeff;
+            out[2] = z * coeff;
+        } else {
+            out[0] = out[1] = out[2] = 0f;
+        }
+        out[3] = 0f;
+    }
+
+    private void quaternionExp(float[] q, float[] out) {
+        float x = q[0];
+        float y = q[1];
+        float z = q[2];
+        float theta = (float) Math.sqrt(x * x + y * y + z * z);
+        float sinTheta = (float) Math.sin(theta);
+        float cosTheta = (float) Math.cos(theta);
+        float coeff = theta > 1e-6f ? sinTheta / theta : 1f;
+        out[0] = x * coeff;
+        out[1] = y * coeff;
+        out[2] = z * coeff;
+        out[3] = cosTheta;
     }
 
     /**
