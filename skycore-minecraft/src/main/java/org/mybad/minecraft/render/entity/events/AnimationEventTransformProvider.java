@@ -46,7 +46,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         this.mode = mode != null ? mode : ParticleTargetMode.LOOK;
         this.yawOffset = yawOffset;
         this.locatorTransform = new LocatorTransform();
-        this.modelScale = wrapper != null ? wrapper.getModelScale() : 1.0f;
+        this.modelScale = 1.0f;
         this.usedInitial = false;
         this.missingLocatorWarned = false;
     }
@@ -91,8 +91,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
             float sx = locatorTransform.scale[0] * scale;
             float sy = locatorTransform.scale[1] * scale;
             float sz = locatorTransform.scale[2] * scale;
-            float uniformScale = (Math.abs(sx) + Math.abs(sy) + Math.abs(sz)) / 3.0f;
-            transform.scale = uniformScale <= 0.0f ? 1.0f : uniformScale;
+            transform.scale = 1.0f;
             usedInitial = true;
             return;
         } else if (wrapper != null && locatorName != null && !missingLocatorWarned) {
@@ -107,13 +106,13 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
             transform.z = initialZ;
             transform.yaw = 180.0F - initialEmitterYaw;
             setIdentityBasis(transform);
-            transform.scale = modelScale;
+            transform.scale = 1.0f;
             usedInitial = true;
             return;
         }
         if (entity == null) {
             setIdentityBasis(transform);
-            transform.scale = modelScale;
+            transform.scale = 1.0f;
             return;
         }
         double[] pos = AnimationEventMathUtil.resolveEventPositionNow(entity, wrapper, locatorName, positionYaw);
@@ -122,7 +121,7 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         transform.z = pos[2];
         transform.yaw = 180.0F - emitterYaw;
         setIdentityBasis(transform);
-        transform.scale = modelScale;
+        transform.scale = 1.0f;
     }
 
     @Override

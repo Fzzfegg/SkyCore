@@ -34,7 +34,7 @@ final class BlockAnimationEventTransformProvider implements EmitterTransformProv
         this.baseY = target != null ? target.getBaseY() : 0.0;
         this.baseZ = target != null ? target.getBaseZ() : 0.0;
         this.positionYaw = positionYaw;
-        this.modelScale = wrapper != null ? wrapper.getModelScale() : 1.0f;
+        this.modelScale = 1.0f;
         ParticleTargetMode mode = params != null ? params.mode : ParticleTargetMode.LOOK;
         float yawOffset = params != null ? params.yawOffset : 0.0f;
         this.emitterYaw = AnimationEventMathUtil.resolveEmitterYaw(target, mode, yawOffset, positionYaw);
@@ -51,7 +51,7 @@ final class BlockAnimationEventTransformProvider implements EmitterTransformProv
         transform.y = baseY;
         transform.z = baseZ;
         transform.yaw = 180.0F - emitterYaw;
-        transform.scale = modelScale;
+        transform.scale = 1.0f;
     }
 
     @Override
@@ -78,8 +78,7 @@ final class BlockAnimationEventTransformProvider implements EmitterTransformProv
         float sx = locatorTransform.scale[0] * scale;
         float sy = locatorTransform.scale[1] * scale;
         float sz = locatorTransform.scale[2] * scale;
-        float uniformScale = (Math.abs(sx) + Math.abs(sy) + Math.abs(sz)) / 3.0f;
-        transform.scale = uniformScale <= 0.0f ? modelScale : uniformScale;
+        transform.scale = 1.0f;
     }
 
     private void applyYawToBasis(LocatorTransform source, float cos, float sin, EmitterTransform transform) {
