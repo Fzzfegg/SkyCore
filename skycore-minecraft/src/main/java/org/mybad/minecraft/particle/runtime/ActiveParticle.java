@@ -994,6 +994,29 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 return true;
             }
         }
-        return tryCopyFacing(out);
+        if (tryCopyFacing(out)) {
+            return true;
+        }
+        if (emitter != null) {
+            float[] basisZ = emitter.getBasisZ();
+            if (basisZ != null) {
+                float bx = basisZ[0];
+                float by = basisZ[1];
+                float bz = basisZ[2];
+                float lenSq = bx * bx + by * by + bz * bz;
+                if (lenSq > 1.0e-6f) {
+                    float inv = (float) (1.0 / Math.sqrt(lenSq));
+                    bx *= inv;
+                    by *= inv;
+                    bz *= inv;
+                    setFacingDirection(bx, by, bz);
+                    out[0] = bx;
+                    out[1] = by;
+                    out[2] = bz;
+                    return true;
+                }
+            }
+        }
+        return false;
     }
-    }
+}

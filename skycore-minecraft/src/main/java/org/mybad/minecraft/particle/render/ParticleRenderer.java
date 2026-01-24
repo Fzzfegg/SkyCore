@@ -94,9 +94,6 @@ public final class ParticleRenderer {
             width = particle.getEnvironment().safeResolve(billboard.size()[0]);
             height = particle.getEnvironment().safeResolve(billboard.size()[1]);
         }
-        // Match Bedrock/Pollen quad sizing (base quad is 2x2 units).
-        width *= 2.0f;
-        height *= 2.0f;
         float scale = particle.getEmitterScale();
         width *= scale;
         height *= scale;
@@ -403,7 +400,8 @@ public final class ParticleRenderer {
         float dot = tempVecA.dot(tempVecB);
         tempVecA.sub(tempVecB.x * dot, tempVecB.y * dot, tempVecB.z * dot);
         if (tempVecA.lengthSquared() <= 1.0e-6f) {
-            return false;
+            // Camera direction is almost parallel to facing direction: no additional twist needed.
+            return applyRotationFromQuaternion();
         }
         tempVecA.normalize();
 
