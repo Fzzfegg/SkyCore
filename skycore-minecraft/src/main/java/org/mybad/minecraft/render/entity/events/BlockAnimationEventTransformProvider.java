@@ -75,9 +75,6 @@ final class BlockAnimationEventTransformProvider implements EmitterTransformProv
         transform.yaw = 180.0F - emitterYaw;
         applyYawToBasis(locatorTransform, cos, sin, transform);
         flipLocatorBasisY(transform);
-        float sx = locatorTransform.scale[0] * scale;
-        float sy = locatorTransform.scale[1] * scale;
-        float sz = locatorTransform.scale[2] * scale;
         transform.scale = 1.0f;
     }
 

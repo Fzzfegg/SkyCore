@@ -54,8 +54,15 @@ public final class ParticleMolangBindings {
             return;
         }
         for (String name : curves.keySet()) {
-            final String key = name;
-            builder.setVariable(key, MolangExpression.of(() -> context.getCurveValue(key)));
+            final String canonical = name;
+            builder.setVariable(canonical, MolangExpression.of(() -> context.getCurveValue(canonical)));
+            int dot = canonical.indexOf('.');
+            if (dot >= 0 && dot + 1 < canonical.length()) {
+                final String alias = canonical.substring(dot + 1);
+                if (!alias.isEmpty() && !curves.containsKey(alias)) {
+                    builder.setVariable(alias, MolangExpression.of(() -> context.getCurveValue(canonical)));
+                }
+            }
         }
     }
 
@@ -69,12 +76,7 @@ public final class ParticleMolangBindings {
             if (key == null || key.isEmpty()) {
                 continue;
             }
-            String name = key;
-            int dot = key.indexOf('.');
-            if (dot >= 0 && dot + 1 < key.length()) {
-                name = key.substring(dot + 1);
-            }
-            curves.put(name, entry.getValue());
+            curves.put(key, entry.getValue());
         }
         return curves;
     }
