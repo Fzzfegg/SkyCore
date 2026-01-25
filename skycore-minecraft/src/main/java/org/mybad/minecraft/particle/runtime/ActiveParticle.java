@@ -975,26 +975,22 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 out[2] = dz;
                 return true;
             }
-        } else {
-            double vx = this.vx;
-            double vy = this.vy;
-            double vz = this.vz;
-            double speedSq = vx * vx + vy * vy + vz * vz;
-            double threshold = billboard.minSpeedThreshold();
-            double minSq = threshold * threshold;
-            if (speedSq > Math.max(minSq, 1.0e-10)) {
-                double inv = 1.0 / Math.sqrt(speedSq);
-                float fx = (float) (vx * inv);
-                float fy = (float) (vy * inv);
-                float fz = (float) (vz * inv);
-                setFacingDirection(fx, fy, fz);
-                out[0] = fx;
-                out[1] = fy;
-                out[2] = fz;
-                return true;
-            }
         }
-        if (tryCopyFacing(out)) {
+        double vx = this.vx;
+        double vy = this.vy;
+        double vz = this.vz;
+        double speedSq = vx * vx + vy * vy + vz * vz;
+        double threshold = billboard.minSpeedThreshold();
+        double minSq = threshold * threshold;
+        if (speedSq > Math.max(minSq, 1.0e-10)) {
+            double inv = 1.0 / Math.sqrt(speedSq);
+            float fx = (float) (vx * inv);
+            float fy = (float) (vy * inv);
+            float fz = (float) (vz * inv);
+            setFacingDirection(fx, fy, fz);
+            out[0] = fx;
+            out[1] = fy;
+            out[2] = fz;
             return true;
         }
         if (emitter != null) {
@@ -1017,6 +1013,6 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 }
             }
         }
-        return false;
+        return tryCopyFacing(out);
     }
 }
