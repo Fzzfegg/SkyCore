@@ -104,10 +104,15 @@ public final class EmitterShapeSphereComponent implements ParticleEmitterShape {
             float x = random.nextFloat() * 2 - 1;
             float y = random.nextFloat() * 2 - 1;
             float z = random.nextFloat() * 2 - 1;
-            float length = r / (x * x + y * y + z * z);
-            x *= length;
-            y *= length;
-            z *= length;
+            float lenSq = x * x + y * y + z * z;
+            if (lenSq <= 1.0e-6f) {
+                i--;
+                continue;
+            }
+            float scale = r / (float) Math.sqrt(lenSq);
+            x *= scale;
+            y *= scale;
+            z *= scale;
 
             float dx;
             float dy;

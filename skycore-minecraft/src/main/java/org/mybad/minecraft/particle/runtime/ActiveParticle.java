@@ -80,6 +80,7 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
     private final boolean localPosition;
     private final boolean localRotation;
     private final boolean localVelocity;
+    private final boolean rotateAcceleration;
         private final Block[] expireInBlockIds;
         private final Block[] expireNotInBlockIds;
         private final BlockPos.MutableBlockPos blockPos;
@@ -169,6 +170,7 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
             this.localPosition = emitter != null && emitter.isLocalPosition();
             this.localRotation = emitter != null && emitter.isLocalRotation();
             this.localVelocity = emitter != null && emitter.isLocalVelocity();
+            this.rotateAcceleration = emitter != null && emitter.shouldRotateAcceleration();
             BedrockParticleSystem.BlendMode blendMode = system.resolveBlendMode(data);
         this.blendMode = blendMode;
         this.bloom = data.description() != null && data.description().isBloom();
@@ -746,14 +748,14 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 ax *= scale;
                 ay *= scale;
                 az *= scale;
-            }
-            if (emitter != null && localRotation) {
-                double rax = emitter.rotateLocalX(ax, ay, az);
-                double ray = emitter.rotateLocalY(ax, ay, az);
-                double raz = emitter.rotateLocalZ(ax, ay, az);
-                ax = rax;
-                ay = ray;
-                az = raz;
+                if (rotateAcceleration) {
+                    double rax = emitter.rotateLocalX(ax, ay, az);
+                    double ray = emitter.rotateLocalY(ax, ay, az);
+                    double raz = emitter.rotateLocalZ(ax, ay, az);
+                    ax = rax;
+                    ay = ray;
+                    az = raz;
+                }
             }
             double drag = environment.safeResolve(motionDynamic.linearDragCoefficient()) / 20.0;
             this.ax = ax - drag * this.vx;
