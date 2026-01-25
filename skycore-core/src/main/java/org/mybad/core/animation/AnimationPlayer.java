@@ -27,6 +27,8 @@ public class AnimationPlayer {
     private final float[] tmpQuatD = new float[4];
     private final float[] tmpQuatE = new float[4];
     private final float[] tmpEuler = new float[3];
+    private final float[] tmpCatmullP0 = new float[3];
+    private final float[] tmpCatmullP3 = new float[3];
     private final Map<String, FrameCursor> frameCursors = new HashMap<>();
     private final IdentityHashMap<float[], float[]> quaternionCache = new IdentityHashMap<>();
     private final Map<String, ModelBone> boneCache = new HashMap<>();
@@ -201,13 +203,14 @@ public class AnimationPlayer {
         }
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
-            Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
-            Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
-
-            float[] p0v = getPrevValue(prev);
+            resolveCatmullEndpoints(frames, beforeIndex, afterIndex, start, end, tmpCatmullP0, tmpCatmullP3);
+            float[] p0v = tmpCatmullP0;
             float[] p1v = start;
             float[] p2v = end;
-            float[] p3v = getNextValue(next);
+            float[] p3v = tmpCatmullP3;
+            System.out.println(String.format(
+                "Catmull transform frames: t=%s, p0=%s, p1=%s, p2=%s, p3=%s",
+                t, Arrays.toString(p0v), Arrays.toString(p1v), Arrays.toString(p2v), Arrays.toString(p3v)));
             for (int i = 0; i < 3; i++) {
                 out[i] = cubicHermite(p0v[i], p1v[i], p2v[i], p3v[i], t);
             }
@@ -285,23 +288,28 @@ public class AnimationPlayer {
         boolean requiresEuler = requiresEulerInterpolation(start, end);
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
-            Animation.KeyFrame prev = beforeIndex > 0 ? frames.get(beforeIndex - 1) : before;
-            Animation.KeyFrame next = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : after;
+            resolveCatmullEndpoints(frames, beforeIndex, afterIndex, start, end, tmpCatmullP0, tmpCatmullP3);
+            float[] p0 = tmpCatmullP0;
+            float[] p1 = start;
+            float[] p2 = end;
+            float[] p3 = tmpCatmullP3;
+            System.out.println(String.format(
+                "Rotation timing: current=%s, before=%s, after=%s, duration=%s",
+                currentTime, before.timestamp, after.timestamp, frameDuration));
+            System.out.println(String.format(
+                "Catmull rotation frames: requiresEuler=%s, t=%s, p0=%s, p1=%s, p2=%s, p3=%s",
+                requiresEuler, t, Arrays.toString(p0), Arrays.toString(p1), Arrays.toString(p2), Arrays.toString(p3)));
             if (requiresEuler) {
-                float[] p0 = getPrevValue(prev);
-                float[] p1 = start;
-                float[] p2 = end;
-                float[] p3 = getNextValue(next);
                 for (int i = 0; i < 3; i++) {
                     out[i] = cubicHermite(p0[i], p1[i], p2[i], p3[i], t);
                 }
                 return afterIndex;
             }
 
-            float[] q0 = getQuaternion(getPrevValue(prev));
+            float[] q0 = getQuaternion(p0);
             float[] q1 = getQuaternion(start);
             float[] q2 = getQuaternion(end);
-            float[] q3 = getQuaternion(getNextValue(next));
+            float[] q3 = getQuaternion(p3);
             squad(q0, q1, q2, q3, t, tmpQuatOut);
             quaternionToEuler(tmpQuatOut, tmpEuler);
             setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
@@ -468,6 +476,51 @@ public class AnimationPlayer {
     private void resetFrameCursors() {
         for (FrameCursor cursor : frameCursors.values()) {
             cursor.reset();
+        }
+    }
+
+    private void resolveCatmullEndpoints(List<Animation.KeyFrame> frames, int beforeIndex, int afterIndex,
+                                         float[] start, float[] end, float[] outP0, float[] outP3) {
+        Animation.KeyFrame prevFrame = beforeIndex > 0 ? frames.get(beforeIndex - 1) : null;
+        Animation.KeyFrame nextFrame = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : null;
+        boolean looped = animation != null && animation.getLoopMode() == Animation.LoopMode.LOOP && !frames.isEmpty();
+
+        if (prevFrame != null) {
+            copyVec3Safe(getPrevValue(prevFrame), outP0);
+        } else if (looped) {
+            Animation.KeyFrame loopPrev = frames.get(frames.size() - 1);
+            copyVec3Safe(getPrevValue(loopPrev), outP0);
+        } else {
+            extrapolateEndpoint(start, end, outP0);
+        }
+
+        if (nextFrame != null) {
+            copyVec3Safe(getNextValue(nextFrame), outP3);
+        } else if (looped) {
+            Animation.KeyFrame loopNext = frames.get(0);
+            copyVec3Safe(getNextValue(loopNext), outP3);
+        } else {
+            extrapolateEndpoint(end, start, outP3);
+        }
+    }
+
+    private void copyVec3Safe(float[] src, float[] dst) {
+        if (dst == null) {
+            return;
+        }
+        dst[0] = (src != null && src.length > 0) ? src[0] : 0f;
+        dst[1] = (src != null && src.length > 1) ? src[1] : 0f;
+        dst[2] = (src != null && src.length > 2) ? src[2] : 0f;
+    }
+
+    private void extrapolateEndpoint(float[] anchor, float[] reference, float[] out) {
+        if (out == null) {
+            return;
+        }
+        for (int i = 0; i < 3; i++) {
+            float anchorVal = (anchor != null && anchor.length > i) ? anchor[i] : 0f;
+            float refVal = (reference != null && reference.length > i) ? reference[i] : anchorVal;
+            out[i] = anchorVal + (anchorVal - refVal);
         }
     }
 

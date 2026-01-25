@@ -52,14 +52,13 @@ final class EmitterShapeSpawner implements ParticleEmitterShape.Spawner {
         }
         ActiveParticle particle = (ActiveParticle) instance;
         boolean localPos = emitter.isLocalPosition();
-        boolean localRot = emitter.isLocalRotation();
         float scale = emitter.getScale();
         x *= scale;
         y *= scale;
         z *= scale;
-        double rx = (localPos || localRot) ? emitter.rotateLocalX(x, y, z) : x;
-        double ry = (localPos || localRot) ? emitter.rotateLocalY(x, y, z) : y;
-        double rz = (localPos || localRot) ? emitter.rotateLocalZ(x, y, z) : z;
+        double rx = localPos ? emitter.rotateLocalX(x, y, z) : x;
+        double ry = localPos ? emitter.rotateLocalY(x, y, z) : y;
+        double rz = localPos ? emitter.rotateLocalZ(x, y, z) : z;
         particle.setPosition(emitter.getX() + rx, emitter.getY() + ry, emitter.getZ() + rz);
     }
 

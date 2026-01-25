@@ -2,22 +2,14 @@ package org.mybad.core.parsing;
 
 import com.google.gson.*;
 import org.mybad.core.animation.Animation;
-import org.mybad.core.animation.InterpolationImpl;
 import org.mybad.core.exception.ParseException;
 
 import java.util.*;
+import java.util.Arrays;
 
-/**
- * 基岩格式动画解析器
- * 负责解析动画数据结构
- *
- * 支持的关键帧格式：
- * 1. 简单数值：1.5
- * 2. 数组：[1.0, 2.0, 3.0]
- * 3. 带插值的对象：{"post": [...], "pre": [...], "lerp_mode": "linear"}
- * 4. easing曲线
- */
+
 public class AnimationParser {
+
 
     /**
      * 支持的插值模式（27种）
@@ -323,32 +315,39 @@ public class AnimationParser {
         float[] pre = null;
 
         if (valueElement.isJsonArray()) {
-            // 简单格式
             value = normalizeVec3(ParseUtils.parseFloatArray(valueElement, 0, 0, 0));
         } else if (valueElement.isJsonPrimitive()) {
             float v = valueElement.getAsFloat();
             value = new float[]{v, v, v};
         } else if (valueElement.isJsonObject()) {
-            // 复杂格式
             JsonObject obj = valueElement.getAsJsonObject();
-
-            // 解析插值模式
             String lerpMode = ParseUtils.getString(obj, "lerp_mode", "linear");
             interpolation = InterpolationMode.fromString(lerpMode);
+            boolean isBezier = interpolation == InterpolationMode.BEZIER;
+            boolean isCatmull = interpolation == InterpolationMode.CATMULLROM;
 
-            // 解析值
-            if (obj.has("post")) {
+            if (obj.has("value")) {
+                value = normalizeVec3(ParseUtils.parseFloatArray(obj.get("value"), 0, 0, 0));
+            } else if (obj.has("post")) {
                 value = normalizeVec3(ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0));
             } else if (obj.has("pre")) {
                 value = normalizeVec3(ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0));
             }
 
-            // 解析easing切线
-            if (obj.has("post")) {
-                post = normalizeVec3(ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0));
-            }
-            if (obj.has("pre")) {
-                pre = normalizeVec3(ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0));
+            if (isBezier) {
+                if (obj.has("post")) {
+                    post = normalizeVec3(ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0));
+                }
+                if (obj.has("pre")) {
+                    pre = normalizeVec3(ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0));
+                }
+            } else if (!isCatmull) {
+                if (obj.has("post")) {
+                    post = normalizeVec3(ParseUtils.parseFloatArray(obj.get("post"), 0, 0, 0));
+                }
+                if (obj.has("pre")) {
+                    pre = normalizeVec3(ParseUtils.parseFloatArray(obj.get("pre"), 0, 0, 0));
+                }
             }
         }
 
