@@ -29,12 +29,15 @@ public class AnimationPlayer {
     private final float[] tmpEuler = new float[3];
     private final float[] tmpCatmullP0 = new float[3];
     private final float[] tmpCatmullP3 = new float[3];
+    private final float[] tmpCatmullTimes = new float[4];
     private final Map<String, FrameCursor> frameCursors = new HashMap<>();
     private final IdentityHashMap<float[], float[]> quaternionCache = new IdentityHashMap<>();
     private final Map<String, ModelBone> boneCache = new HashMap<>();
     private Model cachedModel;
     private float lastSampleTime = Float.NaN;
     private static final float[] IDENTITY_QUATERNION = new float[]{0f, 0f, 0f, 1f};
+    private static final float EPSILON = 1e-6f;
+    private static final float[] ZERO_VECTOR = new float[]{0f, 0f, 0f};
 
     private static final class FrameCursor {
         int positionIndex = -1;
@@ -203,17 +206,11 @@ public class AnimationPlayer {
         }
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
-            resolveCatmullEndpoints(frames, beforeIndex, afterIndex, start, end, tmpCatmullP0, tmpCatmullP3);
-            float[] p0v = tmpCatmullP0;
-            float[] p1v = start;
-            float[] p2v = end;
-            float[] p3v = tmpCatmullP3;
-            System.out.println(String.format(
-                "Catmull transform frames: t=%s, p0=%s, p1=%s, p2=%s, p3=%s",
-                t, Arrays.toString(p0v), Arrays.toString(p1v), Arrays.toString(p2v), Arrays.toString(p3v)));
-            for (int i = 0; i < 3; i++) {
-                out[i] = cubicHermite(p0v[i], p1v[i], p2v[i], p3v[i], t);
-            }
+            float[] actualStart = getFrameValue(before);
+            float[] actualEnd = getFrameValue(after);
+            resolveCatmullContext(frames, beforeIndex, afterIndex, actualStart, actualEnd,
+                tmpCatmullP0, tmpCatmullP3, tmpCatmullTimes);
+            catmullInterpolate(tmpCatmullP0, actualStart, actualEnd, tmpCatmullP3, tmpCatmullTimes, t, out);
             return afterIndex;
         }
 
@@ -288,31 +285,19 @@ public class AnimationPlayer {
         boolean requiresEuler = requiresEulerInterpolation(start, end);
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
-            resolveCatmullEndpoints(frames, beforeIndex, afterIndex, start, end, tmpCatmullP0, tmpCatmullP3);
-            float[] p0 = tmpCatmullP0;
-            float[] p1 = start;
-            float[] p2 = end;
-            float[] p3 = tmpCatmullP3;
+            float[] actualStart = getFrameValue(before);
+            float[] actualEnd = getFrameValue(after);
+            resolveCatmullContext(frames, beforeIndex, afterIndex, actualStart, actualEnd,
+                tmpCatmullP0, tmpCatmullP3, tmpCatmullTimes);
             System.out.println(String.format(
                 "Rotation timing: current=%s, before=%s, after=%s, duration=%s",
                 currentTime, before.timestamp, after.timestamp, frameDuration));
             System.out.println(String.format(
                 "Catmull rotation frames: requiresEuler=%s, t=%s, p0=%s, p1=%s, p2=%s, p3=%s",
-                requiresEuler, t, Arrays.toString(p0), Arrays.toString(p1), Arrays.toString(p2), Arrays.toString(p3)));
-            if (requiresEuler) {
-                for (int i = 0; i < 3; i++) {
-                    out[i] = cubicHermite(p0[i], p1[i], p2[i], p3[i], t);
-                }
-                return afterIndex;
-            }
-
-            float[] q0 = getQuaternion(p0);
-            float[] q1 = getQuaternion(start);
-            float[] q2 = getQuaternion(end);
-            float[] q3 = getQuaternion(p3);
-            squad(q0, q1, q2, q3, t, tmpQuatOut);
-            quaternionToEuler(tmpQuatOut, tmpEuler);
-            setVec(out, tmpEuler[0], tmpEuler[1], tmpEuler[2]);
+                requiresEuler, t,
+                Arrays.toString(tmpCatmullP0), Arrays.toString(actualStart),
+                Arrays.toString(actualEnd), Arrays.toString(tmpCatmullP3)));
+            catmullInterpolate(tmpCatmullP0, actualStart, actualEnd, tmpCatmullP3, tmpCatmullTimes, t, out);
             return afterIndex;
         }
 
@@ -479,28 +464,70 @@ public class AnimationPlayer {
         }
     }
 
-    private void resolveCatmullEndpoints(List<Animation.KeyFrame> frames, int beforeIndex, int afterIndex,
-                                         float[] start, float[] end, float[] outP0, float[] outP3) {
-        Animation.KeyFrame prevFrame = beforeIndex > 0 ? frames.get(beforeIndex - 1) : null;
-        Animation.KeyFrame nextFrame = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : null;
-        boolean looped = animation != null && animation.getLoopMode() == Animation.LoopMode.LOOP && !frames.isEmpty();
+    private void resolveCatmullContext(List<Animation.KeyFrame> frames, int beforeIndex, int afterIndex,
+                                       float[] startValue, float[] endValue,
+                                       float[] outP0, float[] outP3, float[] outTimes) {
+        if (frames.isEmpty()) {
+            Arrays.fill(outP0, 0f);
+            Arrays.fill(outP3, 0f);
+            Arrays.fill(outTimes, 0f);
+            return;
+        }
+        Animation.KeyFrame before = frames.get(beforeIndex);
+        Animation.KeyFrame after = frames.get(afterIndex);
+        float t1 = before.timestamp;
+        float t2 = after.timestamp;
+        outTimes[1] = t1;
+        outTimes[2] = t2;
 
-        if (prevFrame != null) {
-            copyVec3Safe(getPrevValue(prevFrame), outP0);
-        } else if (looped) {
-            Animation.KeyFrame loopPrev = frames.get(frames.size() - 1);
-            copyVec3Safe(getPrevValue(loopPrev), outP0);
-        } else {
-            extrapolateEndpoint(start, end, outP0);
+        float defaultDt = t2 - t1;
+        if (Math.abs(defaultDt) < EPSILON) {
+            defaultDt = 1f;
         }
 
+        boolean looped = animation != null && animation.getLoopMode() == Animation.LoopMode.LOOP && frames.size() > 1;
+        float animationLength = animation != null ? animation.getLength() : 0f;
+
+        Animation.KeyFrame prevFrame = beforeIndex > 0 ? frames.get(beforeIndex - 1) : null;
+        if (prevFrame != null) {
+            copyVec3Safe(getFrameValue(prevFrame), outP0);
+            outTimes[0] = prevFrame.timestamp;
+        } else if (looped) {
+            Animation.KeyFrame loopPrev = frames.get(frames.size() - 1);
+            copyVec3Safe(getFrameValue(loopPrev), outP0);
+            float loopTime = loopPrev.timestamp;
+            if (animationLength > EPSILON) {
+                while (loopTime >= t1) {
+                    loopTime -= animationLength;
+                }
+            } else {
+                loopTime = t1 - defaultDt;
+            }
+            outTimes[0] = loopTime;
+        } else {
+            extrapolateEndpoint(startValue, endValue, outP0);
+            outTimes[0] = t1 - defaultDt;
+        }
+
+        Animation.KeyFrame nextFrame = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : null;
         if (nextFrame != null) {
-            copyVec3Safe(getNextValue(nextFrame), outP3);
+            copyVec3Safe(getFrameValue(nextFrame), outP3);
+            outTimes[3] = nextFrame.timestamp;
         } else if (looped) {
             Animation.KeyFrame loopNext = frames.get(0);
-            copyVec3Safe(getNextValue(loopNext), outP3);
+            copyVec3Safe(getFrameValue(loopNext), outP3);
+            float loopTime = loopNext.timestamp;
+            if (animationLength > EPSILON) {
+                while (loopTime <= t2) {
+                    loopTime += animationLength;
+                }
+            } else {
+                loopTime = t2 + defaultDt;
+            }
+            outTimes[3] = loopTime;
         } else {
-            extrapolateEndpoint(end, start, outP3);
+            extrapolateEndpoint(endValue, startValue, outP3);
+            outTimes[3] = t2 + defaultDt;
         }
     }
 
@@ -522,6 +549,52 @@ public class AnimationPlayer {
             float refVal = (reference != null && reference.length > i) ? reference[i] : anchorVal;
             out[i] = anchorVal + (anchorVal - refVal);
         }
+    }
+
+    private void catmullInterpolate(float[] p0, float[] p1, float[] p2, float[] p3,
+                                    float[] times, float t, float[] out) {
+        float t0 = times[0];
+        float t1 = times[1];
+        float t2 = times[2];
+        float t3 = times[3];
+        float dt01 = Math.max(EPSILON, t1 - t0);
+        float dt12 = Math.max(EPSILON, t2 - t1);
+        float dt23 = Math.max(EPSILON, t3 - t2);
+
+        float t2Factor = dt12;
+        float tt = Math.max(0f, Math.min(1f, t));
+        float tt2 = tt * tt;
+        float tt3 = tt2 * tt;
+        float h00 = 2f * tt3 - 3f * tt2 + 1f;
+        float h10 = tt3 - 2f * tt2 + tt;
+        float h01 = -2f * tt3 + 3f * tt2;
+        float h11 = tt3 - tt2;
+
+        for (int i = 0; i < 3; i++) {
+            float m1 = computeCatmullTangent(p0[i], p1[i], p2[i], dt01, dt12);
+            float m2 = computeCatmullTangent(p1[i], p2[i], p3[i], dt12, dt23);
+            out[i] = h00 * p1[i] + h10 * t2Factor * m1 + h01 * p2[i] + h11 * t2Factor * m2;
+        }
+    }
+
+    private float computeCatmullTangent(float prev, float current, float next, float dtPrev, float dtNext) {
+        float slopePrev = dtPrev > EPSILON ? (current - prev) / dtPrev : 0f;
+        float slopeNext = dtNext > EPSILON ? (next - current) / dtNext : 0f;
+        if (dtPrev <= EPSILON) {
+            return slopeNext;
+        }
+        if (dtNext <= EPSILON) {
+            return slopePrev;
+        }
+        float denom = dtPrev + dtNext;
+        return denom > EPSILON ? (slopePrev * dtNext + slopeNext * dtPrev) / denom : 0f;
+    }
+
+    private float[] getFrameValue(Animation.KeyFrame frame) {
+        if (frame == null || frame.value == null) {
+            return ZERO_VECTOR;
+        }
+        return frame.value;
     }
 
     private int lowerBoundFrom(List<Animation.KeyFrame> frames, float time, int lastIndex) {
