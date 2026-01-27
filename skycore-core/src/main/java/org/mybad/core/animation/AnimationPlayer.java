@@ -289,14 +289,6 @@ public class AnimationPlayer {
             float[] actualEnd = getFrameValue(after);
             resolveCatmullContext(frames, beforeIndex, afterIndex, actualStart, actualEnd,
                 tmpCatmullP0, tmpCatmullP3, tmpCatmullTimes);
-            System.out.println(String.format(
-                "Rotation timing: current=%s, before=%s, after=%s, duration=%s",
-                currentTime, before.timestamp, after.timestamp, frameDuration));
-            System.out.println(String.format(
-                "Catmull rotation frames: requiresEuler=%s, t=%s, p0=%s, p1=%s, p2=%s, p3=%s",
-                requiresEuler, t,
-                Arrays.toString(tmpCatmullP0), Arrays.toString(actualStart),
-                Arrays.toString(actualEnd), Arrays.toString(tmpCatmullP3)));
             catmullInterpolate(tmpCatmullP0, actualStart, actualEnd, tmpCatmullP3, tmpCatmullTimes, t, out);
             return afterIndex;
         }
