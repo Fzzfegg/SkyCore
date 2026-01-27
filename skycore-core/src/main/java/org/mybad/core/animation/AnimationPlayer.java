@@ -51,6 +51,26 @@ public class AnimationPlayer {
         }
     }
 
+    private static final class NeighborFrame {
+        final Animation.KeyFrame frame;
+        final float adjustedTime;
+
+        NeighborFrame(Animation.KeyFrame frame, float adjustedTime) {
+            this.frame = frame;
+            this.adjustedTime = adjustedTime;
+        }
+    }
+
+    private static final class SplinePoint {
+        final float time;
+        final float value;
+
+        SplinePoint(float time, float value) {
+            this.time = time;
+            this.value = value;
+        }
+    }
+
     public AnimationPlayer(Animation animation) {
         this.animation = animation;
         this.state = new AnimationState(animation);
@@ -206,11 +226,7 @@ public class AnimationPlayer {
         }
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
-            float[] actualStart = getFrameValue(before);
-            float[] actualEnd = getFrameValue(after);
-            resolveCatmullContext(frames, beforeIndex, afterIndex, actualStart, actualEnd,
-                tmpCatmullP0, tmpCatmullP3, tmpCatmullTimes);
-            catmullInterpolate(tmpCatmullP0, actualStart, actualEnd, tmpCatmullP3, tmpCatmullTimes, t, out);
+            blockbenchCatmullInterpolate(frames, beforeIndex, afterIndex, t, out);
             return afterIndex;
         }
 
@@ -285,11 +301,7 @@ public class AnimationPlayer {
         boolean requiresEuler = requiresEulerInterpolation(start, end);
 
         if ("catmullrom".equalsIgnoreCase(mode)) {
-            float[] actualStart = getFrameValue(before);
-            float[] actualEnd = getFrameValue(after);
-            resolveCatmullContext(frames, beforeIndex, afterIndex, actualStart, actualEnd,
-                tmpCatmullP0, tmpCatmullP3, tmpCatmullTimes);
-            catmullInterpolate(tmpCatmullP0, actualStart, actualEnd, tmpCatmullP3, tmpCatmullTimes, t, out);
+            blockbenchCatmullInterpolate(frames, beforeIndex, afterIndex, t, out);
             return afterIndex;
         }
 
@@ -334,6 +346,151 @@ public class AnimationPlayer {
 
     private float[] getNextValue(Animation.KeyFrame frame) {
         return frame.pre != null ? frame.pre : frame.value;
+    }
+
+    private void blockbenchCatmullInterpolate(List<Animation.KeyFrame> frames, int beforeIndex, int afterIndex, float alpha, float[] out) {
+        if (frames.isEmpty()) {
+            setVec(out, 0f, 0f, 0f);
+            return;
+        }
+        Animation.KeyFrame before = frames.get(beforeIndex);
+        Animation.KeyFrame after = frames.get(afterIndex);
+        boolean looped = animation != null && animation.getLoopMode() == Animation.LoopMode.LOOP && frames.size() > 2;
+        float animLength = animation != null ? animation.getLength() : 0f;
+
+        NeighborFrame beforeNeighbor = resolveNeighbor(frames, beforeIndex - 1, -1, looped, animLength);
+        NeighborFrame afterNeighbor = resolveNeighbor(frames, afterIndex + 1, 1, looped, animLength);
+
+        for (int axis = 0; axis < 3; axis++) {
+            List<SplinePoint> points = new ArrayList<>(4);
+            if (beforeNeighbor != null && beforeNeighbor.frame != before) {
+                points.add(new SplinePoint(beforeNeighbor.adjustedTime, getComponent(getPrevValue(beforeNeighbor.frame), axis)));
+            }
+            points.add(new SplinePoint(before.timestamp, getComponent(getPrevValue(before), axis)));
+            points.add(new SplinePoint(after.timestamp, getComponent(getNextValue(after), axis)));
+            if (afterNeighbor != null && afterNeighbor.frame != after) {
+                points.add(new SplinePoint(afterNeighbor.adjustedTime, getComponent(getNextValue(afterNeighbor.frame), axis)));
+            }
+
+            if (points.size() < 2) {
+                points.clear();
+                float[] start = getPrevValue(before);
+                float[] end = getNextValue(after);
+                out[axis] = getComponent(start, axis) + (getComponent(end, axis) - getComponent(start, axis)) * alpha;
+                continue;
+            }
+
+            float denom = Math.max(1f, points.size() - 1f);
+            float param = (alpha + (beforeNeighbor != null ? 1f : 0f)) / denom;
+            param = Math.max(0f, Math.min(1f, param));
+            out[axis] = evaluateSpline(points, param);
+        }
+    }
+
+    private NeighborFrame resolveNeighbor(List<Animation.KeyFrame> frames, int index, int direction, boolean looped, float animLength) {
+        int size = frames.size();
+        if (size == 0) {
+            return null;
+        }
+        if (index >= 0 && index < size) {
+            Animation.KeyFrame frame = frames.get(index);
+            return new NeighborFrame(frame, frame.timestamp);
+        }
+        if (!looped || animLength <= 0f || size < 2) {
+            return null;
+        }
+        int wrapped = index;
+        if (wrapped < 0) {
+            wrapped = (wrapped % size + size) % size;
+        } else {
+            wrapped = wrapped % size;
+        }
+        float offset = direction < 0 ? -animLength : animLength;
+        Animation.KeyFrame frame = frames.get(wrapped);
+        return new NeighborFrame(frame, frame.timestamp + offset);
+    }
+
+    private float evaluateSpline(List<SplinePoint> points, float t) {
+        int count = points.size();
+        if (count == 0) {
+            return 0f;
+        }
+        if (count == 1) {
+            return points.get(0).value;
+        }
+        float totalSegments = count - 1f;
+        float scaled = totalSegments * Math.max(0f, Math.min(1f, t));
+        int intPoint = (int) Math.floor(scaled);
+        if (intPoint >= count - 1) {
+            intPoint = count - 2;
+            scaled = totalSegments;
+        }
+        float weight = scaled - intPoint;
+
+        SplinePoint p0 = points.get(intPoint == 0 ? intPoint : intPoint - 1);
+        SplinePoint p1 = points.get(intPoint);
+        SplinePoint p2 = points.get(intPoint > count - 2 ? count - 1 : intPoint + 1);
+        SplinePoint p3 = points.get(intPoint > count - 3 ? count - 1 : intPoint + 2);
+
+        float x = catmullRom(weight, p0.time, p1.time, p2.time, p3.time);
+        // x is unused but calculated to match THREE.SplineCurve behavior
+        float y = catmullRom(weight, p0.value, p1.value, p2.value, p3.value);
+        return y;
+    }
+
+    private float catmullRom(float t, float p0, float p1, float p2, float p3) {
+        float v0 = (p2 - p0) * 0.5f;
+        float v1 = (p3 - p1) * 0.5f;
+        float t2 = t * t;
+        float t3 = t2 * t;
+        return (2f * p1 - 2f * p2 + v0 + v1) * t3
+            + (-3f * p1 + 3f * p2 - 2f * v0 - v1) * t2
+            + v0 * t + p1;
+    }
+
+    private float getComponent(float[] vec, int axis) {
+        if (vec == null || vec.length <= axis) {
+            return 0f;
+        }
+        return vec[axis];
+    }
+
+    private int lowerBoundFrom(List<Animation.KeyFrame> frames, float time, int lastIndex) {
+        int size = frames.size();
+        if (size == 0) {
+            return 0;
+        }
+        if (lastIndex < 0) {
+            return lowerBound(frames, time);
+        }
+        if (lastIndex >= size) {
+            if (time >= frames.get(size - 1).timestamp) {
+                return size;
+            }
+            return lowerBound(frames, time);
+        }
+        if (frames.get(lastIndex).timestamp >= time) {
+            return lastIndex;
+        }
+        int i = lastIndex + 1;
+        while (i < size && frames.get(i).timestamp < time) {
+            i++;
+        }
+        return i;
+    }
+
+    private int lowerBound(List<Animation.KeyFrame> frames, float time) {
+        int low = 0;
+        int high = frames.size();
+        while (low < high) {
+            int mid = (low + high) >>> 1;
+            if (frames.get(mid).timestamp < time) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
     }
 
     private void eulerToQuaternion(float[] euler, float[] out) {
@@ -456,188 +613,6 @@ public class AnimationPlayer {
         }
     }
 
-    private void resolveCatmullContext(List<Animation.KeyFrame> frames, int beforeIndex, int afterIndex,
-                                       float[] startValue, float[] endValue,
-                                       float[] outP0, float[] outP3, float[] outTimes) {
-        if (frames.isEmpty()) {
-            Arrays.fill(outP0, 0f);
-            Arrays.fill(outP3, 0f);
-            Arrays.fill(outTimes, 0f);
-            return;
-        }
-        Animation.KeyFrame before = frames.get(beforeIndex);
-        Animation.KeyFrame after = frames.get(afterIndex);
-        float t1 = before.timestamp;
-        float t2 = after.timestamp;
-        outTimes[1] = t1;
-        outTimes[2] = t2;
-
-        float defaultDt = t2 - t1;
-        if (Math.abs(defaultDt) < EPSILON) {
-            defaultDt = 1f;
-        }
-
-        boolean looped = animation != null && animation.getLoopMode() == Animation.LoopMode.LOOP && frames.size() > 1;
-        float animationLength = animation != null ? animation.getLength() : 0f;
-
-        Animation.KeyFrame prevFrame = beforeIndex > 0 ? frames.get(beforeIndex - 1) : null;
-        if (prevFrame != null) {
-            copyVec3Safe(getFrameValue(prevFrame), outP0);
-            outTimes[0] = prevFrame.timestamp;
-        } else if (looped) {
-            Animation.KeyFrame loopPrev = frames.get(frames.size() - 1);
-            copyVec3Safe(getFrameValue(loopPrev), outP0);
-            float loopTime = loopPrev.timestamp;
-            if (animationLength > EPSILON) {
-                while (loopTime >= t1) {
-                    loopTime -= animationLength;
-                }
-            } else {
-                loopTime = t1 - defaultDt;
-            }
-            outTimes[0] = loopTime;
-        } else {
-            extrapolateEndpoint(startValue, endValue, outP0);
-            outTimes[0] = t1 - defaultDt;
-        }
-
-        Animation.KeyFrame nextFrame = (afterIndex + 1) < frames.size() ? frames.get(afterIndex + 1) : null;
-        if (nextFrame != null) {
-            copyVec3Safe(getFrameValue(nextFrame), outP3);
-            outTimes[3] = nextFrame.timestamp;
-        } else if (looped) {
-            Animation.KeyFrame loopNext = frames.get(0);
-            copyVec3Safe(getFrameValue(loopNext), outP3);
-            float loopTime = loopNext.timestamp;
-            if (animationLength > EPSILON) {
-                while (loopTime <= t2) {
-                    loopTime += animationLength;
-                }
-            } else {
-                loopTime = t2 + defaultDt;
-            }
-            outTimes[3] = loopTime;
-        } else {
-            extrapolateEndpoint(endValue, startValue, outP3);
-            outTimes[3] = t2 + defaultDt;
-        }
-    }
-
-    private void copyVec3Safe(float[] src, float[] dst) {
-        if (dst == null) {
-            return;
-        }
-        dst[0] = (src != null && src.length > 0) ? src[0] : 0f;
-        dst[1] = (src != null && src.length > 1) ? src[1] : 0f;
-        dst[2] = (src != null && src.length > 2) ? src[2] : 0f;
-    }
-
-    private void extrapolateEndpoint(float[] anchor, float[] reference, float[] out) {
-        if (out == null) {
-            return;
-        }
-        for (int i = 0; i < 3; i++) {
-            float anchorVal = (anchor != null && anchor.length > i) ? anchor[i] : 0f;
-            float refVal = (reference != null && reference.length > i) ? reference[i] : anchorVal;
-            out[i] = anchorVal + (anchorVal - refVal);
-        }
-    }
-
-    private void catmullInterpolate(float[] p0, float[] p1, float[] p2, float[] p3,
-                                    float[] times, float t, float[] out) {
-        float t0 = times[0];
-        float t1 = times[1];
-        float t2 = times[2];
-        float t3 = times[3];
-        float dt01 = Math.max(EPSILON, t1 - t0);
-        float dt12 = Math.max(EPSILON, t2 - t1);
-        float dt23 = Math.max(EPSILON, t3 - t2);
-
-        float t2Factor = dt12;
-        float tt = Math.max(0f, Math.min(1f, t));
-        float tt2 = tt * tt;
-        float tt3 = tt2 * tt;
-        float h00 = 2f * tt3 - 3f * tt2 + 1f;
-        float h10 = tt3 - 2f * tt2 + tt;
-        float h01 = -2f * tt3 + 3f * tt2;
-        float h11 = tt3 - tt2;
-
-        for (int i = 0; i < 3; i++) {
-            float m1 = computeCatmullTangent(p0[i], p1[i], p2[i], dt01, dt12);
-            float m2 = computeCatmullTangent(p1[i], p2[i], p3[i], dt12, dt23);
-            out[i] = h00 * p1[i] + h10 * t2Factor * m1 + h01 * p2[i] + h11 * t2Factor * m2;
-        }
-    }
-
-    private float computeCatmullTangent(float prev, float current, float next, float dtPrev, float dtNext) {
-        float slopePrev = dtPrev > EPSILON ? (current - prev) / dtPrev : 0f;
-        float slopeNext = dtNext > EPSILON ? (next - current) / dtNext : 0f;
-        if (dtPrev <= EPSILON) {
-            return slopeNext;
-        }
-        if (dtNext <= EPSILON) {
-            return slopePrev;
-        }
-        float denom = dtPrev + dtNext;
-        return denom > EPSILON ? (slopePrev * dtNext + slopeNext * dtPrev) / denom : 0f;
-    }
-
-    private float[] getFrameValue(Animation.KeyFrame frame) {
-        if (frame == null || frame.value == null) {
-            return ZERO_VECTOR;
-        }
-        return frame.value;
-    }
-
-    private int lowerBoundFrom(List<Animation.KeyFrame> frames, float time, int lastIndex) {
-        int size = frames.size();
-        if (size == 0) {
-            return 0;
-        }
-        if (lastIndex < 0) {
-            return lowerBound(frames, time);
-        }
-        if (lastIndex >= size) {
-            if (time >= frames.get(size - 1).timestamp) {
-                return size;
-            }
-            return lowerBound(frames, time);
-        }
-        if (frames.get(lastIndex).timestamp >= time) {
-            return lastIndex;
-        }
-        int i = lastIndex + 1;
-        while (i < size && frames.get(i).timestamp < time) {
-            i++;
-        }
-        return i;
-    }
-
-    private int lowerBound(List<Animation.KeyFrame> frames, float time) {
-        int low = 0;
-        int high = frames.size();
-        while (low < high) {
-            int mid = (low + high) >>> 1;
-            if (frames.get(mid).timestamp < time) {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
-        }
-        return low;
-    }
-
-    /**
-     * Catmull-Rom/Hermite 曲线插值
-     */
-    private float cubicHermite(float p0, float p1, float p2, float p3, float t) {
-        float t2 = t * t;
-        float t3 = t2 * t;
-        return 0.5f * ((2f * p1) +
-            (-p0 + p2) * t +
-            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
-            (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
-    }
 
     /**
      * 应用混合变换
