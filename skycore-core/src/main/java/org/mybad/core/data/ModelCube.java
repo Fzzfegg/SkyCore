@@ -72,6 +72,7 @@ public class ModelCube {
         boolean flipX = width < 0;
         boolean flipY = height < 0;
         boolean flipZ = depth < 0;
+        boolean flipWinding = flipX ^ flipY ^ flipZ; // 奇数个负轴时整体镜像
         if (!uv.isPerFace()) {
             uv.setupBoxUV(Math.abs(width), Math.abs(height), Math.abs(depth), mirror);
         }
@@ -101,9 +102,6 @@ public class ModelCube {
         boolean hasWidth = Math.abs(width) > 0;
         boolean hasHeight = Math.abs(height) > 0;
         boolean hasDepth = Math.abs(depth) > 0;
-        boolean invertNorthSouth = flipZ;
-        boolean invertEastWest = flipX;
-        boolean invertUpDown = flipY;
 
         // North face (Z-)
         if (hasWidth && hasHeight && uv.getNorth() != null) {
@@ -114,7 +112,7 @@ public class ModelCube {
                 new ModelVertex(minX, maxY, minZ, uvn[2] * tw, uvn[1] * th),
                 new ModelVertex(maxX, maxY, minZ, uvn[0] * tw, uvn[1] * th),
                 ModelQuad.Direction.NORTH,
-                invertNorthSouth
+                flipWinding
             ));
         }
 
@@ -127,7 +125,7 @@ public class ModelCube {
                 new ModelVertex(maxX, maxY, maxZ, uvs[2] * tw, uvs[1] * th),
                 new ModelVertex(minX, maxY, maxZ, uvs[0] * tw, uvs[1] * th),
                 ModelQuad.Direction.SOUTH,
-                invertNorthSouth
+                flipWinding
             ));
         }
 
@@ -140,7 +138,7 @@ public class ModelCube {
                 new ModelVertex(maxX, maxY, minZ, uve[2] * tw, uve[1] * th),
                 new ModelVertex(maxX, maxY, maxZ, uve[0] * tw, uve[1] * th),
                 ModelQuad.Direction.EAST,
-                invertEastWest
+                flipWinding
             ));
         }
 
@@ -153,7 +151,7 @@ public class ModelCube {
                 new ModelVertex(minX, maxY, maxZ, uvw[2] * tw, uvw[1] * th),
                 new ModelVertex(minX, maxY, minZ, uvw[0] * tw, uvw[1] * th),
                 ModelQuad.Direction.WEST,
-                invertEastWest
+                flipWinding
             ));
         }
 
@@ -166,7 +164,7 @@ public class ModelCube {
                 new ModelVertex(minX, maxY, maxZ, uvu[2] * tw, uvu[1] * th),
                 new ModelVertex(maxX, maxY, maxZ, uvu[0] * tw, uvu[1] * th),
                 ModelQuad.Direction.UP,
-                invertUpDown
+                flipWinding
             ));
         }
 
@@ -179,7 +177,7 @@ public class ModelCube {
                 new ModelVertex(maxX, minY, maxZ, uvd[0] * tw, uvd[3] * th),
                 new ModelVertex(minX, minY, maxZ, uvd[2] * tw, uvd[3] * th),
                 ModelQuad.Direction.DOWN,
-                invertUpDown
+                flipWinding
             ));
         }
     }
