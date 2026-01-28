@@ -123,3 +123,10 @@ message DebugRenderFlags {
   optional bool show_entity_boxes = 1;
   optional bool show_skull_anchors = 2;
 }
+
+message BinaryKey {
+  string algorithm = 1;
+  uint32 key_size = 2;
+  bytes seed = 3;
+  string nonce = 4;
+}

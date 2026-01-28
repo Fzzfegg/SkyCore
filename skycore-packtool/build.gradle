@@ -1,0 +1,16 @@
+plugins {
+    id 'application'
+}
+
+description = 'SkyCore resource pack compiler'
+
+application {
+    mainClass = 'org.mybad.packtool.ResourcePackCompiler'
+}
+
+dependencies {
+    implementation project(':skycore-core')
+    implementation project(':skycore-bedrockparticle')
+    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation 'com.google.guava:guava:21.0'
+}

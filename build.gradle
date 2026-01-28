@@ -87,8 +87,10 @@ tasks.register('copyBuiltMods') {
 }
 
 subprojects {
-    tasks.withType(Jar).configureEach {
-        finalizedBy rootProject.tasks.named('copyBuiltMods')
+    if (project.name != 'skycore-packtool') {
+        tasks.withType(Jar).configureEach {
+            finalizedBy rootProject.tasks.named('copyBuiltMods')
+        }
     }
 }
 

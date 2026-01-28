@@ -5,6 +5,8 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.bedrockparticle.particle.ParticleData;
 import org.mybad.core.animation.Animation;
+import org.mybad.core.binary.BinaryPayloadCipher;
+import org.mybad.core.binary.BinaryPayloadCipherRegistry;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.geometry.GeometryCache;
@@ -19,17 +21,33 @@ import java.util.Map;
 public class ResourceCacheManager {
 
     private final ResourceResolver resolver;
+    private final BinaryPayloadCipherRegistry cipherRegistry;
     private final ModelResourceCache modelCache;
     private final AnimationResourceCache animationCache;
     private final ParticleResourceCache particleCache;
     private final GeometryCache geometryCache;
 
     public ResourceCacheManager() {
+        this(null);
+    }
+
+    public ResourceCacheManager(BinaryPayloadCipherRegistry registry) {
+        this.cipherRegistry = registry != null ? registry : BinaryPayloadCipherRegistry.withDefaults();
         this.resolver = new ResourceResolver();
-        this.modelCache = new ModelResourceCache(resolver);
-        this.animationCache = new AnimationResourceCache(resolver);
-        this.particleCache = new ParticleResourceCache(resolver);
+        this.modelCache = new ModelResourceCache(resolver, cipherRegistry);
+        this.animationCache = new AnimationResourceCache(resolver, cipherRegistry);
+        this.particleCache = new ParticleResourceCache(resolver, cipherRegistry);
         this.geometryCache = new GeometryCache();
+    }
+
+    public void installBinaryCipher(BinaryPayloadCipher cipher) {
+        if (cipherRegistry != null) {
+            cipherRegistry.setActiveCipher(cipher);
+        }
+    }
+
+    public BinaryPayloadCipherRegistry getCipherRegistry() {
+        return cipherRegistry;
     }
 
     public ResourceResolver getResolver() {

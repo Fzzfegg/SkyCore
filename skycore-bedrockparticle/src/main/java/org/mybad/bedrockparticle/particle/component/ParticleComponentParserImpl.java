@@ -22,8 +22,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collections;
@@ -33,7 +31,6 @@ import java.util.Map;
 @ApiStatus.Internal
 public final class ParticleComponentParserImpl {
 
-    private static final Logger LOGGER = LogManager.getLogger(ParticleComponentParser.class);
     private static final ParticleComponentParser INSTANCE = ParticleComponentParserImpl::deserialize;
     private static final Map<String, ParticleComponent.Factory> FACTORIES;
 
@@ -92,13 +89,13 @@ public final class ParticleComponentParserImpl {
             String fullKey = key.contains(":") ? key : "minecraft:" + key;
             ParticleComponent.Factory factory = FACTORIES.get(fullKey);
             if (factory == null) {
-                LOGGER.error("Unknown particle component: {}", fullKey);
+                System.out.println("Unknown particle component: " + fullKey);
                 continue;
             }
             try {
                 components.put(key, factory.create(entry.getValue()));
             } catch (Exception e) {
-                LOGGER.error("Failed to parse component: {} - Cause: {}", key, e.getMessage(), e);
+                System.out.println("Failed to parse component: " + key +  e.getMessage() + e);
                 String detail = e.getMessage();
                 if (detail != null && !detail.isEmpty()) {
                     throw new JsonSyntaxException("Invalid particle component: " + key + " - " + detail, e);

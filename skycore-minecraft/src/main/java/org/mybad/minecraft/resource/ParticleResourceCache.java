@@ -5,19 +5,30 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.mybad.bedrockparticle.particle.ParticleData;
 import org.mybad.bedrockparticle.particle.ParticleParser;
+import org.mybad.bedrockparticle.particle.io.ParticleBinarySerializer;
 import net.minecraft.util.ResourceLocation;
 import org.mybad.bedrockparticle.particle.BedrockResourceLocation;
+import org.mybad.core.binary.BinaryDataReader;
+import org.mybad.core.binary.BinaryPayloadCipherRegistry;
+import org.mybad.core.binary.BinaryResourceIO;
+import org.mybad.core.binary.BinaryResourceType;
+import org.mybad.core.binary.SkycoreBinaryArchive;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class ParticleResourceCache {
     private final ResourceResolver resolver;
+    private final BinaryPayloadCipherRegistry cipherRegistry;
     private final Map<String, ParticleData> particleCache = new ConcurrentHashMap<>();
+    private final ParticleBinarySerializer binarySerializer = new ParticleBinarySerializer();
     private final ResourceLoadReporter reporter = new ResourceLoadReporter("Particle");
 
-    ParticleResourceCache(ResourceResolver resolver) {
+    ParticleResourceCache(ResourceResolver resolver, BinaryPayloadCipherRegistry cipherRegistry) {
         this.resolver = resolver;
+        this.cipherRegistry = cipherRegistry != null ? cipherRegistry : BinaryPayloadCipherRegistry.withDefaults();
     }
 
     ParticleData loadParticle(String path) {
@@ -25,6 +36,14 @@ final class ParticleResourceCache {
         ParticleData cached = particleCache.get(key);
         if (cached != null) {
             return cached;
+        }
+        ResourceResolver.ResourceLookup lookup = resolver.lookup(path, ResourceResolver.ResourceType.PARTICLE);
+        if (lookup.hasBinary()) {
+            ParticleData data = readBinaryParticle(lookup.getBinaryPath(), key);
+            if (data != null) {
+                particleCache.put(key, data);
+                return data;
+            }
         }
         try {
             String jsonContent = resolver.readResourceAsString(key);
@@ -39,6 +58,22 @@ final class ParticleResourceCache {
             return data;
         } catch (Exception e) {
             reporter.parseFailed(key, e);
+            return null;
+        }
+    }
+
+    private ParticleData readBinaryParticle(Path path, String key) {
+        try {
+            byte[] bytes = Files.readAllBytes(path);
+            SkycoreBinaryArchive archive = BinaryResourceIO.read(bytes, cipherRegistry::resolve);
+            if (archive.getHeader().getType() != BinaryResourceType.PARTICLE) {
+                reporter.parseFailed(key, path, new IllegalStateException("Unexpected binary type " + archive.getHeader().getType()));
+                return null;
+            }
+            BinaryDataReader reader = new BinaryDataReader(archive.getPayload());
+            return binarySerializer.read(reader);
+        } catch (Exception ex) {
+            reporter.parseFailed(key, path, ex);
             return null;
         }
     }

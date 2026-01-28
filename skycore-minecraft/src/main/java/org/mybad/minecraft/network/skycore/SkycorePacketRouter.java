@@ -6,6 +6,7 @@ import org.mybad.minecraft.debug.DebugRenderController;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.network.skycore.runtime.RealtimeCommandExecutor;
 import org.mybad.minecraft.resource.preload.PreloadManager;
+import org.mybad.minecraft.resource.BinaryKeyManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 import java.nio.charset.StandardCharsets;
@@ -59,6 +60,10 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.DEBUG_FLAGS:
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到调试渲染开关。");
                     DebugRenderController.apply(SkyCoreProto.DebugRenderFlags.parseFrom(payload));
+                    return;
+                case SkycorePacketId.BINARY_KEY:
+                    SkyCoreMod.LOGGER.info("[SkyCore] 收到资源包密钥。");
+                    BinaryKeyManager.applyBinaryKey(SkyCoreProto.BinaryKey.parseFrom(payload));
                     return;
                 default:
                     SkyCoreMod.LOGGER.warn("[SkyCore] 收到未知数据包：{}", packetId);

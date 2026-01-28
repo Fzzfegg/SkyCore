@@ -30,6 +30,10 @@ public final class SkycoreClientHandshake {
     @SubscribeEvent
     public static void onClientDisconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         autoHelloPending = false;
+        org.mybad.minecraft.resource.ResourceCacheManager manager = org.mybad.minecraft.SkyCoreMod.getResourceCacheManagerInstance();
+        if (manager != null) {
+            manager.installBinaryCipher(null);
+        }
     }
 
     @SubscribeEvent

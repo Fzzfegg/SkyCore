@@ -5,6 +5,7 @@ import net.minecraft.client.resources.IResourcePack;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import org.mybad.core.binary.BinaryPayloadCipherRegistry;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -25,7 +26,7 @@ public final class ResourcePackRegistrar {
         return gameDir.toPath().resolve("resourcepacks").resolve("SkyCore");
     }
 
-    public static void registerConfigPack(Path packRoot) {
+    public static void registerConfigPack(Path packRoot, BinaryPayloadCipherRegistry cipherRegistry) {
         if (registered) {
             return;
         }
@@ -44,7 +45,7 @@ public final class ResourcePackRegistrar {
         if (packs == null) {
             return;
         }
-        ConfigResourcePack pack = new ConfigResourcePack(packRoot);
+        ConfigResourcePack pack = new ConfigResourcePack(packRoot, cipherRegistry);
         packs.add(pack);
         mc.refreshResources();
         registered = true;

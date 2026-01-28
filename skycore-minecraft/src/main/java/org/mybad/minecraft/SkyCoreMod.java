@@ -9,6 +9,8 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.mybad.core.binary.BinaryPayloadCipherRegistry;
+import org.mybad.core.resource.PathObfuscator;
 import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.command.SkyCoreReloadCommand;
 import org.mybad.minecraft.client.input.HiddenReloadHotkey;
@@ -25,6 +27,9 @@ import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * SkyCore Minecraft Mod 主类
@@ -68,9 +73,11 @@ public class SkyCoreMod {
         // 初始化配置
         this.gameDir = event.getModConfigurationDirectory().getParentFile();
         SkyCoreConfig.init(ResourcePackRegistrar.getPackRoot(gameDir));
+        initPathLogging();
 
         // 初始化资源加载器
-        resourceCacheManager = new ResourceCacheManager();
+        BinaryPayloadCipherRegistry cipherRegistry = initCipherRegistry();
+        resourceCacheManager = new ResourceCacheManager(cipherRegistry);
         preloadManager = new PreloadManager(resourceCacheManager);
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
         RemoteConfigController.getInstance().loadCacheOnStartup();
@@ -84,7 +91,7 @@ public class SkyCoreMod {
         LOGGER.info("[SkyCore] Init - 注册事件处理器...");
 
         // 注册虚拟资源包
-        ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir));
+        ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir), resourceCacheManager.getCipherRegistry());
         
         // 粒子系统（核心）
         particleSystem = new BedrockParticleSystem(resourceCacheManager);
@@ -138,6 +145,11 @@ public class SkyCoreMod {
         return resourceCacheManager;
     }
 
+    @SideOnly(Side.CLIENT)
+    public static ResourceCacheManager getResourceCacheManagerInstance() {
+        return instance != null ? instance.resourceCacheManager : null;
+    }
+
     /**
      * 获取渲染事件处理器
      */
@@ -157,6 +169,17 @@ public class SkyCoreMod {
         return instance != null ? instance.preloadManager : null;
     }
     
+    private BinaryPayloadCipherRegistry initCipherRegistry() {
+        return BinaryPayloadCipherRegistry.withDefaults();
+    }
 
+    private void initPathLogging() {
+        final Set<String> logged = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+        PathObfuscator.setMappingListener((logical, physical) -> {
+            if (logged.add(logical)) {
+                LOGGER.info("[SkyCore][Obf] {} -> {}", logical, physical);
+            }
+        });
+    }
 
 }
