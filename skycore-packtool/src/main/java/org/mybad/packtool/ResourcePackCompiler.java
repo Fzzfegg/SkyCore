@@ -129,18 +129,20 @@ public final class ResourcePackCompiler {
         if (kind == null) {
             return;
         }
-        byte[] payload = serialize(kind, file);
+        boolean plainParticle = kind == ResourceKind.PARTICLE;
+        byte[] payload = plainParticle ? Files.readAllBytes(file) : serialize(kind, file);
         if (payload == null) {
             return;
         }
-        int version = serializerVersion(kind);
-        byte[] archive = BinaryResourceIO.write(kind.type, version, 0, payload, cipher);
+        byte[] archive = plainParticle
+            ? payload
+            : BinaryResourceIO.write(kind.type, serializerVersion(kind), 0, payload, cipher);
         Path relative = inputRoot.relativize(file);
         String relativeNormalized = normalizeRelative(relative.toString());
-        String binaryRelative = replaceExtension(relativeNormalized, kind.extension);
-        String logicalBinaryPath = toLogicalPath(binaryRelative);
-        String physicalRelative = PathObfuscator.toPhysical(logicalBinaryPath, pathMode);
-        if (encryptedOutput) {
+        String binaryRelative = plainParticle ? relativeNormalized : replaceExtension(relativeNormalized, kind.extension);
+        String logicalBinaryPath = PathObfuscator.canonicalLogical(toLogicalPath(binaryRelative));
+        String physicalRelative = PathObfuscator.toPhysical(logicalBinaryPath, plainParticle ? PathObfuscator.Mode.DEV : pathMode);
+        if (!plainParticle && encryptedOutput) {
             physicalRelative = physicalRelative + ".enc";
         }
         Path target = outputRoot.resolve(physicalRelative);

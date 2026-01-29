@@ -90,7 +90,7 @@ public final class ResourceResolver {
     /**
      * 从资源包加载资源文件为字符串
      */
-    String readResourceAsString(String path) {
+    public String readResourceAsString(String path) {
         byte[] bytes = readResourceBytes(path);
         if (bytes == null) {
             return null;
@@ -207,7 +207,7 @@ public final class ResourceResolver {
 
     ResourceLookup lookup(String rawPath, ResourceType type) {
         Path jsonPath = locateResourcePath(rawPath);
-        Path binaryPath = locateBinaryPath(rawPath, type);
+        Path binaryPath = type == ResourceType.PARTICLE ? null : locateBinaryPath(rawPath, type);
         return new ResourceLookup(jsonPath, binaryPath, mapBinaryType(type));
     }
 
@@ -361,10 +361,7 @@ public final class ResourceResolver {
                 }
                 break;
             case PARTICLE:
-                if (lower.endsWith(".json")) {
-                    return normalized.substring(0, normalized.length() - ".json".length()) + ".skp";
-                }
-                break;
+                return null;
             default:
                 break;
         }

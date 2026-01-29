@@ -30,7 +30,6 @@ import java.util.Map;
 
 @ApiStatus.Internal
 public final class ParticleComponentParserImpl {
-
     private static final ParticleComponentParser INSTANCE = ParticleComponentParserImpl::deserialize;
     private static final Map<String, ParticleComponent.Factory> FACTORIES;
 
@@ -89,13 +88,11 @@ public final class ParticleComponentParserImpl {
             String fullKey = key.contains(":") ? key : "minecraft:" + key;
             ParticleComponent.Factory factory = FACTORIES.get(fullKey);
             if (factory == null) {
-                System.out.println("Unknown particle component: " + fullKey);
                 continue;
             }
             try {
                 components.put(key, factory.create(entry.getValue()));
             } catch (Exception e) {
-                System.out.println("Failed to parse component: " + key +  e.getMessage() + e);
                 String detail = e.getMessage();
                 if (detail != null && !detail.isEmpty()) {
                     throw new JsonSyntaxException("Invalid particle component: " + key + " - " + detail, e);

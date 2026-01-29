@@ -5,7 +5,9 @@ import net.minecraft.client.Minecraft;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
+import org.mybad.minecraft.render.entity.HeadBarConfigStore;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
@@ -16,6 +18,7 @@ import java.util.Map;
 public class RemoteConfigController {
 
     private static final RemoteConfigController INSTANCE = new RemoteConfigController();
+    private static final String HEADBAR_CONFIG_FILE = ConfigCacheManager.HEADBAR_FILE;
 
     public static RemoteConfigController getInstance() {
         return INSTANCE;
@@ -58,6 +61,10 @@ public class RemoteConfigController {
     public void handleFileRemoved(SkyCoreProto.ConfigFileRemoved removed) {
         mappingFiles.remove(removed.getFileName());
         cacheManager.deleteMappingFile(removed.getFileName());
+        if (HEADBAR_CONFIG_FILE.equals(removed.getFileName())) {
+            HeadBarConfigStore.clear();
+            cacheManager.deleteHeadBarConfig();
+        }
         applyMappings();
     }
 
@@ -69,11 +76,29 @@ public class RemoteConfigController {
             }
         }
         SkyCoreConfig.getInstance().applyRemoteMappings(merged);
+        syncHeadBarConfig();
         EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
         if (handler != null) {
             handler.clearCache();
         }
         SkullModelManager.clear();
+    }
+
+    private void syncHeadBarConfig() {
+        SkyCoreProto.MappingFile headBarFile = mappingFiles.get(HEADBAR_CONFIG_FILE);
+        if (headBarFile == null || headBarFile.getRawPayload().isEmpty()) {
+            HeadBarConfigStore.clear();
+            cacheManager.deleteHeadBarConfig();
+            return;
+        }
+        try {
+            SkyCoreProto.HeadBarConfig config = SkyCoreProto.HeadBarConfig.parseFrom(headBarFile.getRawPayload());
+            HeadBarConfigStore.update(config);
+            cacheManager.writeHeadBarConfig(headBarFile.getRawPayload().toByteArray());
+            SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 配置同步完成，共 {} 条规则。", config.getDefinitionsCount());
+        } catch (InvalidProtocolBufferException ex) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] HeadBar 配置解析失败: {}", ex.getMessage());
+        }
     }
 
     public byte[] getCurrentHash() {

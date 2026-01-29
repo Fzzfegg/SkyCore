@@ -40,7 +40,7 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
         writeDescription(writer, particle.description());
         writeCurves(writer, particle.curves());
         writeEvents(writer, particle.events());
-        writeComponents(writer, particle.components());
+        writeComponents(writer, particle);
     }
 
     @Override
@@ -48,8 +48,8 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
         ParticleData.Description description = readDescription(reader);
         Map<String, ParticleData.Curve> curves = readCurves(reader);
         Map<String, org.mybad.bedrockparticle.particle.event.ParticleEvent> events = readEvents(reader);
-        Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components = readComponents(reader);
-        return new ParticleData(description, curves, events, components);
+        ComponentPayload componentPayload = readComponents(reader);
+        return new ParticleData(description, curves, events, componentPayload.components, componentPayload.sources);
     }
 
     private void writeDescription(BinaryDataWriter writer, ParticleData.Description description) throws IOException {
@@ -149,7 +149,8 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
         return events;
     }
 
-    private void writeComponents(BinaryDataWriter writer, Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components) throws IOException {
+    private void writeComponents(BinaryDataWriter writer, ParticleData particle) throws IOException {
+        Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components = particle.components();
         if (components == null || components.isEmpty()) {
             writer.writeVarInt(0);
             return;
@@ -157,21 +158,53 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
         writer.writeVarInt(components.size());
         for (Map.Entry<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> entry : components.entrySet()) {
             writer.writeString(entry.getKey());
-            writer.writeString(ParticleParser.GSON.toJson(entry.getValue()));
+            com.google.gson.JsonElement source = particle.componentSources().get(entry.getKey());
+            String json = source != null ? source.toString() : ParticleParser.GSON.toJson(entry.getValue());
+            writer.writeString(json);
         }
     }
 
-    private Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> readComponents(BinaryDataReader reader) throws IOException {
+    private ComponentPayload readComponents(BinaryDataReader reader) throws IOException {
         int count = Math.max(0, reader.readVarInt());
         Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components = new LinkedHashMap<>(count);
+        Map<String, com.google.gson.JsonElement> sources = new LinkedHashMap<>(count);
         for (int i = 0; i < count; i++) {
             String name = reader.readString();
             String json = reader.readString();
-            if (name != null && json != null) {
-                components.put(name, ParticleParser.GSON.fromJson(json, org.mybad.bedrockparticle.particle.component.ParticleComponent.class));
+            if (name == null || json == null) {
+                continue;
+            }
+            com.google.gson.JsonElement raw;
+            try {
+                raw = new com.google.gson.JsonParser().parse(json);
+            } catch (com.google.gson.JsonParseException e) {
+                continue;
+            }
+            sources.put(name, raw);
+            com.google.gson.JsonObject wrapper = new com.google.gson.JsonObject();
+            wrapper.add(name, raw);
+            try {
+                java.util.Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> parsed =
+                    org.mybad.bedrockparticle.particle.component.ParticleComponentParser.getInstance().deserialize(wrapper);
+                org.mybad.bedrockparticle.particle.component.ParticleComponent component = parsed.get(name);
+                if (component != null) {
+                    components.put(name, component);
+                }
+            } catch (com.google.gson.JsonParseException ignored) {
             }
         }
-        return components;
+        return new ComponentPayload(components, sources);
+    }
+
+    private static final class ComponentPayload {
+        final Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components;
+        final Map<String, com.google.gson.JsonElement> sources;
+
+        ComponentPayload(Map<String, org.mybad.bedrockparticle.particle.component.ParticleComponent> components,
+                         Map<String, com.google.gson.JsonElement> sources) {
+            this.components = components;
+            this.sources = sources;
+        }
     }
 
     private void writeResourceLocation(BinaryDataWriter writer, BedrockResourceLocation location) throws IOException {

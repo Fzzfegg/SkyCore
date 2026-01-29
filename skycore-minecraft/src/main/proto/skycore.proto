@@ -38,6 +38,38 @@ message EntityMapping {
 message MappingFile {
   string file_name = 1;
   repeated EntityMapping mappings = 2;
+  bytes raw_payload = 3;
+}
+
+message HeadBarLayer {
+  enum LayerType {
+    IMAGE = 0;
+    BAR = 1;
+    TEXT = 2;
+  }
+  LayerType type = 1;
+  string texture = 2;
+  float width = 3;
+  float height = 4;
+  float offset_x = 5;
+  float offset_y = 6;
+  uint32 color = 7;
+  string text = 8;
+  bool shadow = 9;
+  float text_scale = 10;
+  string progress_expr = 11;
+  bool anchor_left = 12;
+}
+
+message HeadBarDefinition {
+  repeated string name_contains = 1;
+  float offset = 2;
+  float scale = 3;
+  repeated HeadBarLayer layers = 4;
+}
+
+message HeadBarConfig {
+  repeated HeadBarDefinition definitions = 1;
 }
 
 message ConfigIndexEntry {

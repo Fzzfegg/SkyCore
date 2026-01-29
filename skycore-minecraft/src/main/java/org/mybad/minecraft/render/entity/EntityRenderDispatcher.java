@@ -18,6 +18,7 @@ public final class EntityRenderDispatcher {
     private final ForcedAnimationCache forcedAnimations;
     private final AnimationEventDispatcher eventDispatcher;
     private final EntityAttachmentManager attachmentManager;
+    private final EntityHeadBarManager headBarManager;
     private final EntityRenderPipeline renderPipeline;
     private long renderFrameCounter = 0L;
     private long currentRenderFrameId = 0L;
@@ -28,11 +29,13 @@ public final class EntityRenderDispatcher {
         this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
         this.attachmentManager = new EntityAttachmentManager(cacheManager);
+        this.headBarManager = new EntityHeadBarManager();
         this.renderPipeline = new EntityRenderPipeline(
             eventDispatcher,
             this::handleForcedAnimationFrame,
             trailRenderer,
-            attachmentManager
+            attachmentManager,
+            headBarManager
         );
     }
 
@@ -107,6 +110,7 @@ public final class EntityRenderDispatcher {
         wrapperCache.clear();
         clearAllForcedAnimations();
         attachmentManager.clear();
+        headBarManager.reload();
     }
 
     public void invalidateWrapper(String entityName) {

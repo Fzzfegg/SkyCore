@@ -47,12 +47,18 @@ public final class ParticleData {
     Map<String, Curve> curves;
     Map<String, ParticleEvent> events;
     Map<String, ParticleComponent> components;
+    Map<String, JsonElement> componentSources;
 
-    public ParticleData(Description description, Map<String, Curve> curves, Map<String, ParticleEvent> events, Map<String, ParticleComponent> components) {
+    public ParticleData(Description description,
+                       Map<String, Curve> curves,
+                       Map<String, ParticleEvent> events,
+                       Map<String, ParticleComponent> components,
+                       Map<String, JsonElement> componentSources) {
         this.description = description;
         this.curves = curves;
         this.events = events;
         this.components = components;
+        this.componentSources = componentSources == null ? Collections.emptyMap() : componentSources;
     }
 
     public void setTexture(BedrockResourceLocation resourceLocation){
@@ -119,10 +125,20 @@ public final class ParticleData {
         return this.components;
     }
 
+    public Map<String, JsonElement> componentSources() {
+        return this.componentSources;
+    }
+
 
 
     private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
-    public static final ParticleData EMPTY = new ParticleData(new Description("empty", MISSING_TEXTURE, null, false, 0f, 0, 0.06f, 1.0f, null, 0f, null, "alpha", null), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    public static final ParticleData EMPTY = new ParticleData(
+        new Description("empty", MISSING_TEXTURE, null, false, 0f, 0, 0.06f, 1.0f, null, 0f, null, "alpha", null),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap()
+    );
 
     /**
      * The different types of curves for calculating particle variables.
@@ -612,14 +628,21 @@ public final class ParticleData {
             }
 
             Map<String, ParticleComponent> components;
+            Map<String, JsonElement> componentSources;
             if (jsonObject.has("components")) {
                 JsonObject eventsJson = ParticleGsonHelper.getAsJsonObject(jsonObject, "components");
                 components = ParticleComponentParser.getInstance().deserialize(eventsJson);
+                ImmutableMap.Builder<String, JsonElement> builder = ImmutableMap.builder();
+                for (Map.Entry<String, JsonElement> entry : eventsJson.entrySet()) {
+                    builder.put(entry.getKey(), entry.getValue());
+                }
+                componentSources = builder.build();
             } else {
                 components = Collections.emptyMap();
+                componentSources = Collections.emptyMap();
             }
 
-            return new ParticleData(description, curves.build(), events.build(), components);
+            return new ParticleData(description, curves.build(), events.build(), components, componentSources);
         }
     }
 }

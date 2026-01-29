@@ -1,6 +1,5 @@
 package org.mybad.minecraft;
 
-import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -10,9 +9,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mybad.core.binary.BinaryPayloadCipherRegistry;
-import org.mybad.core.resource.PathObfuscator;
 import org.mybad.minecraft.audio.SoundExistenceCache;
-import org.mybad.minecraft.command.SkyCoreReloadCommand;
 import org.mybad.minecraft.client.input.HiddenReloadHotkey;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.debug.DebugRenderController;
@@ -27,9 +24,6 @@ import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * SkyCore Minecraft Mod 主类
@@ -73,7 +67,7 @@ public class SkyCoreMod {
         // 初始化配置
         this.gameDir = event.getModConfigurationDirectory().getParentFile();
         SkyCoreConfig.init(ResourcePackRegistrar.getPackRoot(gameDir));
-        initPathLogging();
+//        initPathLogging();
 
         // 初始化资源加载器
         BinaryPayloadCipherRegistry cipherRegistry = initCipherRegistry();
@@ -93,7 +87,7 @@ public class SkyCoreMod {
         // 注册虚拟资源包
         ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir), resourceCacheManager.getCipherRegistry());
         
-        // 粒子系统（核心）
+        // 粒子系统
         particleSystem = new BedrockParticleSystem(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(particleSystem);
 
@@ -101,8 +95,7 @@ public class SkyCoreMod {
         renderEventHandler = new EntityRenderEventHandler(resourceCacheManager);
         MinecraftForge.EVENT_BUS.register(renderEventHandler);
 
-        // 客户端指令与隐藏热键
-        ClientCommandHandler.instance.registerCommand(new SkyCoreReloadCommand());
+        // 隐藏热键
         MinecraftForge.EVENT_BUS.register(new HiddenReloadHotkey());
 
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
@@ -173,13 +166,14 @@ public class SkyCoreMod {
         return BinaryPayloadCipherRegistry.withDefaults();
     }
 
-    private void initPathLogging() {
-        final Set<String> logged = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-        PathObfuscator.setMappingListener((logical, physical) -> {
-            if (logged.add(logical)) {
-                LOGGER.info("[SkyCore][Obf] {} -> {}", logical, physical);
-            }
-        });
-    }
+    // 加密 调试消息
+//    private void initPathLogging() {
+//        final Set<String> logged = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+//        PathObfuscator.setMappingListener((logical, physical) -> {
+//            if (logged.add(logical)) {
+//                LOGGER.info("[SkyCore][Obf] {} -> {}", logical, physical);
+//            }
+//        });
+//    }
 
 }

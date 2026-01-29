@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
@@ -61,6 +62,10 @@ public final class PathObfuscator {
         return physical;
     }
 
+    public static String canonicalLogical(String logicalPath) {
+        return parse(logicalPath).logicalString();
+    }
+
     private static void publish(String logical, String physical) {
         BiConsumer<String, String> listener = mappingListener;
         if (listener != null) {
@@ -80,7 +85,7 @@ public final class PathObfuscator {
         String namespace;
         String remainder;
         if (colon > 0) {
-            namespace = trimmed.substring(0, colon);
+            namespace = canonicalizeNamespace(trimmed.substring(0, colon));
             remainder = trimmed.substring(colon + 1);
         } else if (colon == 0) {
             namespace = DEFAULT_NAMESPACE;
@@ -97,13 +102,14 @@ public final class PathObfuscator {
         if (segments.isEmpty()) {
             throw new IllegalArgumentException("logicalPath has no segments: " + logicalPath);
         }
+        String canonicalRelative = join(segments);
         String fileSegment = segments.get(segments.size() - 1);
         String extension = "";
         int dot = fileSegment.lastIndexOf('.');
         if (dot >= 0) {
             extension = fileSegment.substring(dot);
         }
-        return new LogicalResource(namespace, normalized, segments, extension);
+        return new LogicalResource(namespace, canonicalRelative, segments, extension);
     }
 
     private static String normalizeRelative(String input) {
@@ -150,7 +156,7 @@ public final class PathObfuscator {
                 }
                 continue;
             }
-            normalized.add(segment);
+            normalized.add(canonicalizeSegment(segment));
         }
         return Collections.unmodifiableList(new ArrayList<>(normalized));
     }
@@ -196,6 +202,26 @@ public final class PathObfuscator {
             throw new IllegalStateException("Encoded digest too short for " + value);
         }
         return encoded.substring(0, length);
+    }
+
+    private static String canonicalizeNamespace(String namespace) {
+        if (namespace == null || namespace.trim().isEmpty()) {
+            return DEFAULT_NAMESPACE;
+        }
+        return namespace.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String canonicalizeSegment(String segment) {
+        if (segment == null) {
+            return "";
+        }
+        int dot = segment.lastIndexOf('.');
+        if (dot < 0) {
+            return segment.toLowerCase(Locale.ROOT);
+        }
+        String name = segment.substring(0, dot).toLowerCase(Locale.ROOT);
+        String extension = segment.substring(dot);
+        return name + extension;
     }
 
     private static String base32(byte[] data) {

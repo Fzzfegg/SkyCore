@@ -1,5 +1,6 @@
 package org.mybad.minecraft.network.skycore.config;
 
+import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 import java.io.IOException;
@@ -9,12 +10,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ConfigCacheManager {
+    public static final String HEADBAR_FILE = "config/headbars.pb";
+
     private final Path root;
     private final Path indexFile;
+    private final Path headBarConfigPath;
 
     public ConfigCacheManager(Path gameDir) {
         this.root = gameDir.resolve("skycore_cache");
         this.indexFile = root.resolve("config_index.pb");
+        this.headBarConfigPath = root.resolve("headbars.pb");
     }
 
     public void saveIndex(SkyCoreProto.ConfigIndex index) {
@@ -48,6 +53,29 @@ public class ConfigCacheManager {
         try {
             Files.deleteIfExists(resolveFile(fileName));
         } catch (IOException ignored) {
+        }
+    }
+
+    public boolean writeHeadBarConfig(byte[] data) {
+        if (data == null || data.length == 0) {
+            return deleteHeadBarConfig();
+        }
+        try {
+            ensureRoot();
+            Files.write(headBarConfigPath, data);
+            return true;
+        } catch (IOException ex) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 写入 HeadBar 配置失败: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    public boolean deleteHeadBarConfig() {
+        try {
+            return Files.deleteIfExists(headBarConfigPath);
+        } catch (IOException ex) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 删除 HeadBar 配置失败: {}", ex.getMessage());
+            return false;
         }
     }
 
