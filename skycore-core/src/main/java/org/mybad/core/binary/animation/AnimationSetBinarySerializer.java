@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public final class AnimationSetBinarySerializer implements BinaryResourceSerializer<Map<String, Animation>> {
 
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     private final AnimationBinarySerializer animationSerializer = new AnimationBinarySerializer();
 
     @Override
@@ -41,11 +41,15 @@ public final class AnimationSetBinarySerializer implements BinaryResourceSeriali
 
     @Override
     public Map<String, Animation> read(BinaryDataReader reader) throws IOException {
+        return read(reader, VERSION);
+    }
+
+    public Map<String, Animation> read(BinaryDataReader reader, int archiveVersion) throws IOException {
         int count = Math.max(0, reader.readVarInt());
         Map<String, Animation> map = new LinkedHashMap<>(count);
         for (int i = 0; i < count; i++) {
             String name = reader.readString();
-            Animation animation = animationSerializer.read(reader);
+            Animation animation = animationSerializer.read(reader, archiveVersion);
             if (name != null && animation != null) {
                 map.put(name, animation);
             }

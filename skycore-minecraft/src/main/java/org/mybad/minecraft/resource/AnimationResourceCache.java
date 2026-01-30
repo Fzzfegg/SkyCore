@@ -94,7 +94,8 @@ final class AnimationResourceCache {
                 return null;
             }
             BinaryDataReader reader = new BinaryDataReader(archive.getPayload());
-            return animationSetSerializer.read(reader);
+            int version = archive.getHeader().getVersion();
+            return animationSetSerializer.read(reader, version);
         } catch (Exception ex) {
             reporter.parseFailed(key, path, ex);
             return null;

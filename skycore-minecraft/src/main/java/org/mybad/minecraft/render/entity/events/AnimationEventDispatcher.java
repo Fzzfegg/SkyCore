@@ -97,12 +97,6 @@ public final class AnimationEventDispatcher {
                 dispatchEventList(entity, context, target, wrapper, animation, animation.getParticleEvents(),
                     0f, currentTime, false, partialTicks);
             }
-            if (!animation.getTrailEvents().isEmpty()) {
-                dispatchEventList(entity, context, target, wrapper, animation, animation.getTrailEvents(),
-                    prevTime, animation.getLength(), false, partialTicks);
-                dispatchEventList(entity, context, target, wrapper, animation, animation.getTrailEvents(),
-                    0f, currentTime, false, partialTicks);
-            }
             return;
         }
         if (!animation.getSoundEvents().isEmpty()) {
@@ -111,10 +105,6 @@ public final class AnimationEventDispatcher {
         }
         if (!animation.getParticleEvents().isEmpty()) {
             dispatchEventList(entity, context, target, wrapper, animation, animation.getParticleEvents(),
-                prevTime, currentTime, looped, partialTicks);
-        }
-        if (!animation.getTrailEvents().isEmpty()) {
-            dispatchEventList(entity, context, target, wrapper, animation, animation.getTrailEvents(),
                 prevTime, currentTime, looped, partialTicks);
         }
     }

@@ -6,6 +6,7 @@ import org.mybad.core.exception.ParseException;
 
 import java.util.*;
 import java.util.Arrays;
+import java.util.Locale;
 
 
 public class AnimationParser {
@@ -80,7 +81,6 @@ public class AnimationParser {
         public Map<String, BoneAnimation> boneAnimations;
         public List<AnimationEvent> soundEvents;
         public List<AnimationEvent> particleEvents;
-        public List<AnimationEvent> trailEvents;
 
         public AnimationData(String name) {
             this.name = name;
@@ -90,7 +90,6 @@ public class AnimationParser {
             this.boneAnimations = new HashMap<>();
             this.soundEvents = new ArrayList<>();
             this.particleEvents = new ArrayList<>();
-            this.trailEvents = new ArrayList<>();
         }
     }
 
@@ -101,11 +100,13 @@ public class AnimationParser {
         public float timestamp;
         public String effect;
         public String locator;
+        public Animation.Event.Type type;
 
-        public AnimationEvent(float timestamp, String effect, String locator) {
+        public AnimationEvent(float timestamp, String effect, String locator, Animation.Event.Type type) {
             this.timestamp = timestamp;
             this.effect = effect;
             this.locator = locator;
+            this.type = type;
         }
     }
 
@@ -241,9 +242,8 @@ public class AnimationParser {
         }
 
         // 解析动画事件
-        parseEventMap(animation.soundEvents, animJson, "sound_effects");
-        parseEventMap(animation.particleEvents, animJson, "particle_effects");
-        parseEventMap(animation.trailEvents, animJson, "trail_effects");
+        parseEventMap(animation.soundEvents, animJson, "sound_effects", Animation.Event.Type.SOUND);
+        parseEventMap(animation.particleEvents, animJson, "particle_effects", Animation.Event.Type.PARTICLE);
 
         // 事件可能延长动画长度
         float eventMax = getMaxEventTime(animation);
@@ -392,7 +392,10 @@ public class AnimationParser {
         return max;
     }
 
-    private void parseEventMap(List<AnimationEvent> target, JsonObject animJson, String key) {
+    private void parseEventMap(List<AnimationEvent> target,
+                               JsonObject animJson,
+                               String key,
+                               Animation.Event.Type defaultType) throws ParseException {
         if (animJson == null || !animJson.has(key)) {
             return;
         }
@@ -406,36 +409,50 @@ public class AnimationParser {
             JsonElement value = entry.getValue();
             if (value.isJsonArray()) {
                 for (JsonElement item : value.getAsJsonArray()) {
-                    appendEvent(target, time, item);
+                    appendEvent(target, time, item, defaultType);
                 }
             } else {
-                appendEvent(target, time, value);
+                appendEvent(target, time, value, defaultType);
             }
         }
         target.sort(Comparator.comparingDouble(e -> e.timestamp));
     }
 
-    private void appendEvent(List<AnimationEvent> target, float time, JsonElement value) {
+    private void appendEvent(List<AnimationEvent> target,
+                             float time,
+                             JsonElement value,
+                             Animation.Event.Type defaultType) throws ParseException {
         if (value == null) {
             return;
         }
         String effect = null;
         String locator = null;
+        String preScript = null;
         if (value.isJsonObject()) {
             JsonObject data = value.getAsJsonObject();
             effect = ParseUtils.getString(data, "effect", null);
             locator = ParseUtils.getString(data, "locator", null);
+            preScript = ParseUtils.getString(data, "pre_effect_script", null);
         } else if (value.isJsonPrimitive()) {
             effect = value.getAsString();
         }
         if (effect == null) {
             return;
         }
-        effect = effect.trim();
-        if (effect.isEmpty()) {
+        String trimmedEffect = effect.trim();
+        if (trimmedEffect.isEmpty()) {
             return;
         }
-        target.add(new AnimationEvent(time, effect, locator));
+        Animation.Event.Type type = defaultType == null ? Animation.Event.Type.PARTICLE : defaultType;
+        String resolvedEffect = trimmedEffect;
+        if (type == Animation.Event.Type.PARTICLE && isTrailEffect(trimmedEffect)) {
+            if (preScript == null || preScript.trim().isEmpty()) {
+                throw new ParseException("trail particle event requires pre_effect_script at t=" + time);
+            }
+            type = Animation.Event.Type.TRAIL;
+            resolvedEffect = preScript.trim();
+        }
+        target.add(new AnimationEvent(time, resolvedEffect, locator, type));
     }
 
     private float getMaxEventTime(AnimationData animation) {
@@ -446,11 +463,6 @@ public class AnimationParser {
             }
         }
         for (AnimationEvent evt : animation.particleEvents) {
-            if (evt != null) {
-                max = Math.max(max, evt.timestamp);
-            }
-        }
-        for (AnimationEvent evt : animation.trailEvents) {
             if (evt != null) {
                 max = Math.max(max, evt.timestamp);
             }
@@ -501,12 +513,8 @@ public class AnimationParser {
         }
         for (AnimationEvent evt : data.particleEvents) {
             if (evt != null) {
-                animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator);
-            }
-        }
-        for (AnimationEvent evt : data.trailEvents) {
-            if (evt != null) {
-                animation.addTrailEvent(evt.timestamp, evt.effect, evt.locator);
+                Animation.Event.Type type = evt.type == null ? Animation.Event.Type.PARTICLE : evt.type;
+                animation.addParticleEvent(evt.timestamp, evt.effect, evt.locator, type);
             }
         }
 
@@ -569,5 +577,20 @@ public class AnimationParser {
     public Map<String, Animation> parseAllToAnimations(String jsonContent) throws ParseException {
         Map<String, AnimationData> data = parseAll(jsonContent);
         return toAnimations(data);
+    }
+
+    private boolean isTrailEffect(String effect) {
+        if (effect == null || effect.isEmpty()) {
+            return false;
+        }
+        String normalized = effect.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        int colon = normalized.indexOf(':');
+        if (colon >= 0 && colon + 1 < normalized.length()) {
+            normalized = normalized.substring(colon + 1);
+        }
+        return "trail".equals(normalized) || "trail_effect".equals(normalized) || "weapon_trail".equals(normalized);
     }
 }

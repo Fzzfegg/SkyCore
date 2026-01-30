@@ -18,7 +18,7 @@ import java.util.Map;
  * Binary serializer for {@link Animation} resources.
  */
 public final class AnimationBinarySerializer implements BinaryResourceSerializer<Animation> {
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
 
     @Override
     public BinaryResourceType getType() {
@@ -41,7 +41,6 @@ public final class AnimationBinarySerializer implements BinaryResourceSerializer
             writer.writeVarInt(0);
             writer.writeVarInt(0);
             writer.writeVarInt(0);
-            writer.writeVarInt(0);
             return;
         }
 
@@ -59,13 +58,16 @@ public final class AnimationBinarySerializer implements BinaryResourceSerializer
             }
         }
 
-        writeEvents(writer, animation.getSoundEvents());
-        writeEvents(writer, animation.getParticleEvents());
-        writeEvents(writer, animation.getTrailEvents());
+        writeEvents(writer, animation.getSoundEvents(), false);
+        writeEvents(writer, animation.getParticleEvents(), true);
     }
 
     @Override
     public Animation read(BinaryDataReader reader) throws IOException {
+        return read(reader, VERSION);
+    }
+
+    public Animation read(BinaryDataReader reader, int archiveVersion) throws IOException {
         String name = reader.readString();
         float length = reader.readFloat();
         int loopOrdinal = reader.readVarInt();
@@ -86,9 +88,13 @@ public final class AnimationBinarySerializer implements BinaryResourceSerializer
             }
         }
 
-        readEvents(reader, animation.getSoundEvents(), Animation.Event.Type.SOUND);
-        readEvents(reader, animation.getParticleEvents(), Animation.Event.Type.PARTICLE);
-        readEvents(reader, animation.getTrailEvents(), Animation.Event.Type.TRAIL);
+        readEvents(reader, animation.getSoundEvents(), Animation.Event.Type.SOUND, false);
+        if (archiveVersion >= 2) {
+            readEvents(reader, animation.getParticleEvents(), null, true);
+        } else {
+            readEvents(reader, animation.getParticleEvents(), Animation.Event.Type.PARTICLE, false);
+            readEvents(reader, animation.getParticleEvents(), Animation.Event.Type.TRAIL, false);
+        }
         return animation;
     }
 
@@ -146,23 +152,44 @@ public final class AnimationBinarySerializer implements BinaryResourceSerializer
         return frames;
     }
 
-    private void writeEvents(BinaryDataWriter writer, List<Animation.Event> events) throws IOException {
+    private void writeEvents(BinaryDataWriter writer,
+                             List<Animation.Event> events,
+                             boolean includeType) throws IOException {
         List<Animation.Event> list = events == null ? Collections.emptyList() : events;
         writer.writeVarInt(list.size());
         for (Animation.Event event : list) {
             writer.writeFloat(event == null ? 0f : event.getTimestamp());
             writer.writeString(event == null ? "" : safe(event.getEffect()));
             writer.writeString(event == null ? "" : safe(event.getLocator()));
+            if (includeType) {
+                int typeOrdinal = event == null || event.getType() == null
+                    ? Animation.Event.Type.PARTICLE.ordinal()
+                    : event.getType().ordinal();
+                writer.writeVarInt(typeOrdinal);
+            }
         }
     }
 
-    private void readEvents(BinaryDataReader reader, List<Animation.Event> target, Animation.Event.Type type) throws IOException {
+    private void readEvents(BinaryDataReader reader,
+                            List<Animation.Event> target,
+                            Animation.Event.Type defaultType,
+                            boolean expectType) throws IOException {
         int count = Math.max(0, reader.readVarInt());
         for (int i = 0; i < count; i++) {
             float timestamp = reader.readFloat();
             String effect = reader.readString();
             String locator = reader.readString();
-            target.add(new Animation.Event(type, timestamp, effect == null ? "" : effect, locator == null ? "" : locator));
+            Animation.Event.Type type = defaultType;
+            if (expectType) {
+                int ordinal = reader.readVarInt();
+                type = resolveEventType(ordinal, Animation.Event.Type.PARTICLE);
+            }
+            if (type == null) {
+                type = Animation.Event.Type.PARTICLE;
+            }
+            target.add(new Animation.Event(type, timestamp,
+                effect == null ? "" : effect,
+                locator == null ? "" : locator));
         }
     }
 
@@ -180,6 +207,14 @@ public final class AnimationBinarySerializer implements BinaryResourceSerializer
         }
         String name = interpolation.getName();
         return name == null ? "linear" : name;
+    }
+
+    private Animation.Event.Type resolveEventType(int ordinal, Animation.Event.Type fallback) {
+        Animation.Event.Type[] types = Animation.Event.Type.values();
+        if (ordinal < 0 || ordinal >= types.length) {
+            return fallback;
+        }
+        return types[ordinal];
     }
 
     private String safe(String value) {

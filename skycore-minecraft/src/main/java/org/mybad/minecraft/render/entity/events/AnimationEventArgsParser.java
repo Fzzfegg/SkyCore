@@ -407,7 +407,7 @@ public final class AnimationEventArgsParser {
         public float colorB = 1.0f;
         public float alpha = 1.0f;
         public float uvSpeed = 1.0f;
-        public float width = 0.3f;
+        public float width = 1.0f;
         public int segments = 4;
         public TrailAxis axis = TrailAxis.Z;
         public boolean stretchUv = true;

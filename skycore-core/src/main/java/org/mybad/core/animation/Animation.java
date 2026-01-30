@@ -21,7 +21,6 @@ public class Animation {
     private float speed = 1.0f;     // 播放速度倍数
     private final List<Event> soundEvents = new ArrayList<>();
     private final List<Event> particleEvents = new ArrayList<>();
-    private final List<Event> trailEvents = new ArrayList<>();
 
     public Animation(String name) {
         this.name = name;
@@ -71,7 +70,6 @@ public class Animation {
     public float getSpeed() { return speed; }
     public List<Event> getSoundEvents() { return soundEvents; }
     public List<Event> getParticleEvents() { return particleEvents; }
-    public List<Event> getTrailEvents() { return trailEvents; }
 
     public void setLength(float length) { this.length = length; }
     public void setLoop(boolean loop) { this.loopMode = loop ? LoopMode.LOOP : LoopMode.ONCE; }
@@ -92,19 +90,16 @@ public class Animation {
     }
 
     public void addParticleEvent(float timestamp, String effect, String locator) {
-        if (effect == null || effect.isEmpty()) {
-            return;
-        }
-        particleEvents.add(new Event(Event.Type.PARTICLE, timestamp, effect, locator));
-        particleEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
+        addParticleEvent(timestamp, effect, locator, Event.Type.PARTICLE);
     }
 
-    public void addTrailEvent(float timestamp, String effect, String locator) {
+    public void addParticleEvent(float timestamp, String effect, String locator, Event.Type type) {
         if (effect == null || effect.isEmpty()) {
             return;
         }
-        trailEvents.add(new Event(Event.Type.TRAIL, timestamp, effect, locator));
-        trailEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
+        Event.Type resolved = (type == null || type == Event.Type.SOUND) ? Event.Type.PARTICLE : type;
+        particleEvents.add(new Event(resolved, timestamp, effect, locator));
+        particleEvents.sort(Comparator.comparingDouble(Event::getTimestamp));
     }
 
     /**
