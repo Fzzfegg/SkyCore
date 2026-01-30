@@ -213,9 +213,13 @@ public class EntityAnimationController {
             }
             float speed = overlay.animation != null ? overlay.animation.getSpeed() : 1f;
             float length = overlay.animation != null ? overlay.animation.getLength() : 0f;
+            boolean holdLastFrame = overlay.animation != null && overlay.animation.isHoldOnLastFrame();
             overlay.time += deltaTime * speed;
-            float weight = computeFadeWeight(overlay, length);
-            if (length > 0f && overlay.time >= length) {
+            if (holdLastFrame && length > 0f && overlay.time > length) {
+                overlay.time = length;
+            }
+            float weight = computeFadeWeight(overlay, length, holdLastFrame);
+            if (!holdLastFrame && length > 0f && overlay.time >= length) {
                 overlay.finished = true;
             }
             if (!overlay.finished && weight > 0f) {
@@ -225,16 +229,18 @@ public class EntityAnimationController {
         return result;
     }
 
-    private float computeFadeWeight(OverlayAction overlay, float length) {
+    private float computeFadeWeight(OverlayAction overlay, float length, boolean holdLastFrame) {
         if (length <= 0f) {
             return 0f;
         }
         if (overlay.time < overlay.fadeIn && overlay.fadeIn > 0f) {
             return overlay.time / overlay.fadeIn;
         }
-        float remaining = length - overlay.time;
-        if (remaining < overlay.fadeOut && overlay.fadeOut > 0f) {
-            return Math.max(0f, remaining / overlay.fadeOut);
+        if (!holdLastFrame) {
+            float remaining = length - overlay.time;
+            if (remaining < overlay.fadeOut && overlay.fadeOut > 0f) {
+                return Math.max(0f, remaining / overlay.fadeOut);
+            }
         }
         return 1f;
     }

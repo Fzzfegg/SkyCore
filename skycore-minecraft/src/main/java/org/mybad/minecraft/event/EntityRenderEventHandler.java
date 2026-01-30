@@ -1,6 +1,7 @@
 package org.mybad.minecraft.event;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -13,6 +14,8 @@ import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.render.entity.EntityAttachmentManager;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
+import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
+import org.mybad.minecraft.render.entity.events.AnimationEventMathUtil;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
@@ -39,6 +42,32 @@ public class EntityRenderEventHandler {
     @SubscribeEvent
     public void onRenderLivingPre(RenderLivingEvent.Pre<?> event) {
         entityDispatcher.onRenderLivingPre(event);
+    }
+
+    @SubscribeEvent
+    public void onRenderLivingPost(RenderLivingEvent.Post<?> event) {
+        EntityLivingBase entity = event.getEntity();
+        if (entity == null) {
+            return;
+        }
+        EntityAttachmentManager manager = entityDispatcher.getAttachmentManager();
+        if (manager == null || !manager.hasAttachments(entity.getUniqueID())) {
+            return;
+        }
+        if (entityDispatcher.isSkyCoreEntity(entity)) {
+            return;
+        }
+        float partialTicks = event.getPartialRenderTick();
+        float yaw = AnimationEventMathUtil.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
+        AnimationEventDispatcher dispatcher = entityDispatcher.getEventDispatcher();
+        manager.renderAttachments(entity,
+            event.getX(),
+            event.getY(),
+            event.getZ(),
+            yaw,
+            partialTicks,
+            dispatcher,
+            weaponTrailRenderer);
     }
 
     /**

@@ -132,6 +132,10 @@ public final class BedrockModelHandle {
         return wrapper.getModelScale();
     }
 
+    public String getModelId() {
+        return wrapper.getModelId();
+    }
+
     public void dispose() {
         wrapper.dispose();
     }

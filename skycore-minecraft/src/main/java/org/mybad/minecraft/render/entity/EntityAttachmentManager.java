@@ -155,11 +155,11 @@ public final class EntityAttachmentManager {
         }
     }
 
-    void renderAttachments(EntityLivingBase entity,
-                           double baseX, double baseY, double baseZ,
-                           float entityYaw, float partialTicks,
-                           AnimationEventDispatcher dispatcher,
-                           WeaponTrailRenderer trailRenderer) {
+    public void renderAttachments(EntityLivingBase entity,
+                                  double baseX, double baseY, double baseZ,
+                                  float entityYaw, float partialTicks,
+                                  AnimationEventDispatcher dispatcher,
+                                  WeaponTrailRenderer trailRenderer) {
         if (entity == null) {
             return;
         }
@@ -200,6 +200,22 @@ public final class EntityAttachmentManager {
                 }
             }
         }
+    }
+
+    public boolean hasAttachments() {
+        return !attachments.isEmpty();
+    }
+
+    public boolean hasAttachments(UUID uuid) {
+        if (uuid == null) {
+            return false;
+        }
+        List<AttachmentInstance> list = attachments.get(uuid);
+        return list != null && !list.isEmpty();
+    }
+
+    public java.util.List<UUID> snapshotOwners() {
+        return new java.util.ArrayList<>(attachments.keySet());
     }
 
     private static UUID parseUuid(String raw) {

@@ -119,6 +119,10 @@ public class BedrockModelWrapper {
         this.renderPipeline = new ModelRenderPipeline();
     }
 
+    String getModelId() {
+        return modelId;
+    }
+
     /**
      * 渲染模型
      */

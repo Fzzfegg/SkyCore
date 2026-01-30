@@ -32,7 +32,7 @@ public final class HiddenReloadHotkey {
         Minecraft mc = Minecraft.getMinecraft();
         mc.addScheduledTask(() -> {
             SkyCoreMod.instance.reload();
-            mc.player.sendChatMessage("SkyCore 全局资源已重新加载");
+            mc.player.sendMessage(new TextComponentString("SkyCore 全局资源已重新加载"));
         });
     }
 }

@@ -137,6 +137,10 @@ public final class EntityRenderDispatcher {
         return attachmentManager;
     }
 
+    public AnimationEventDispatcher getEventDispatcher() {
+        return eventDispatcher;
+    }
+
     public String findMappingByUuid(java.util.UUID uuid) {
         return wrapperCache.findMappingNameByUuid(uuid);
     }
