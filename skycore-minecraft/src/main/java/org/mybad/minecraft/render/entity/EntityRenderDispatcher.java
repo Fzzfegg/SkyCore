@@ -17,6 +17,7 @@ public final class EntityRenderDispatcher {
     private final EntityWrapperCache wrapperCache;
     private final ForcedAnimationCache forcedAnimations;
     private final AnimationEventDispatcher eventDispatcher;
+    private final EntityAttachmentManager attachmentManager;
     private final EntityRenderPipeline renderPipeline;
     private long renderFrameCounter = 0L;
     private long currentRenderFrameId = 0L;
@@ -26,7 +27,13 @@ public final class EntityRenderDispatcher {
         this.wrapperCache = new EntityWrapperCache(cacheManager);
         this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
-        this.renderPipeline = new EntityRenderPipeline(eventDispatcher, this::handleForcedAnimationFrame, trailRenderer);
+        this.attachmentManager = new EntityAttachmentManager(cacheManager);
+        this.renderPipeline = new EntityRenderPipeline(
+            eventDispatcher,
+            this::handleForcedAnimationFrame,
+            trailRenderer,
+            attachmentManager
+        );
     }
 
     public void onRenderLivingPre(RenderLivingEvent.Pre<?> event) {
@@ -82,6 +89,7 @@ public final class EntityRenderDispatcher {
                 tickEntry(entity, entry, tick);
             }
         });
+        attachmentManager.tick();
     }
 
     public boolean isSkyCoreEntity(EntityLivingBase entity) {
@@ -98,6 +106,7 @@ public final class EntityRenderDispatcher {
     public void clearCache() {
         wrapperCache.clear();
         clearAllForcedAnimations();
+        attachmentManager.clear();
     }
 
     public void invalidateWrapper(String entityName) {
@@ -118,6 +127,10 @@ public final class EntityRenderDispatcher {
 
     public void clearAllForcedAnimations() {
         forcedAnimations.clearAll();
+    }
+
+    public EntityAttachmentManager getAttachmentManager() {
+        return attachmentManager;
     }
 
     public String findMappingByUuid(java.util.UUID uuid) {

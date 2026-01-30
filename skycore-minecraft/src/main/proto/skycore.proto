@@ -130,3 +130,21 @@ message BinaryKey {
   bytes seed = 3;
   string nonce = 4;
 }
+
+message EntityAttachment {
+  string attachment_id = 1;
+  string target_entity_uuid = 2;
+  string mapping_name = 3;
+  repeated float offset = 4;
+  optional bool follow_position = 5;
+  optional bool follow_rotation = 6;
+  optional int32 lifetime_ticks = 7;
+  optional float yaw_offset = 8;
+  optional string animation = 9;
+  optional float scale = 10;
+}
+
+message RemoveEntityAttachment {
+  string attachment_id = 1;
+  string target_entity_uuid = 2;
+}

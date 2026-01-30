@@ -11,6 +11,7 @@ import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.GLDeletionQueue;
+import org.mybad.minecraft.render.entity.EntityAttachmentManager;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
@@ -123,6 +124,10 @@ public class EntityRenderEventHandler {
 
     public String resolveMappingByEntity(java.util.UUID uuid) {
         return entityDispatcher.findMappingByUuid(uuid);
+    }
+
+    public EntityAttachmentManager getAttachmentManager() {
+        return entityDispatcher.getAttachmentManager();
     }
 
  

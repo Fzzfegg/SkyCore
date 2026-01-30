@@ -13,13 +13,16 @@ final class EntityRenderPipeline {
     private final AnimationEventDispatcher eventDispatcher;
     private final BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback;
     private final WeaponTrailRenderer trailRenderer;
+    private final EntityAttachmentManager attachmentManager;
 
     EntityRenderPipeline(AnimationEventDispatcher eventDispatcher,
                          BiConsumer<EntityLivingBase, EntityWrapperEntry> preRenderCallback,
-                         WeaponTrailRenderer trailRenderer) {
+                         WeaponTrailRenderer trailRenderer,
+                         EntityAttachmentManager attachmentManager) {
         this.eventDispatcher = eventDispatcher;
         this.preRenderCallback = preRenderCallback;
         this.trailRenderer = trailRenderer;
+        this.attachmentManager = attachmentManager;
     }
 
     void render(EntityLivingBase entity, EntityWrapperEntry entry,
@@ -46,6 +49,10 @@ final class EntityRenderPipeline {
 
         if (EntityNameTagRenderer.shouldRenderNameTag(entity)) {
             EntityNameTagRenderer.render(entity, x, y, z);
+        }
+
+        if (attachmentManager != null) {
+            attachmentManager.renderAttachments(entity, x, y, z, entityYaw, partialTicks, eventDispatcher, trailRenderer);
         }
     }
 }

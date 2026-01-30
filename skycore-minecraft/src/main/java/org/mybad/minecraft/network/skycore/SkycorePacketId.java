@@ -17,4 +17,7 @@ public final class SkycorePacketId {
 
     public static final int DEBUG_MESSAGE = 64;
     public static final int DEBUG_FLAGS = 65;
+
+    public static final int ENTITY_ATTACHMENT = 70;
+    public static final int REMOVE_ENTITY_ATTACHMENT = 71;
 }

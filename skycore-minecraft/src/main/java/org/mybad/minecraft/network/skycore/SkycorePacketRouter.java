@@ -65,6 +65,12 @@ public final class SkycorePacketRouter {
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到资源包密钥。");
                     BinaryKeyManager.applyBinaryKey(SkyCoreProto.BinaryKey.parseFrom(payload));
                     return;
+                case SkycorePacketId.ENTITY_ATTACHMENT:
+                    RealtimeCommandExecutor.handleEntityAttachment(SkyCoreProto.EntityAttachment.parseFrom(payload));
+                    return;
+                case SkycorePacketId.REMOVE_ENTITY_ATTACHMENT:
+                    RealtimeCommandExecutor.handleRemoveAttachment(SkyCoreProto.RemoveEntityAttachment.parseFrom(payload));
+                    return;
                 default:
                     SkyCoreMod.LOGGER.warn("[SkyCore] 收到未知数据包：{}", packetId);
             }

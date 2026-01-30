@@ -10,6 +10,7 @@ import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
+import org.mybad.minecraft.render.entity.EntityAttachmentManager;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
@@ -124,6 +125,36 @@ public final class RealtimeCommandExecutor {
             return;
         }
         system.spawn(packet.getEffect(), packet.getX(), packet.getY(), packet.getZ(), packet.getCount());
+    }
+
+    public static void handleEntityAttachment(SkyCoreProto.EntityAttachment packet) {
+        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
+        if (handler == null || packet == null) {
+            return;
+        }
+        EntityAttachmentManager manager = handler.getAttachmentManager();
+        if (manager == null) {
+            return;
+        }
+        manager.spawnAttachment(packet);
+    }
+
+    public static void handleRemoveAttachment(SkyCoreProto.RemoveEntityAttachment packet) {
+        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
+        if (handler == null || packet == null) {
+            return;
+        }
+        EntityAttachmentManager manager = handler.getAttachmentManager();
+        if (manager == null) {
+            return;
+        }
+        java.util.UUID uuid;
+        try {
+            uuid = java.util.UUID.fromString(packet.getTargetEntityUuid());
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+        manager.removeAttachment(uuid, packet.getAttachmentId());
     }
 
     private static float[] toArray(java.util.List<Float> list) {
