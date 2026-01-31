@@ -144,6 +144,10 @@ public final class EntityRenderDispatcher {
         return attachmentManager;
     }
 
+    public EntityHeadBarManager getHeadBarManager() {
+        return headBarManager;
+    }
+
     public AnimationEventDispatcher getEventDispatcher() {
         return eventDispatcher;
     }

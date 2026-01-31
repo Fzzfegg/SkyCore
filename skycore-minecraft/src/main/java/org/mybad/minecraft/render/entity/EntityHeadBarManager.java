@@ -19,24 +19,36 @@ import org.mybad.bedrockparticle.particle.ParticleMolangCompiler;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.skycoreproto.SkyCoreProto;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.math.RoundingMode;
 
 /**
  * Renders configurable head bars driven entirely by remote definitions.
  */
-final class EntityHeadBarManager {
+public final class EntityHeadBarManager {
+
+    private static final ThreadLocal<DecimalFormat> PERCENT_FORMAT = ThreadLocal.withInitial(() -> {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.ROOT);
+        DecimalFormat format = new DecimalFormat("0.##", symbols);
+        format.setRoundingMode(RoundingMode.HALF_UP);
+        return format;
+    });
 
     private final MolangCompiler molangCompiler = ParticleMolangCompiler.get();
     private final Map<String, MolangExpression> expressionCache = new HashMap<>();
     private final HeadBarMolangContext molangContext = new HeadBarMolangContext();
     private final MolangRuntime molangRuntime;
+    private final List<QueuedHeadBar> renderQueue = new ArrayList<>();
     private volatile List<HeadBarDefinition> definitions = Collections.emptyList();
 
     EntityHeadBarManager() {
@@ -58,7 +70,11 @@ final class EntityHeadBarManager {
         SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 配置已载入，共 {} 条规则。", definitions.size());
     }
 
-    void renderHeadBars(EntityLivingBase entity,
+    public void beginFrame() {
+        renderQueue.clear();
+    }
+
+    void queueHeadBar(EntityLivingBase entity,
                         double x, double y, double z,
                         float partialTicks) {
         if (entity == null || definitions.isEmpty()) {
@@ -73,31 +89,59 @@ final class EntityHeadBarManager {
         double hpPercent = MathHelper.clamp(hp / maxHp, 0.0, 1.0);
 
         RenderState state = new RenderState(entity, hp, maxHp, hpPercent);
-        molangContext.update(state);
-        Minecraft mc = Minecraft.getMinecraft();
-        FontRenderer fr = mc.fontRenderer;
+        renderQueue.add(new QueuedHeadBar(entity, definition, state, x, y, z));
+    }
 
+    public void renderQueued(float partialTicks) {
+        if (renderQueue.isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null) {
+            renderQueue.clear();
+            return;
+        }
+        FontRenderer fr = mc.fontRenderer;
         GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y + entity.height + definition.offset, z);
-        GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
-        GlStateManager.rotate(mc.getRenderManager().playerViewX, 1.0F, 0.0F, 0.0F);
-        float scale = 0.025f * definition.scale;
-        GlStateManager.scale(-scale, -scale, scale);
         GlStateManager.disableLighting();
         GlStateManager.depthMask(false);
-        GlStateManager.disableDepth();
+        GlStateManager.enableDepth();
+        GlStateManager.enablePolygonOffset();
+        GlStateManager.doPolygonOffset(-3.0F, -3.0F);
         GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+            GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
 
-        for (Layer layer : definition.layers) {
-            layer.render(mc, fr, state, this::evaluateExpression, this::formatText);
+        for (QueuedHeadBar task : renderQueue) {
+            if (task == null || task.definition == null || task.state == null || task.entity == null) {
+                continue;
+            }
+            if (task.entity.isDead) {
+                continue;
+            }
+            molangContext.update(task.state);
+            double renderY = task.y + task.entity.height + task.definition.offset;
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(task.x, renderY, task.z);
+            GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
+            GlStateManager.rotate(mc.getRenderManager().playerViewX, 1.0F, 0.0F, 0.0F);
+            float scale = 0.025f * task.definition.scale;
+            GlStateManager.scale(-scale, -scale, scale);
+            GlStateManager.translate(0.0F, 0.0F, -0.05F);
+            for (Layer layer : task.definition.layers) {
+                layer.render(mc, fr, task.state, this::evaluateExpression, this::formatText);
+            }
+            GlStateManager.popMatrix();
         }
 
-        GlStateManager.enableDepth();
         GlStateManager.depthMask(true);
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();
+        GlStateManager.disablePolygonOffset();
+        GlStateManager.doPolygonOffset(0.0F, 0.0F);
+        GlStateManager.enableDepth();
         GlStateManager.popMatrix();
+        renderQueue.clear();
     }
 
     private List<HeadBarDefinition> parseDefinitions(SkyCoreProto.HeadBarConfig config) {
@@ -147,9 +191,14 @@ final class EntityHeadBarManager {
         return template
             .replace("{current_hp}", String.valueOf(Math.round(state.hp)))
             .replace("{max_hp}", String.valueOf(Math.round(state.maxHp)))
-            .replace("{hp_percent}", String.format(Locale.ROOT, "%.0f%%", state.hpPercent * 100.0))
+            .replace("{hp_percent}", formatPercentValue(state.hpPercent))
             .replace("{hp_missing}", String.valueOf(Math.round(state.hpMissing)))
             .replace("{name}", state.entityName);
+    }
+
+    private String formatPercentValue(double ratio) {
+        DecimalFormat format = PERCENT_FORMAT.get();
+        return format.format(ratio * 100.0) + "%";
     }
 
     private MolangExpression compileExpression(String expr) {
@@ -251,6 +300,7 @@ final class EntityHeadBarManager {
     private static final class BarLayer extends ImageLayer {
         final MolangExpression progressExpression;
         final boolean anchorLeft;
+        final Map<EntityLivingBase, Double> smoothValues = new WeakHashMap<>();
 
         BarLayer(ResourceLocation texture, float width, float height, float offsetX, float offsetY,
                  int color, MolangExpression progressExpression, boolean anchorLeft) {
@@ -263,7 +313,8 @@ final class EntityHeadBarManager {
         void render(Minecraft mc, FontRenderer fontRenderer, RenderState state,
                     BiFunction<MolangExpression, RenderState, Double> evaluator,
                     BiFunction<String, RenderState, String> formatter) {
-            double ratio = MathHelper.clamp(evaluator.apply(progressExpression, state), 0.0, 1.0);
+            double target = MathHelper.clamp(evaluator.apply(progressExpression, state), 0.0, 1.0);
+            double ratio = smoothRatio(state, target);
             float filledWidth = (float) (width * ratio);
             if (filledWidth <= 0.001f || texture == null) {
                 return;
@@ -282,6 +333,22 @@ final class EntityHeadBarManager {
             buffer.pos(xStart, y, 0).tex(0, 0).endVertex();
             tessellator.draw();
             GlStateManager.color(1f, 1f, 1f, 1f);
+        }
+
+        private double smoothRatio(RenderState state, double target) {
+            EntityLivingBase entity = state != null ? state.entity : null;
+            if (entity == null) {
+                return target;
+            }
+            double current = smoothValues.getOrDefault(entity, target);
+            double delta = target - current;
+            double step = 0.25 * delta;
+            double next = current + step;
+            if (Math.abs(delta) < 0.002) {
+                next = target;
+            }
+            smoothValues.put(entity, next);
+            return next;
         }
     }
 
@@ -443,6 +510,25 @@ final class EntityHeadBarManager {
             this.maxHp = (float) state.maxHp;
             this.hpPercent = (float) state.hpPercent;
             this.hpMissing = (float) state.hpMissing;
+        }
+    }
+
+    private static final class QueuedHeadBar {
+        final EntityLivingBase entity;
+        final HeadBarDefinition definition;
+        final RenderState state;
+        final double x;
+        final double y;
+        final double z;
+
+        QueuedHeadBar(EntityLivingBase entity, HeadBarDefinition definition, RenderState state,
+                      double x, double y, double z) {
+            this.entity = entity;
+            this.definition = definition;
+            this.state = state;
+            this.x = x;
+            this.y = y;
+            this.z = z;
         }
     }
 }

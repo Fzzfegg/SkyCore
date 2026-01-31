@@ -82,6 +82,7 @@ public class EntityRenderEventHandler {
         GLDeletionQueue.flush();
         entityDispatcher.cleanupEntityWrappers();
         weaponTrailRenderer.render(event.getPartialTicks());
+        entityDispatcher.getHeadBarManager().renderQueued(event.getPartialTicks());
         org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
     }
 
@@ -107,6 +108,7 @@ public class EntityRenderEventHandler {
             entityDispatcher.beginRenderFrame();
             SkullModelManager.beginRenderFrame();
             weaponTrailRenderer.beginFrame();
+            entityDispatcher.getHeadBarManager().beginFrame();
         } else {
             entityDispatcher.finishRenderFrame();
             SkullModelManager.finishRenderFrame();
