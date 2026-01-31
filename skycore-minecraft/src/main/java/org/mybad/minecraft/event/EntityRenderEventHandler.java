@@ -159,5 +159,8 @@ public class EntityRenderEventHandler {
         return entityDispatcher.getAttachmentManager();
     }
 
- 
+    public void applyAttributeOverrides(java.util.List<org.mybad.skycoreproto.SkyCoreProto.EntityAttributeOverride> overrides) {
+        entityDispatcher.applyAttributeOverrides(overrides);
+    }
+
 }

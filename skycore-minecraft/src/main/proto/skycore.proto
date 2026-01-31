@@ -121,6 +121,26 @@ message SetModelAttributes {
   optional int32 bloom_passes = 15;
   optional float bloom_scale_step = 16;
   optional float bloom_downscale = 17;
+  repeated EntityAttributeOverride overrides = 18;
+}
+
+message EntityAttributeOverride {
+  string entity_uuid = 1;
+  optional float scale = 2;
+  optional float emissive_strength = 3;
+  optional float bloom_strength = 4;
+  optional string texture = 5;
+  optional string emissive = 6;
+  optional string bloom = 7;
+  optional string blend_texture = 8;
+  optional bool enable_cull = 9;
+  optional bool render_shadow = 10;
+  optional float primary_fade_seconds = 11;
+  repeated float bloom_offset = 12;
+  optional int32 bloom_passes = 13;
+  optional float bloom_scale_step = 14;
+  optional float bloom_downscale = 15;
+  optional bool reset = 16;
 }
 
 message SpawnParticle {

@@ -8,9 +8,12 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
+import org.mybad.minecraft.config.EntityModelMapping;
+import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
+import org.mybad.skycoreproto.SkyCoreProto;
 
 @SideOnly(Side.CLIENT)
 public final class EntityRenderDispatcher {
@@ -18,6 +21,7 @@ public final class EntityRenderDispatcher {
     private final ForcedAnimationCache forcedAnimations;
     private final AnimationEventDispatcher eventDispatcher;
     private final EntityAttachmentManager attachmentManager;
+    private final EntityAttributeOverrideStore overrideStore;
     private final EntityHeadBarManager headBarManager;
     private final EntityRenderPipeline renderPipeline;
     private long renderFrameCounter = 0L;
@@ -30,6 +34,7 @@ public final class EntityRenderDispatcher {
         this.eventDispatcher = new AnimationEventDispatcher();
         this.attachmentManager = new EntityAttachmentManager(cacheManager);
         this.headBarManager = new EntityHeadBarManager();
+        this.overrideStore = new EntityAttributeOverrideStore();
         this.renderPipeline = new EntityRenderPipeline(
             eventDispatcher,
             this::handleForcedAnimationFrame,
@@ -63,6 +68,7 @@ public final class EntityRenderDispatcher {
             tickEntry(entity, entry, tick);
         }
 
+        applyOverridesIfNeeded(entity, entry);
         renderPipeline.render(entity, entry, event.getX(), event.getY(), event.getZ(), event.getPartialRenderTick());
         entry.lastRenderFrameId = currentRenderFrameId;
     }
@@ -111,6 +117,7 @@ public final class EntityRenderDispatcher {
         clearAllForcedAnimations();
         attachmentManager.clear();
         headBarManager.reload();
+        overrideStore.clearAll();
     }
 
     public void invalidateWrapper(String entityName) {
@@ -150,6 +157,13 @@ public final class EntityRenderDispatcher {
             return;
         }
         wrapperCache.forEach(consumer);
+    }
+
+    public void applyAttributeOverrides(java.util.List<SkyCoreProto.EntityAttributeOverride> overrides) {
+        if (overrides == null || overrides.isEmpty()) {
+            return;
+        }
+        overrides.forEach(overrideStore::applyOverride);
     }
 
     public void beginRenderFrame() {
@@ -221,6 +235,69 @@ public final class EntityRenderDispatcher {
             entry.lastAnimationTick = entity.world.getTotalWorldTime();
         }
         return true;
+    }
+
+    private void applyOverridesIfNeeded(EntityLivingBase entity, EntityWrapperEntry entry) {
+        if (entity == null || entry == null || entry.wrapper == null) {
+            return;
+        }
+        java.util.UUID uuid = entity.getUniqueID();
+        if (uuid == null) {
+            return;
+        }
+        long targetVersion = overrideStore.getVersion(uuid);
+        if (targetVersion == entry.appliedOverrideVersion) {
+            return;
+        }
+        if (targetVersion == Long.MIN_VALUE) {
+            EntityModelMapping mapping = entry.mapping;
+            if (mapping != null) {
+                applyOverride(entry, null);
+                entry.appliedOverrideVersion = targetVersion;
+            }
+            return;
+        }
+        EntityAttributeOverride override = overrideStore.get(uuid);
+        applyOverride(entry, override);
+        entry.appliedOverrideVersion = targetVersion;
+    }
+
+    private void applyOverride(EntityWrapperEntry entry, EntityAttributeOverride override) {
+        EntityModelMapping mapping = entry.mapping;
+        BedrockModelHandle handle = entry.wrapper;
+        if (mapping == null || handle == null) {
+            return;
+        }
+        float scale = override != null && override.scale != null ? override.scale : mapping.getModelScale();
+        handle.setModelScale(scale);
+
+        float emissive = override != null && override.emissiveStrength != null ? override.emissiveStrength : mapping.getEmissiveStrength();
+        handle.setEmissiveStrength(emissive);
+
+        float bloomStrength = override != null && override.bloomStrength != null ? override.bloomStrength : mapping.getBloomStrength();
+        handle.setBloomStrength(bloomStrength);
+
+        float fadeSeconds = override != null && override.primaryFadeSeconds != null ? override.primaryFadeSeconds : mapping.getPrimaryFadeSeconds();
+        handle.setPrimaryFadeDuration(fadeSeconds);
+
+        float[] bloomOffset = override != null && override.bloomOffset != null ? copyBloomOffset(override.bloomOffset) : mapping.getBloomOffset();
+        handle.setBloomOffset(bloomOffset);
+
+        int bloomPasses = override != null && override.bloomPasses != null ? override.bloomPasses : mapping.getBloomPasses();
+        handle.setBloomPasses(bloomPasses);
+
+        float bloomScaleStep = override != null && override.bloomScaleStep != null ? override.bloomScaleStep : mapping.getBloomScaleStep();
+        handle.setBloomScaleStep(bloomScaleStep);
+
+        float bloomDownscale = override != null && override.bloomDownscale != null ? override.bloomDownscale : mapping.getBloomDownscale();
+        handle.setBloomDownscale(bloomDownscale);
+    }
+
+    private float[] copyBloomOffset(float[] source) {
+        if (source == null || source.length < 3) {
+            return null;
+        }
+        return new float[]{source[0], source[1], source[2]};
     }
 
 }

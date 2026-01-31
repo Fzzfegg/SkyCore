@@ -59,63 +59,68 @@ public final class RealtimeCommandExecutor {
             } catch (IllegalArgumentException ignored) {
             }
         }
-        if (mappingName == null) {
-            return;
+        if (mappingName != null) {
+            EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
+            if (mapping != null) {
+                if (packet.hasScale()) {
+                    mapping.setModelScale(packet.getScale());
+                }
+                if (packet.hasEmissiveStrength()) {
+                    mapping.setEmissiveStrength(packet.getEmissiveStrength());
+                }
+                if (packet.hasBloomStrength()) {
+                    mapping.setBloomStrength(packet.getBloomStrength());
+                }
+                if (packet.hasBloomPasses()) {
+                    mapping.setBloomPasses(packet.getBloomPasses());
+                }
+                if (packet.hasBloomScaleStep()) {
+                    mapping.setBloomScaleStep(packet.getBloomScaleStep());
+                }
+                if (packet.hasBloomDownscale()) {
+                    mapping.setBloomDownscale(packet.getBloomDownscale());
+                }
+                if (packet.getBloomOffsetCount() >= 3) {
+                    mapping.setBloomOffset(toArray(packet.getBloomOffsetList()));
+                }
+                SkyCoreMod.LOGGER.info("[SkyCore] realtime bloom params for '{}' -> strength={}, passes={}, scaleStep={}, downscale={}",
+                    mappingName,
+                    mapping.getBloomStrength(),
+                    mapping.getBloomPasses(),
+                    mapping.getBloomScaleStep(),
+                    mapping.getBloomDownscale());
+                if (packet.hasTexture()) {
+                    mapping.setTexture(packet.getTexture());
+                }
+                if (packet.hasEmissive()) {
+                    mapping.setEmissive(packet.getEmissive());
+                }
+                if (packet.hasBloom()) {
+                    mapping.setBloom(packet.getBloom());
+                }
+                if (packet.hasBlendTexture()) {
+                    mapping.setBlendTexture(packet.getBlendTexture());
+                }
+                if (packet.hasEnableCull()) {
+                    mapping.setEnableCull(packet.getEnableCull());
+                }
+                if (packet.hasRenderShadow()) {
+                    mapping.setRenderShadow(packet.getRenderShadow());
+                }
+                if (packet.hasPrimaryFadeSeconds()) {
+                    mapping.setPrimaryFadeSeconds(packet.getPrimaryFadeSeconds());
+                }
+                if (handler != null) {
+                    handler.invalidateWrapper(mappingName);
+                }
+            }
         }
-        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
-        if (mapping == null) {
-            return;
-        }
-        if (packet.hasScale()) {
-            mapping.setModelScale(packet.getScale());
-        }
-        if (packet.hasEmissiveStrength()) {
-            mapping.setEmissiveStrength(packet.getEmissiveStrength());
-        }
-        if (packet.hasBloomStrength()) {
-            mapping.setBloomStrength(packet.getBloomStrength());
-        }
-        if (packet.hasBloomPasses()) {
-            mapping.setBloomPasses(packet.getBloomPasses());
-        }
-        if (packet.hasBloomScaleStep()) {
-            mapping.setBloomScaleStep(packet.getBloomScaleStep());
-        }
-        if (packet.hasBloomDownscale()) {
-            mapping.setBloomDownscale(packet.getBloomDownscale());
-        }
-        if (packet.getBloomOffsetCount() >= 3) {
-            mapping.setBloomOffset(toArray(packet.getBloomOffsetList()));
-        }
-        SkyCoreMod.LOGGER.info("[SkyCore] realtime bloom params for '{}' -> strength={}, passes={}, scaleStep={}, downscale={}",
-            mappingName,
-            mapping.getBloomStrength(),
-            mapping.getBloomPasses(),
-            mapping.getBloomScaleStep(),
-            mapping.getBloomDownscale());
-        if (packet.hasTexture()) {
-            mapping.setTexture(packet.getTexture());
-        }
-        if (packet.hasEmissive()) {
-            mapping.setEmissive(packet.getEmissive());
-        }
-        if (packet.hasBloom()) {
-            mapping.setBloom(packet.getBloom());
-        }
-        if (packet.hasBlendTexture()) {
-            mapping.setBlendTexture(packet.getBlendTexture());
-        }
-        if (packet.hasEnableCull()) {
-            mapping.setEnableCull(packet.getEnableCull());
-        }
-        if (packet.hasRenderShadow()) {
-            mapping.setRenderShadow(packet.getRenderShadow());
-        }
-        if (packet.hasPrimaryFadeSeconds()) {
-            mapping.setPrimaryFadeSeconds(packet.getPrimaryFadeSeconds());
-        }
-        if (handler != null) {
-            handler.invalidateWrapper(mappingName);
+        if (handler != null && packet.getOverridesCount() > 0) {
+            try {
+                handler.applyAttributeOverrides(packet.getOverridesList());
+            } catch (Exception ex) {
+                SkyCoreMod.LOGGER.error("[SkyCore] Failed to apply attribute overrides", ex);
+            }
         }
     }
 

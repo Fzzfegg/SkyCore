@@ -62,7 +62,7 @@ final class EntityWrapperCache {
         wrapper.setHurtTint(mapping.getHurtTint());
 
         EntityAnimationController controller = buildController(mapping);
-        EntityWrapperEntry created = new EntityWrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick);
+        EntityWrapperEntry created = new EntityWrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick, mapping);
         cache.put(entityId, created);
 
         SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);
