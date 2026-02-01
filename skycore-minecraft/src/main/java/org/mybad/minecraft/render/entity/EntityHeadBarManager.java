@@ -342,7 +342,7 @@ public final class EntityHeadBarManager {
             }
             double current = smoothValues.getOrDefault(entity, target);
             double delta = target - current;
-            double step = 0.25 * delta;
+            double step = 0.12 * delta;
             double next = current + step;
             if (Math.abs(delta) < 0.002) {
                 next = target;

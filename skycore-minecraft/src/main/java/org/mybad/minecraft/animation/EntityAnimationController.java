@@ -45,13 +45,15 @@ public class EntityAnimationController {
     private static final float ATTACK_FADE_OUT = 0.10f;
     private static final float SPAWN_FADE_IN = 0.12f;
     private static final float SPAWN_FADE_OUT = 0.15f;
-    private static final float SPEED_SMOOTH_BASE = 0.05f;
-    private static final float SPEED_SMOOTH_BASE_DECEL = 0.01f;
-    private static final float WALK_ENTER = 0.06f;
-    private static final float WALK_EXIT = 0.03f;
-    private static final float MIN_WALK_TIME = 0.15f;
-    private static final float STOP_SPEED_EPS = 0.006f;
+    private static final float SPEED_SMOOTH_BASE = 0.10f;
+    private static final float SPEED_SMOOTH_BASE_DECEL = 0.04f;
+    private static final float WALK_ENTER = 0.04f;
+    private static final float WALK_EXIT = 0.02f;
+    private static final float MIN_WALK_TIME = 0.10f;
+    private static final float STOP_SPEED_EPS = 0.004f;
     private static final float STOP_HOLD_TIME = 0.055f;
+    private static final float RAW_SPEED_TRIGGER = 0.012f;
+    private static final float LIMB_SWING_TRIGGER = 0.03f;
 
     private final Map<String, Animation> actions;
     private String currentAction;
@@ -296,6 +298,9 @@ public class EntityAnimationController {
         double dx = refX - prevX;
         double dz = refZ - prevZ;
         float rawSpeed = (float) Math.sqrt(dx * dx + dz * dz);
+        float motionSpeed = (float) Math.sqrt(entity.motionX * entity.motionX + entity.motionZ * entity.motionZ);
+        float walkedDelta = (float) Math.abs(entity.distanceWalkedModified - entity.prevDistanceWalkedModified);
+        rawSpeed = Math.max(rawSpeed, Math.max(motionSpeed, walkedDelta));
 
         if (rawSpeed <= STOP_SPEED_EPS) {
             lowSpeedTime += deltaTime;
@@ -314,7 +319,7 @@ public class EntityAnimationController {
         if (lowSpeedTime >= STOP_HOLD_TIME) {
             smoothedSpeed = 0f;
         }
-        boolean moves = computeMoveState(deltaTime);
+        boolean moves = computeMoveState(deltaTime, rawSpeed, entity);
 
         String action;
 
@@ -365,9 +370,12 @@ public class EntityAnimationController {
         return alpha;
     }
 
-    private boolean computeMoveState(float deltaTime) {
+    private boolean computeMoveState(float deltaTime, float rawSpeed, EntityLivingBase entity) {
         boolean moving;
-        if (wasMoving) {
+        boolean limbMoving = entity != null && Math.abs(entity.limbSwingAmount) > LIMB_SWING_TRIGGER;
+        if (rawSpeed > RAW_SPEED_TRIGGER || limbMoving) {
+            moving = true;
+        } else if (wasMoving) {
             if (movingStateTime < MIN_WALK_TIME) {
                 moving = true;
             } else {

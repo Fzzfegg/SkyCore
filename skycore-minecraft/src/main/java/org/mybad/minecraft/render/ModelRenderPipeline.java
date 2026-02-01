@@ -267,6 +267,10 @@ final class ModelRenderPipeline {
         Minecraft.getMinecraft().getTextureManager().bindTexture(bloomTexture);
         GlStateManager.disableLighting();
         GlStateManager.disableColorMaterial();
+        boolean fogEnabled = GL11.glIsEnabled(GL11.GL_FOG);
+        if (fogEnabled) {
+            GlStateManager.disableFog();
+        }
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         GlStateManager.depthMask(false);
@@ -310,6 +314,9 @@ final class ModelRenderPipeline {
         GlStateManager.depthMask(true);
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
+        if (fogEnabled) {
+            GlStateManager.enableFog();
+        }
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
         Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
