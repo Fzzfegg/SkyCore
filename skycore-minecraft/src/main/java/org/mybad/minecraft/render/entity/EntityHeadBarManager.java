@@ -179,7 +179,7 @@ public final class EntityHeadBarManager {
         try {
             return molangRuntime.resolve(expression);
         } catch (MolangRuntimeException ex) {
-            SkyCoreMod.LOGGER.debug("[SkyCore] HeadBar 表达式执行失败: {}", ex.getMessage());
+            SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 表达式执行失败: {}", ex.getMessage());
             return state.hpPercent;
         }
     }

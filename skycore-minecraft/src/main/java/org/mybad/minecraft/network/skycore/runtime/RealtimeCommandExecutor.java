@@ -1,10 +1,9 @@
 package org.mybad.minecraft.network.skycore.runtime;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
+import org.mybad.minecraft.common.indicator.IndicatorRendererEvent;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
@@ -160,6 +159,13 @@ public final class RealtimeCommandExecutor {
             return;
         }
         manager.removeAttachment(uuid, packet.getAttachmentId());
+    }
+
+    public static void handleIndicatorCommand(SkyCoreProto.IndicatorCommand packet) {
+        if (packet == null) {
+            return;
+        }
+        IndicatorRendererEvent.applyIndicatorCommand(packet);
     }
 
     private static float[] toArray(java.util.List<Float> list) {

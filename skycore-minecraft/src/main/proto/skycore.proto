@@ -72,6 +72,71 @@ message HeadBarConfig {
   repeated HeadBarDefinition definitions = 1;
 }
 
+message IndicatorValue {
+  double base = 1;
+  string entity_uuid = 2;
+  string target_uuid = 3;
+}
+
+message IndicatorColor {
+  uint32 r = 1;
+  uint32 g = 2;
+  uint32 b = 3;
+}
+
+message CircleIndicator {
+  IndicatorValue x = 1;
+  IndicatorValue y = 2;
+  IndicatorValue z = 3;
+  IndicatorValue yaw = 4;
+  int32 lifetime_ms = 5;
+  IndicatorColor color = 6;
+  float facing_degrees = 7;
+  double radius = 8;
+}
+
+message RectangleIndicator {
+  IndicatorValue x = 1;
+  IndicatorValue y = 2;
+  IndicatorValue z = 3;
+  IndicatorValue yaw = 4;
+  int32 lifetime_ms = 5;
+  IndicatorColor color = 6;
+  double base_width = 7;
+  IndicatorValue distance = 8;
+}
+
+message IndicatorVertex {
+  IndicatorValue x = 1;
+  IndicatorValue y = 2;
+  IndicatorValue z = 3;
+}
+
+message PolygonIndicator {
+  IndicatorValue x = 1;
+  IndicatorValue y = 2;
+  IndicatorValue z = 3;
+  IndicatorValue yaw = 4;
+  repeated IndicatorVertex vertices = 5;
+  int32 lifetime_ms = 6;
+  IndicatorColor color = 7;
+}
+
+message IndicatorCommand {
+  enum Action {
+    UPSERT = 0;
+    REMOVE = 1;
+    CLEAR_ALL = 2;
+  }
+  Action action = 1;
+  string id = 2;
+  oneof payload {
+    CircleIndicator circle = 3;
+    RectangleIndicator rectangle = 4;
+    PolygonIndicator polygon = 5;
+  }
+}
+
 message ConfigIndexEntry {
   string file_name = 1;
   bytes hash = 2;

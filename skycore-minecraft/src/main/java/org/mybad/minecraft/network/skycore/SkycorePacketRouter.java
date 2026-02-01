@@ -71,6 +71,10 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.REMOVE_ENTITY_ATTACHMENT:
                     RealtimeCommandExecutor.handleRemoveAttachment(SkyCoreProto.RemoveEntityAttachment.parseFrom(payload));
                     return;
+                case SkycorePacketId.INDICATOR_COMMAND:
+                    SkyCoreMod.LOGGER.info("[SkyCore] 收到地面指示器指令。");
+                    RealtimeCommandExecutor.handleIndicatorCommand(SkyCoreProto.IndicatorCommand.parseFrom(payload));
+                    return;
                 default:
                     SkyCoreMod.LOGGER.warn("[SkyCore] 收到未知数据包：{}", packetId);
             }

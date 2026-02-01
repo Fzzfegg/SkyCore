@@ -1,0 +1,11 @@
+{
+  "vertex": "skycore:indicator/indicator",
+  "fragment": "skycore:indicator/circle",
+  "attributes": [ "Position" ],
+  "samplers": [
+  ],
+  "uniforms": [
+    { "name": "RColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 1.0 ] },
+    { "name": "angle", "type": "float", "count": 1, "values": [ 1.0 ] }
+  ]
+}

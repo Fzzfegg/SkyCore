@@ -11,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 import org.mybad.core.binary.BinaryPayloadCipherRegistry;
 import org.mybad.minecraft.audio.SoundExistenceCache;
 import org.mybad.minecraft.client.input.HiddenReloadHotkey;
+import org.mybad.minecraft.common.indicator.IndicatorRendererEvent;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.debug.DebugRenderController;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
@@ -57,6 +58,8 @@ public class SkyCoreMod {
     private BedrockParticleSystem particleSystem;
     @SideOnly(Side.CLIENT)
     private PreloadManager preloadManager;
+    @SideOnly(Side.CLIENT)
+    private IndicatorRendererEvent indicatorRendererEvent;
     private File gameDir;
 
     @Mod.EventHandler
@@ -97,6 +100,8 @@ public class SkyCoreMod {
 
         // 隐藏热键
         MinecraftForge.EVENT_BUS.register(new HiddenReloadHotkey());
+        indicatorRendererEvent = new IndicatorRendererEvent();
+        MinecraftForge.EVENT_BUS.register(indicatorRendererEvent);
 
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
         channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
@@ -121,6 +126,9 @@ public class SkyCoreMod {
         renderEventHandler.clearCache();
         if (preloadManager != null) {
             preloadManager.clear();
+        }
+        if (indicatorRendererEvent != null) {
+            IndicatorRendererEvent.ACTIVE_INDICATORS.clear();
         }
         SkullModelManager.clear();
         DebugRenderController.clear();

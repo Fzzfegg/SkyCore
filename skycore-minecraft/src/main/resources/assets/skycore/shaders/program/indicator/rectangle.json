@@ -1,0 +1,12 @@
+{
+    "vertex": "skycore:indicator/indicator",
+    "fragment": "skycore:indicator/rectangle",
+    "attributes": [ "Position" ],
+    "samplers": [
+    ],
+    "uniforms": [
+        { "name": "RColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "width", "type": "float", "count": 1, "values": [ 1.0 ] },
+        { "name": "height", "type": "float", "count": 1, "values": [ 1.0 ] }
+    ]
+}

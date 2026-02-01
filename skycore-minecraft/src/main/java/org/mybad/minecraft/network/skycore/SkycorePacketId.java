@@ -20,4 +20,6 @@ public final class SkycorePacketId {
 
     public static final int ENTITY_ATTACHMENT = 70;
     public static final int REMOVE_ENTITY_ATTACHMENT = 71;
+
+    public static final int INDICATOR_COMMAND = 80;
 }
