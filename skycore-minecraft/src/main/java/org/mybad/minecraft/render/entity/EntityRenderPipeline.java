@@ -58,7 +58,7 @@ final class EntityRenderPipeline {
             attachmentManager.renderAttachments(entity, x, y, z, entityYaw, partialTicks, eventDispatcher, trailRenderer);
         }
         if (headBarManager != null) {
-            headBarManager.queueHeadBar(entity, x, y, z, partialTicks);
+            headBarManager.queueHeadBar(entity, entry, x, y, z, partialTicks);
         }
     }
 }

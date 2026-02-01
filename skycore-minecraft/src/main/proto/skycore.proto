@@ -93,6 +93,7 @@ message CircleIndicator {
   IndicatorColor color = 6;
   float facing_degrees = 7;
   double radius = 8;
+  int32 grow_duration_ms = 9;
 }
 
 message RectangleIndicator {

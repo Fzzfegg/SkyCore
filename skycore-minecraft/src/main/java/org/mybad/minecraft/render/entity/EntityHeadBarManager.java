@@ -75,8 +75,9 @@ public final class EntityHeadBarManager {
     }
 
     void queueHeadBar(EntityLivingBase entity,
-                        double x, double y, double z,
-                        float partialTicks) {
+                      EntityWrapperEntry entry,
+                      double x, double y, double z,
+                      float partialTicks) {
         if (entity == null || definitions.isEmpty()) {
             return;
         }
@@ -88,8 +89,9 @@ public final class EntityHeadBarManager {
         double maxHp = Math.max(0.001, entity.getMaxHealth());
         double hpPercent = MathHelper.clamp(hp / maxHp, 0.0, 1.0);
 
+        double baseHeight = resolveBaseHeight(entity, entry);
         RenderState state = new RenderState(entity, hp, maxHp, hpPercent);
-        renderQueue.add(new QueuedHeadBar(entity, definition, state, x, y, z));
+        renderQueue.add(new QueuedHeadBar(entity, definition, state, x, y, z, baseHeight));
     }
 
     public void renderQueued(float partialTicks) {
@@ -120,7 +122,7 @@ public final class EntityHeadBarManager {
                 continue;
             }
             molangContext.update(task.state);
-            double renderY = task.y + task.entity.height + task.definition.offset;
+            double renderY = task.y + task.baseHeight + task.definition.offset;
             GlStateManager.pushMatrix();
             GlStateManager.translate(task.x, renderY, task.z);
             GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
@@ -142,6 +144,22 @@ public final class EntityHeadBarManager {
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
         renderQueue.clear();
+    }
+
+    private double resolveBaseHeight(EntityLivingBase entity, EntityWrapperEntry entry) {
+        double vanillaHeight = entity != null ? entity.height : 0.0d;
+        if (entry == null || entry.mapping == null) {
+            return vanillaHeight;
+        }
+        org.mybad.minecraft.config.EntityModelMapping mapping = entry.mapping;
+        if (mapping.getRenderBoxHeight() > 0f) {
+            return mapping.getRenderBoxHeight();
+        }
+        float scale = mapping.getModelScale();
+        if (scale > 0f && vanillaHeight > 0d) {
+            return vanillaHeight * scale;
+        }
+        return vanillaHeight;
     }
 
     private List<HeadBarDefinition> parseDefinitions(SkyCoreProto.HeadBarConfig config) {
@@ -520,15 +538,17 @@ public final class EntityHeadBarManager {
         final double x;
         final double y;
         final double z;
+        final double baseHeight;
 
         QueuedHeadBar(EntityLivingBase entity, HeadBarDefinition definition, RenderState state,
-                      double x, double y, double z) {
+                      double x, double y, double z, double baseHeight) {
             this.entity = entity;
             this.definition = definition;
             this.state = state;
             this.x = x;
             this.y = y;
             this.z = z;
+            this.baseHeight = baseHeight;
         }
     }
 }

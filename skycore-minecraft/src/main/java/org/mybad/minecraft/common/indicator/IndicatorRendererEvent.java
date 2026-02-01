@@ -129,13 +129,20 @@ public class IndicatorRendererEvent {
         double scaleFactor;
         double pulse = 0.0d;
 
+        int growDuration = indicator.getGrowDurationMs();
+        if (growDuration <= 0) {
+            growDuration = IndicatorRenderer3.DEFAULT_GROW_DURATION_MS;
+        }
+
         // entrance (fade in), steady, and exit (fade out) regions
-        if (elapsed < 490) {
-            scaleFactor = (elapsed / 700.0d) + 0.3d;
+        if (elapsed < growDuration) {
+            double normalized = Math.min(1.0d, elapsed / (double) growDuration);
+            scaleFactor = 0.3d + (normalized * 0.7d);
             alphaFactor = scaleFactor;
         } else if (elapsed < indicator.lifetimeMs - 300) {
             scaleFactor = 1.0d;
-            pulse = ((elapsed - 490) % 1000.0d) / 1000.0d;
+            long steadyElapsed = Math.max(0L, elapsed - growDuration);
+            pulse = (steadyElapsed % 1000L) / 1000.0d;
             alphaFactor = 1.0d;
         } else {
             alphaFactor = 1.0d - (((double) (elapsed - indicator.lifetimeMs) + 300.0d) / 300.0d);
@@ -290,6 +297,7 @@ public class IndicatorRendererEvent {
         indicator.setLifetime(Math.max(proto.getLifetimeMs(), 1));
         indicator.setFacingDegrees(proto.getFacingDegrees());
         indicator.setRadius(proto.getRadius());
+        indicator.setGrowDurationMs(proto.getGrowDurationMs());
         applyColor(indicator, proto.getColor());
         return indicator;
     }

@@ -7,11 +7,14 @@ import net.minecraft.client.shader.ShaderManager;
 import java.util.UUID;
 
 public abstract class IndicatorRenderer3 {
+    public static final int DEFAULT_GROW_DURATION_MS = 490;
+
     public final long startTimeMs = System.currentTimeMillis();
     public float colorR;
     public float colorG;
     public float colorB;
     public int lifetimeMs;
+    private int growDurationMs = DEFAULT_GROW_DURATION_MS;
     public IndicatorValue xValue;
     public IndicatorValue yValue;
     public IndicatorValue zValue;
@@ -57,6 +60,18 @@ public abstract class IndicatorRenderer3 {
 
     public void setLifetime(int lifetimeMs) {
         this.lifetimeMs = lifetimeMs;
+    }
+
+    public void setGrowDurationMs(int durationMs) {
+        if (durationMs <= 0) {
+            this.growDurationMs = DEFAULT_GROW_DURATION_MS;
+        } else {
+            this.growDurationMs = durationMs;
+        }
+    }
+
+    public int getGrowDurationMs() {
+        return this.growDurationMs;
     }
 
     public void applyColor(float alpha) {

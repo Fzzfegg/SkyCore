@@ -60,6 +60,8 @@ public class SkyCoreMod {
     private PreloadManager preloadManager;
     @SideOnly(Side.CLIENT)
     private IndicatorRendererEvent indicatorRendererEvent;
+    @SideOnly(Side.CLIENT)
+    private Thread shutdownHook;
     private File gameDir;
 
     @Mod.EventHandler
@@ -78,6 +80,7 @@ public class SkyCoreMod {
         preloadManager = new PreloadManager(resourceCacheManager);
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
         RemoteConfigController.getInstance().loadCacheOnStartup();
+        registerShutdownHook();
 
         LOGGER.info("[SkyCore] PreInit 完成");
     }
@@ -172,6 +175,23 @@ public class SkyCoreMod {
     
     private BinaryPayloadCipherRegistry initCipherRegistry() {
         return BinaryPayloadCipherRegistry.withDefaults();
+    }
+
+    @SideOnly(Side.CLIENT)
+    private void registerShutdownHook() {
+        Runnable cleanup = () -> {
+            if (preloadManager != null) {
+                preloadManager.shutdown();
+            }
+        };
+        Thread hook = new Thread(cleanup, "SkyCore-ShutdownHook");
+        hook.setDaemon(false);
+        try {
+            Runtime.getRuntime().addShutdownHook(hook);
+            shutdownHook = hook;
+        } catch (IllegalStateException ex) {
+            cleanup.run();
+        }
     }
 
     // 加密 调试消息
