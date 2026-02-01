@@ -225,6 +225,9 @@ public final class EntityRenderDispatcher {
         if (forced == null) {
             return false;
         }
+        if (forced.getLoopMode() == Animation.LoopMode.HOLD_ON_LAST_FRAME) {
+            return false;
+        }
         AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
         if (player != null && !player.isFinished()) {
             return false;

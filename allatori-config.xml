@@ -86,6 +86,10 @@
         <class template="class org.mybad.minecraft.render.BedrockModelWrapper">
             <method template="*(**)"/>
             <field template="*"/>
+        </class>      
+        <class template="class org.mybad.minecraft.render.entity.events">
+            <method template="*(**)"/>
+            <field template="*"/>
         </class>
     </keep-names>
     

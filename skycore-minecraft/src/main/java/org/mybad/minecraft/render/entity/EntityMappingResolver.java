@@ -43,6 +43,10 @@ public final class EntityMappingResolver {
         return entity.getCustomNameTag();
     }
 
+    private static boolean shouldSkip(EntityLivingBase entity) {
+        return false;
+    }
+
     public static final class MappingResult {
         public final String mappingName;
         public final EntityModelMapping mapping;

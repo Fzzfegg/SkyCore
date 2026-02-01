@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
@@ -43,6 +44,19 @@ public class EntityRenderEventHandler {
     public void onRenderLivingPre(RenderLivingEvent.Pre<?> event) {
         entityDispatcher.onRenderLivingPre(event);
     }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onRenderLivingSpecials(RenderLivingEvent.Specials.Pre event) {
+        EntityLivingBase entity = event.getEntity();
+        if (entity == null) {
+            return;
+        }
+        if (entityDispatcher.isSkyCoreEntity(entity)) {
+            entity.setAlwaysRenderNameTag(false);
+            event.setCanceled(true);
+        }
+    }
+
 
     @SubscribeEvent
     public void onRenderLivingPost(RenderLivingEvent.Post<?> event) {
