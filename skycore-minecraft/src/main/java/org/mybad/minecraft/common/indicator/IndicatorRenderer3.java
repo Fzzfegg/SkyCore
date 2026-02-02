@@ -3,11 +3,13 @@ package org.mybad.minecraft.common.indicator;
 
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.shader.ShaderManager;
+import net.minecraft.util.ResourceLocation;
 
 import java.util.UUID;
 
 public abstract class IndicatorRenderer3 {
     public static final int DEFAULT_GROW_DURATION_MS = 490;
+    public static final ResourceLocation DEFAULT_TEXTURE = new ResourceLocation("skycore:indicator/shadow.png");
 
     public final long startTimeMs = System.currentTimeMillis();
     public float colorR;
@@ -15,6 +17,8 @@ public abstract class IndicatorRenderer3 {
     public float colorB;
     public int lifetimeMs;
     private int growDurationMs = DEFAULT_GROW_DURATION_MS;
+    private int pulseIntervalMs = 1000;
+    private ResourceLocation texture = DEFAULT_TEXTURE;
     public IndicatorValue xValue;
     public IndicatorValue yValue;
     public IndicatorValue zValue;
@@ -63,7 +67,7 @@ public abstract class IndicatorRenderer3 {
     }
 
     public void setGrowDurationMs(int durationMs) {
-        if (durationMs <= 0) {
+        if (durationMs < 0) {
             this.growDurationMs = DEFAULT_GROW_DURATION_MS;
         } else {
             this.growDurationMs = durationMs;
@@ -72,6 +76,22 @@ public abstract class IndicatorRenderer3 {
 
     public int getGrowDurationMs() {
         return this.growDurationMs;
+    }
+
+    public ResourceLocation getTexture() {
+        return this.texture != null ? this.texture : DEFAULT_TEXTURE;
+    }
+
+    public void setTexture(ResourceLocation texture) {
+        this.texture = texture != null ? texture : DEFAULT_TEXTURE;
+    }
+
+    public int getPulseIntervalMs() {
+        return pulseIntervalMs;
+    }
+
+    public void setPulseIntervalMs(int pulseIntervalMs) {
+        this.pulseIntervalMs = pulseIntervalMs;
     }
 
     public void applyColor(float alpha) {

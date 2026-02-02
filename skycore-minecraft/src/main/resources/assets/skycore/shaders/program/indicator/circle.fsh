@@ -2,6 +2,8 @@
 
 uniform vec4 RColor;
 uniform float angle;
+uniform float useTextureMask;
+uniform sampler2D DiffuseSampler;
 
 varying vec4 texcoord;
 
@@ -12,6 +14,9 @@ float easeInOutCirc(in float x) {
 void main() {
 
 
+    vec4 textureSample = texture2D(DiffuseSampler, texcoord.st);
+    float customMask = textureSample.a;
+
     // 获取离中心点距离,大于的在圆外直接筛掉
     float dist = distance(vec2(0.5, 0.5), texcoord.st);
     if(dist >= 0.5){
@@ -20,7 +25,8 @@ void main() {
     if(angle<=-1){
       dist = easeInOutCirc(dist*2);
       vec4 color = RColor;
-      color.a = dist * color.a;
+      float mask = mix(dist, customMask, clamp(useTextureMask, 0.0, 1.0));
+      color.a = mask * color.a;
       if(color.a>0 && color.a<0.11){
         color.a=0.11;
       }
@@ -44,10 +50,11 @@ void main() {
         dist2 = easeInOutCirc(1.0-(dotValue-angle));
       }
 
-
-
       vec4 color = RColor;
-      color.a = max(color.a * max(dist1,dist2), 0.11);
+      float maskBlend = clamp(useTextureMask, 0.0, 1.0);
+      float proceduralMask = max(dist1, dist2);
+      float finalMask = mix(proceduralMask, customMask, maskBlend);
+      color.a = max(color.a * finalMask, 0.11);
       gl_FragData[0] = color;
     }
 }

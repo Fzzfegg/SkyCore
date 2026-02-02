@@ -5,6 +5,7 @@ import net.minecraft.client.shader.ShaderManager;
 public class IndicatorRenderer extends IndicatorRenderer3 {
     private double radius;
     private float facingNormalized = -1.0f;
+    private boolean textureMaskEnabled;
 
     public void setRadius(double radius) {
         this.radius = radius;
@@ -35,6 +36,7 @@ public class IndicatorRenderer extends IndicatorRenderer3 {
     @Override
     public void renderScaled(float scale) {
         IndicatorRendererEvent.CIRCLE_SHADER.getShaderUniformOrDefault("angle").set(this.facingNormalized);
+        IndicatorRendererEvent.CIRCLE_SHADER.getShaderUniformOrDefault("useTextureMask").set(this.textureMaskEnabled ? 1.0f : 0.0f);
         IndicatorRendererEvent.CIRCLE_SHADER.useShader();
         IndicatorRendererEvent.renderParticle((float) (this.radius * scale));
         IndicatorRendererEvent.CIRCLE_SHADER.endShader();
@@ -43,5 +45,13 @@ public class IndicatorRenderer extends IndicatorRenderer3 {
     @Override
     public ShaderManager getShader() {
         return IndicatorRendererEvent.CIRCLE_SHADER;
+    }
+
+    public void setTextureMaskEnabled(boolean enabled) {
+        this.textureMaskEnabled = enabled;
+    }
+
+    public boolean isTextureMaskEnabled() {
+        return textureMaskEnabled;
     }
 }

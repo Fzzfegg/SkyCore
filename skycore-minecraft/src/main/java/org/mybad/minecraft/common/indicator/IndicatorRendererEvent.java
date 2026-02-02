@@ -30,7 +30,6 @@ public class IndicatorRendererEvent {
 
     public IndicatorRendererEvent() {
         instance = this;
-        org.mybad.minecraft.SkyCoreMod.LOGGER.info("[Indicator] RendererEvent registered");
     }
 
     public static void ensureShadersLoaded() {
@@ -130,19 +129,21 @@ public class IndicatorRendererEvent {
         double pulse = 0.0d;
 
         int growDuration = indicator.getGrowDurationMs();
-        if (growDuration <= 0) {
-            growDuration = IndicatorRenderer3.DEFAULT_GROW_DURATION_MS;
-        }
 
         // entrance (fade in), steady, and exit (fade out) regions
-        if (elapsed < growDuration) {
+        if (growDuration > 0 && elapsed < growDuration) {
             double normalized = Math.min(1.0d, elapsed / (double) growDuration);
             scaleFactor = 0.3d + (normalized * 0.7d);
             alphaFactor = scaleFactor;
         } else if (elapsed < indicator.lifetimeMs - 300) {
             scaleFactor = 1.0d;
-            long steadyElapsed = Math.max(0L, elapsed - growDuration);
-            pulse = (steadyElapsed % 1000L) / 1000.0d;
+            int pulseInterval = indicator.getPulseIntervalMs();
+            if (pulseInterval > 0) {
+                long steadyElapsed = Math.max(0L, elapsed - Math.max(growDuration, 0));
+                pulse = (steadyElapsed % pulseInterval) / (double) pulseInterval;
+            } else {
+                pulse = 0.0d;
+            }
             alphaFactor = 1.0d;
         } else {
             alphaFactor = 1.0d - (((double) (elapsed - indicator.lifetimeMs) + 300.0d) / 300.0d);
@@ -152,7 +153,8 @@ public class IndicatorRendererEvent {
 
         double eased = easeOutCosine(scaleFactor);
 
-        mc.getTextureManager().bindTexture(new ResourceLocation("skycore:indicator/shadow.png"));
+        ResourceLocation texture = indicator.getTexture();
+        mc.getTextureManager().bindTexture(texture);
         GlStateManager.enableBlend();
         GlStateManager.disableCull();
         GlStateManager.disableLighting();
@@ -298,6 +300,14 @@ public class IndicatorRendererEvent {
         indicator.setFacingDegrees(proto.getFacingDegrees());
         indicator.setRadius(proto.getRadius());
         indicator.setGrowDurationMs(proto.getGrowDurationMs());
+        if (!proto.getTexture().isEmpty()) {
+            indicator.setTexture(parseTexture(proto.getTexture()));
+            indicator.setTextureMaskEnabled(true);
+        } else {
+            indicator.setTexture(IndicatorRenderer3.DEFAULT_TEXTURE);
+            indicator.setTextureMaskEnabled(false);
+        }
+        indicator.setPulseIntervalMs(proto.getPulseIntervalMs());
         applyColor(indicator, proto.getColor());
         return indicator;
     }
@@ -442,6 +452,21 @@ public class IndicatorRendererEvent {
                 value.setEntityB(UUID.fromString(entityB));
             } catch (IllegalArgumentException ignored) {
             }
+        }
+    }
+
+    private static ResourceLocation parseTexture(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return IndicatorRenderer3.DEFAULT_TEXTURE;
+        }
+        try {
+            if (raw.contains(":")) {
+                return new ResourceLocation(raw);
+            }
+            return new ResourceLocation(org.mybad.minecraft.SkyCoreMod.MOD_ID, raw);
+        } catch (Exception ex) {
+            org.mybad.minecraft.SkyCoreMod.LOGGER.warn("[Indicator] 无法解析纹理路径 {}，已回退默认。", raw);
+            return IndicatorRenderer3.DEFAULT_TEXTURE;
         }
     }
 }
