@@ -107,6 +107,8 @@ message RectangleIndicator {
   IndicatorColor color = 6;
   double base_width = 7;
   IndicatorValue distance = 8;
+  int32 grow_duration_ms = 9;
+  int32 pulse_interval_ms = 10;
 }
 
 message IndicatorVertex {

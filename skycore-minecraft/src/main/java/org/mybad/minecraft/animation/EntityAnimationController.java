@@ -47,13 +47,13 @@ public class EntityAnimationController {
     private static final float SPAWN_FADE_OUT = 0.15f;
     private static final float SPEED_SMOOTH_BASE = 0.10f;
     private static final float SPEED_SMOOTH_BASE_DECEL = 0.04f;
-    private static final float WALK_ENTER = 0.04f;
-    private static final float WALK_EXIT = 0.02f;
+    private static final float WALK_ENTER = 0.065f;
+    private static final float WALK_EXIT = 0.035f;
     private static final float MIN_WALK_TIME = 0.10f;
-    private static final float STOP_SPEED_EPS = 0.004f;
+    private static final float STOP_SPEED_EPS = 0.008f;
     private static final float STOP_HOLD_TIME = 0.055f;
-    private static final float RAW_SPEED_TRIGGER = 0.012f;
-    private static final float LIMB_SWING_TRIGGER = 0.03f;
+    private static final float RAW_SPEED_TRIGGER = 0.025f;
+    private static final float LIMB_SWING_TRIGGER = 0.05f;
 
     private final Map<String, Animation> actions;
     private String currentAction;
@@ -71,6 +71,7 @@ public class EntityAnimationController {
     private float lowSpeedTime = 0f;
 
     private final List<OverlayAction> overlays = new ArrayList<>();
+    private final boolean hasHurtOrHitOverlay;
 
     private static final class OverlayAction {
         final String name;
@@ -99,6 +100,7 @@ public class EntityAnimationController {
                 this.actions.put(key, entry.getValue());
             }
         }
+        this.hasHurtOrHitOverlay = this.actions.containsKey("hurt") || this.actions.containsKey("hit");
     }
 
     public Frame update(EntityLivingBase entity) {
@@ -302,6 +304,11 @@ public class EntityAnimationController {
         float walkedDelta = (float) Math.abs(entity.distanceWalkedModified - entity.prevDistanceWalkedModified);
         rawSpeed = Math.max(rawSpeed, Math.max(motionSpeed, walkedDelta));
 
+        boolean suppressHurtMotion = !hasHurtOrHitOverlay && entity.hurtTime > 0;
+        if (suppressHurtMotion) {
+            rawSpeed = 0f;
+        }
+
         if (rawSpeed <= STOP_SPEED_EPS) {
             lowSpeedTime += deltaTime;
         } else {
@@ -319,7 +326,7 @@ public class EntityAnimationController {
         if (lowSpeedTime >= STOP_HOLD_TIME) {
             smoothedSpeed = 0f;
         }
-        boolean moves = computeMoveState(deltaTime, rawSpeed, entity);
+        boolean moves = computeMoveState(deltaTime, rawSpeed, entity, suppressHurtMotion);
 
         String action;
 
@@ -370,9 +377,9 @@ public class EntityAnimationController {
         return alpha;
     }
 
-    private boolean computeMoveState(float deltaTime, float rawSpeed, EntityLivingBase entity) {
+    private boolean computeMoveState(float deltaTime, float rawSpeed, EntityLivingBase entity, boolean suppressHurtMotion) {
         boolean moving;
-        boolean limbMoving = entity != null && Math.abs(entity.limbSwingAmount) > LIMB_SWING_TRIGGER;
+        boolean limbMoving = !suppressHurtMotion && entity != null && Math.abs(entity.limbSwingAmount) > LIMB_SWING_TRIGGER;
         if (rawSpeed > RAW_SPEED_TRIGGER || limbMoving) {
             moving = true;
         } else if (wasMoving) {

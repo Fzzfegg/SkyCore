@@ -324,6 +324,8 @@ public class IndicatorRendererEvent {
         indicator.setDistanceValue(createDistanceValue(proto.getDistance()));
         indicator.setBaseWidth(proto.getBaseWidth());
         indicator.setLifetime(Math.max(proto.getLifetimeMs(), 1));
+        indicator.setGrowDurationMs(proto.getGrowDurationMs());
+        indicator.setPulseIntervalMs(proto.getPulseIntervalMs());
         applyColor(indicator, proto.getColor());
         return indicator;
     }
