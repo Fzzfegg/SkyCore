@@ -9,4 +9,8 @@ public interface EmitterTransformProvider {
     default boolean isLocatorBound() {
         return false;
     }
+
+    default boolean shouldExpireEmitter() {
+        return false;
+    }
 }

@@ -13,6 +13,7 @@ import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
+import org.mybad.minecraft.render.world.WorldActorManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 @SideOnly(Side.CLIENT)
@@ -21,6 +22,7 @@ public final class EntityRenderDispatcher {
     private final ForcedAnimationCache forcedAnimations;
     private final AnimationEventDispatcher eventDispatcher;
     private final EntityAttachmentManager attachmentManager;
+    private final WorldActorManager worldActorManager;
     private final EntityAttributeOverrideStore overrideStore;
     private final EntityHeadBarManager headBarManager;
     private final EntityRenderPipeline renderPipeline;
@@ -33,6 +35,7 @@ public final class EntityRenderDispatcher {
         this.forcedAnimations = new ForcedAnimationCache();
         this.eventDispatcher = new AnimationEventDispatcher();
         this.attachmentManager = new EntityAttachmentManager(cacheManager);
+        this.worldActorManager = new WorldActorManager(cacheManager);
         this.headBarManager = new EntityHeadBarManager();
         this.overrideStore = new EntityAttributeOverrideStore();
         this.renderPipeline = new EntityRenderPipeline(
@@ -99,6 +102,7 @@ public final class EntityRenderDispatcher {
             }
         });
         attachmentManager.tick();
+        worldActorManager.tick();
     }
 
     public boolean isSkyCoreEntity(EntityLivingBase entity) {
@@ -116,6 +120,7 @@ public final class EntityRenderDispatcher {
         wrapperCache.clear();
         clearAllForcedAnimations();
         attachmentManager.clear();
+        worldActorManager.clear();
         headBarManager.reload();
         overrideStore.clearAll();
     }
@@ -142,6 +147,10 @@ public final class EntityRenderDispatcher {
 
     public EntityAttachmentManager getAttachmentManager() {
         return attachmentManager;
+    }
+
+    public WorldActorManager getWorldActorManager() {
+        return worldActorManager;
     }
 
     public EntityHeadBarManager getHeadBarManager() {

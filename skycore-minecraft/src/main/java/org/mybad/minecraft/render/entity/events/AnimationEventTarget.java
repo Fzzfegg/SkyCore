@@ -13,4 +13,11 @@ public interface AnimationEventTarget {
     float getHeadYaw();
 
     float getBodyYaw();
+
+    /**
+     * When true, any emitters tied to this target should expire immediately.
+     */
+    default boolean isEventTargetExpired() {
+        return false;
+    }
 }

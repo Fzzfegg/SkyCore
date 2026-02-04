@@ -39,6 +39,11 @@ public final class WeaponTrailController {
     }
 
     public void update(EntityLivingBase entity, BedrockModelHandle wrapper, float partialTicks) {
+        float headYaw = entity != null ? AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks) : 0f;
+        update(entity, wrapper, partialTicks, headYaw);
+    }
+
+    public void update(EntityLivingBase entity, BedrockModelHandle wrapper, float partialTicks, float headYaw) {
         if (clips.isEmpty()) {
             return;
         }
@@ -55,7 +60,6 @@ public final class WeaponTrailController {
             }
         }
         lastUpdateNanos = now;
-        float headYaw = entity != null ? AnimationEventMathUtil.resolveHeadYaw(entity, partialTicks) : 0f;
         Iterator<Map.Entry<String, WeaponTrailClip>> iterator = clips.entrySet().iterator();
         while (iterator.hasNext()) {
             WeaponTrailClip clip = iterator.next().getValue();

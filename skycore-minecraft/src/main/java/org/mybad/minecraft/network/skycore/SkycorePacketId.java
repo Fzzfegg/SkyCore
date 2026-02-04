@@ -22,4 +22,5 @@ public final class SkycorePacketId {
     public static final int REMOVE_ENTITY_ATTACHMENT = 71;
 
     public static final int INDICATOR_COMMAND = 80;
+    public static final int WORLD_ACTOR_COMMAND = 90;
 }

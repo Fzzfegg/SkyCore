@@ -10,6 +10,7 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.entity.EntityAttachmentManager;
+import org.mybad.minecraft.render.world.WorldActorManager;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
@@ -166,6 +167,33 @@ public final class RealtimeCommandExecutor {
             return;
         }
         IndicatorRendererEvent.applyIndicatorCommand(packet);
+    }
+
+    public static void handleWorldActorCommand(SkyCoreProto.WorldActorCommand packet) {
+        if (packet == null) {
+            return;
+        }
+        EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
+        if (handler == null) {
+            return;
+        }
+        WorldActorManager manager = handler.getWorldActorManager();
+        if (manager == null) {
+            return;
+        }
+        SkyCoreProto.WorldActorCommand.Action action = packet.getAction();
+        switch (action) {
+            case SPAWN:
+                manager.spawnActor(packet);
+                break;
+            case REMOVE:
+                manager.removeActor(packet.getId());
+                break;
+            case CLEAR_ALL:
+                manager.clear();
+                break;
+            default:
+        }
     }
 
     private static float[] toArray(java.util.List<Float> list) {

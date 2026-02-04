@@ -467,6 +467,10 @@ public class ActiveEmitter implements ParticleContext {
         }
 
         private void updateTransform(float deltaSeconds) {
+            if (transformProvider.shouldExpireEmitter()) {
+                expire();
+                return;
+            }
             lastX = x;
             lastY = y;
             lastZ = z;

@@ -17,6 +17,7 @@ import org.mybad.minecraft.render.entity.EntityAttachmentManager;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.entity.events.AnimationEventMathUtil;
+import org.mybad.minecraft.render.world.WorldActorManager;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
@@ -97,6 +98,14 @@ public class EntityRenderEventHandler {
         entityDispatcher.cleanupEntityWrappers();
         weaponTrailRenderer.render(event.getPartialTicks());
         entityDispatcher.getHeadBarManager().renderQueued(event.getPartialTicks());
+        EntityAttachmentManager manager = entityDispatcher.getAttachmentManager();
+        if (manager != null) {
+            manager.renderWorldAttachments(event.getPartialTicks(), entityDispatcher.getEventDispatcher(), weaponTrailRenderer);
+        }
+        WorldActorManager worldActorManager = entityDispatcher.getWorldActorManager();
+        if (worldActorManager != null) {
+            worldActorManager.render(event.getPartialTicks(), entityDispatcher.getEventDispatcher(), weaponTrailRenderer);
+        }
         org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
     }
 
@@ -173,6 +182,10 @@ public class EntityRenderEventHandler {
 
     public EntityAttachmentManager getAttachmentManager() {
         return entityDispatcher.getAttachmentManager();
+    }
+
+    public WorldActorManager getWorldActorManager() {
+        return entityDispatcher.getWorldActorManager();
     }
 
     public void applyAttributeOverrides(java.util.List<org.mybad.skycoreproto.SkyCoreProto.EntityAttributeOverride> overrides) {

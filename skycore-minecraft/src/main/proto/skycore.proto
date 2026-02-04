@@ -142,6 +142,24 @@ message IndicatorCommand {
   }
 }
 
+message WorldActorCommand {
+  enum Action {
+    SPAWN = 0;
+    REMOVE = 1;
+    CLEAR_ALL = 2;
+  }
+  Action action = 1;
+  string id = 2;
+  string mapping_name = 3;
+  double x = 4;
+  double y = 5;
+  double z = 6;
+  float yaw = 7;
+  optional string animation = 8;
+  optional float scale = 9;
+  optional int32 lifetime_ticks = 10;
+}
+
 message ConfigIndexEntry {
   string file_name = 1;
   bytes hash = 2;
@@ -264,6 +282,11 @@ message EntityAttachment {
   optional float yaw_offset = 8;
   optional string animation = 9;
   optional float scale = 10;
+  optional bool world_space = 11;
+  optional double world_x = 12;
+  optional double world_y = 13;
+  optional double world_z = 14;
+  optional float world_yaw = 15;
 }
 
 message RemoveEntityAttachment {

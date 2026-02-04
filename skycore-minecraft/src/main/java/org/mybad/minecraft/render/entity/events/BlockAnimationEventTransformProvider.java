@@ -59,6 +59,11 @@ final class BlockAnimationEventTransformProvider implements EmitterTransformProv
         return locatorName != null && !locatorName.isEmpty();
     }
 
+    @Override
+    public boolean shouldExpireEmitter() {
+        return target != null && target.isEventTargetExpired();
+    }
+
     private void applyLocatorTransform(EmitterTransform transform) {
         float scale = wrapper != null ? wrapper.getModelScale() : 1.0f;
         float lx = locatorTransform.position[0] * scale;

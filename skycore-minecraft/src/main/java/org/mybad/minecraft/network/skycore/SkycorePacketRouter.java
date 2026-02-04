@@ -75,6 +75,10 @@ public final class SkycorePacketRouter {
                     SkyCoreMod.LOGGER.info("[SkyCore] 收到地面指示器指令。");
                     RealtimeCommandExecutor.handleIndicatorCommand(SkyCoreProto.IndicatorCommand.parseFrom(payload));
                     return;
+                case SkycorePacketId.WORLD_ACTOR_COMMAND:
+                    SkyCoreMod.LOGGER.info("[SkyCore] 收到世界实体指令。");
+                    RealtimeCommandExecutor.handleWorldActorCommand(SkyCoreProto.WorldActorCommand.parseFrom(payload));
+                    return;
                 default:
                     SkyCoreMod.LOGGER.warn("[SkyCore] 收到未知数据包：{}", packetId);
             }
