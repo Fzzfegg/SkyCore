@@ -32,9 +32,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.math.RoundingMode;
 
-/**
- * Renders configurable head bars driven entirely by remote definitions.
- */
+
 public final class EntityHeadBarManager {
 
     private static final ThreadLocal<DecimalFormat> PERCENT_FORMAT = ThreadLocal.withInitial(() -> {
@@ -63,11 +61,9 @@ public final class EntityHeadBarManager {
         SkyCoreProto.HeadBarConfig config = HeadBarConfigStore.getConfig();
         if (config == null || config.getDefinitionsCount() == 0) {
             definitions = Collections.emptyList();
-            SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 配置为空，已停用自定义血条。");
             return;
         }
         definitions = parseDefinitions(config);
-        SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 配置已载入，共 {} 条规则。", definitions.size());
     }
 
     public void beginFrame() {
@@ -231,7 +227,6 @@ public final class EntityHeadBarManager {
             try {
                 return molangCompiler.compile(key);
             } catch (MolangSyntaxException ex) {
-                SkyCoreMod.LOGGER.warn("[SkyCore] HeadBar 表达式语法错误: {} -> {}", key, ex.getMessage());
                 return null;
             }
         });
