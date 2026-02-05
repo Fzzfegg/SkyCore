@@ -31,16 +31,7 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Data about a particle from the Bedrock specs.
- *
-// * @param description Basic info about the particle
-// * @param curves      Custom curves to evaluate
-// * @param events      Custom defined event listeners for when events are fired
-// * @param components  All components in the particle
- * @author Ocelot
- * @since 1.0.0
- */
+
 public final class ParticleData {
 
     Description description;

@@ -40,6 +40,8 @@ final class EntityRenderPipeline {
             preRenderCallback.accept(entity, entry);
         }
         float entityYaw = AnimationEventMathUtil.interpolateRotation(entity.prevRotationYawHead, entity.rotationYawHead, partialTicks);
+        updateLastKnownPose(entity, entry, partialTicks, entityYaw);
+        entry.lastPackedLight = entity.getBrightnessForRender();
 
         wrapper.render(entity, x, y, z, entityYaw, partialTicks);
         eventDispatcher.dispatchAnimationEvents(entity, entry, null, wrapper, partialTicks);
@@ -60,5 +62,22 @@ final class EntityRenderPipeline {
         if (headBarManager != null) {
             headBarManager.queueHeadBar(entity, entry, x, y, z, partialTicks);
         }
+    }
+
+    private void updateLastKnownPose(EntityLivingBase entity,
+                                     EntityWrapperEntry entry,
+                                     float partialTicks,
+                                     float headYaw) {
+        if (entity == null || entry == null) {
+            return;
+        }
+        double interpX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
+        double interpY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
+        double interpZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
+        entry.lastWorldX = interpX;
+        entry.lastWorldY = interpY;
+        entry.lastWorldZ = interpZ;
+        float bodyYaw = AnimationEventMathUtil.interpolateRotation(entity.prevRenderYawOffset, entity.renderYawOffset, partialTicks);
+        entry.lastBodyYaw = Float.isNaN(bodyYaw) ? headYaw : bodyYaw;
     }
 }

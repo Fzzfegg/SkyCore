@@ -65,7 +65,6 @@ final class EntityWrapperCache {
         EntityWrapperEntry created = new EntityWrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick, mapping);
         cache.put(entityId, created);
 
-        SkyCoreMod.LOGGER.info("[SkyCore] 为实体 '{}' 创建模型包装器", entityName);
         return created;
     }
 
@@ -86,7 +85,7 @@ final class EntityWrapperCache {
         }
     }
 
-    void cleanupDead() {
+    void cleanupDead(LingeringEntityManager lingeringManager) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.world == null) {
             return;
@@ -95,7 +94,11 @@ final class EntityWrapperCache {
             Map.Entry<Integer, EntityWrapperEntry> entry = it.next();
             Entity entity = mc.world.getEntityByID(entry.getKey());
             if (entity == null || entity.isDead) {
-                entry.getValue().wrapper.dispose();
+                EntityWrapperEntry wrapperEntry = entry.getValue();
+                boolean adopted = lingeringManager != null && lingeringManager.adopt(entity, wrapperEntry);
+                if (!adopted) {
+                    wrapperEntry.wrapper.dispose();
+                }
                 it.remove();
             }
         }

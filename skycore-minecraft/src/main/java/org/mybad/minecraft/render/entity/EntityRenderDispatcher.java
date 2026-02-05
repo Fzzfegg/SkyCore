@@ -26,6 +26,7 @@ public final class EntityRenderDispatcher {
     private final EntityAttributeOverrideStore overrideStore;
     private final EntityHeadBarManager headBarManager;
     private final EntityRenderPipeline renderPipeline;
+    private final LingeringEntityManager lingeringManager;
     private long renderFrameCounter = 0L;
     private long currentRenderFrameId = 0L;
     private boolean renderFrameActive = false;
@@ -38,6 +39,7 @@ public final class EntityRenderDispatcher {
         this.worldActorManager = new WorldActorManager(cacheManager);
         this.headBarManager = new EntityHeadBarManager();
         this.overrideStore = new EntityAttributeOverrideStore();
+        this.lingeringManager = new LingeringEntityManager();
         this.renderPipeline = new EntityRenderPipeline(
             eventDispatcher,
             this::handleForcedAnimationFrame,
@@ -103,6 +105,7 @@ public final class EntityRenderDispatcher {
         });
         attachmentManager.tick();
         worldActorManager.tick();
+        lingeringManager.tick();
     }
 
     public boolean isSkyCoreEntity(EntityLivingBase entity) {
@@ -121,6 +124,7 @@ public final class EntityRenderDispatcher {
         clearAllForcedAnimations();
         attachmentManager.clear();
         worldActorManager.clear();
+        lingeringManager.clear();
         headBarManager.reload();
         overrideStore.clearAll();
     }
@@ -130,7 +134,7 @@ public final class EntityRenderDispatcher {
     }
 
     public void cleanupEntityWrappers() {
-        wrapperCache.cleanupDead();
+        wrapperCache.cleanupDead(lingeringManager);
     }
 
     public boolean setForcedAnimation(java.util.UUID entityUuid, Animation animation) {
@@ -159,6 +163,14 @@ public final class EntityRenderDispatcher {
 
     public AnimationEventDispatcher getEventDispatcher() {
         return eventDispatcher;
+    }
+
+    public LingeringEntityManager getLingeringManager() {
+        return lingeringManager;
+    }
+
+    public void renderLingeringEntities(float partialTicks) {
+        lingeringManager.render(partialTicks);
     }
 
     public String findMappingByUuid(java.util.UUID uuid) {

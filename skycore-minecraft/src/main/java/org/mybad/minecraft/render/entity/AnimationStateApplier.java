@@ -6,6 +6,7 @@ import org.mybad.minecraft.animation.EntityAnimationController;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 final class AnimationStateApplier {
     private AnimationStateApplier() {
@@ -44,6 +45,39 @@ final class AnimationStateApplier {
         } else {
             entry.wrapper.clearOverlayStates();
         }
+        updateLingeringState(entity, entry);
         return overlayStates;
+    }
+
+    private static void updateLingeringState(EntityLivingBase entity, EntityWrapperEntry entry) {
+        if (entity == null || entry == null) {
+            return;
+        }
+        boolean isDead = entity.getHealth() <= 0f || entity.isDead || entity.deathTime > 0;
+        if (!isDead) {
+            entry.lastKnownDead = false;
+            return;
+        }
+        boolean flagged = false;
+        if (entry.controller != null) {
+            String currentAction = entry.controller.getCurrentAction();
+            if (currentAction != null) {
+                String normalized = currentAction.toLowerCase(Locale.ROOT);
+                if (normalized.contains("death") || normalized.contains("dying")) {
+                    flagged = true;
+                }
+            }
+        }
+        if (!flagged && entry.wrapper != null) {
+            org.mybad.core.animation.AnimationPlayer player = entry.wrapper.getActiveAnimationPlayer();
+            if (player != null) {
+                org.mybad.core.animation.Animation animation = player.getAnimation();
+                if (animation != null && animation.getName() != null) {
+                    String animName = animation.getName().toLowerCase(Locale.ROOT);
+                    flagged = animName.contains("death") || animName.contains("dying");
+                }
+            }
+        }
+        entry.lastKnownDead = flagged;
     }
 }

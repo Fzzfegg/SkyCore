@@ -7,14 +7,17 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import org.mybad.core.animation.Animation;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.BedrockModelWrapper;
 import org.mybad.minecraft.render.GLDeletionQueue;
 import org.mybad.minecraft.render.entity.EntityAttachmentManager;
 import org.mybad.minecraft.render.entity.EntityRenderDispatcher;
+import org.mybad.minecraft.render.entity.LingeringEntityManager;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.entity.events.AnimationEventMathUtil;
 import org.mybad.minecraft.render.world.WorldActorManager;
@@ -106,6 +109,7 @@ public class EntityRenderEventHandler {
         if (worldActorManager != null) {
             worldActorManager.render(event.getPartialTicks(), entityDispatcher.getEventDispatcher(), weaponTrailRenderer);
         }
+        entityDispatcher.renderLingeringEntities(event.getPartialTicks());
         org.mybad.minecraft.debug.DebugRenderOverlay.render(event, entityDispatcher);
     }
 
@@ -145,7 +149,6 @@ public class EntityRenderEventHandler {
     public void clearCache() {
         entityDispatcher.clearCache();
         BedrockModelWrapper.clearSharedResources();
-        SkyCoreMod.LOGGER.info("[SkyCore] 模型包装器缓存已清空");
         weaponTrailRenderer.beginFrame();
     }
 
@@ -190,6 +193,37 @@ public class EntityRenderEventHandler {
 
     public void applyAttributeOverrides(java.util.List<org.mybad.skycoreproto.SkyCoreProto.EntityAttributeOverride> overrides) {
         entityDispatcher.applyAttributeOverrides(overrides);
+    }
+
+    @SubscribeEvent
+    public void onWorldLoad(WorldEvent.Load event) {
+        if (event.getWorld() != null && event.getWorld().isRemote) {
+            clearWorldActors();
+        }
+    }
+
+    @SubscribeEvent
+    public void onWorldUnload(WorldEvent.Unload event) {
+        if (event.getWorld() != null && event.getWorld().isRemote) {
+            clearWorldActors();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientConnected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        clearWorldActors();
+    }
+
+    @SubscribeEvent
+    public void onClientDisconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        clearWorldActors();
+    }
+
+    private void clearWorldActors() {
+        WorldActorManager manager = entityDispatcher.getWorldActorManager();
+        manager.clear();
+        LingeringEntityManager lingering = entityDispatcher.getLingeringManager();
+        lingering.clear();
     }
 
 }

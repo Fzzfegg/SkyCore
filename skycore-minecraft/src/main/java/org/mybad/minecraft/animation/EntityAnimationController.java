@@ -135,6 +135,13 @@ public class EntityAnimationController {
         return currentAction;
     }
 
+    public Animation getAction(String name) {
+        if (name == null) {
+            return null;
+        }
+        return actions.get(normalize(name));
+    }
+
     /**
      * Forces the controller to treat the next update as if the primary
      * action changed, even when it stays the same.

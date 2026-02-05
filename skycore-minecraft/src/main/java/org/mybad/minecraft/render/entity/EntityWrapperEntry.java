@@ -25,6 +25,12 @@ public final class EntityWrapperEntry implements AnimationEventContext {
     public final AnimationEventState renderState = new AnimationEventState();
     public final WeaponTrailController trailController = new WeaponTrailController();
     public long appliedOverrideVersion = Long.MIN_VALUE;
+    public boolean lastKnownDead = false;
+    public double lastWorldX = Double.NaN;
+    public double lastWorldY = Double.NaN;
+    public double lastWorldZ = Double.NaN;
+    public float lastBodyYaw = 0f;
+    public int lastPackedLight = 0;
 
     EntityWrapperEntry(BedrockModelHandle wrapper, EntityAnimationController controller, UUID entityUuid, String mappingName, long lastSeenTick, org.mybad.minecraft.config.EntityModelMapping mapping) {
         this.wrapper = wrapper;
