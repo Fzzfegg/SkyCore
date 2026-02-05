@@ -29,7 +29,6 @@ public final class SoundExistenceCache {
             ready = true;
             return;
         }
-        int total = 0;
         try (DirectoryStream<Path> domains = Files.newDirectoryStream(packRoot)) {
             for (Path namespaceDir : domains) {
                 if (!Files.isDirectory(namespaceDir)) {
@@ -57,7 +56,6 @@ public final class SoundExistenceCache {
         }
         total = EXISTING.size();
         ready = true;
-        SkyCoreMod.LOGGER.info("[SkyCore] 声音存在表加载完成: total={}", total);
     }
 
     public static boolean canPlay(ResourceLocation id) {

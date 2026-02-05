@@ -48,13 +48,12 @@ public class RemoteConfigController {
     public void handleConfigIndex(SkyCoreProto.ConfigIndex index) {
         currentHash = index.getFullHash().toByteArray();
         cacheManager.saveIndex(index);
-        SkyCoreMod.LOGGER.info("[SkyCore] 已接收配置索引，共 {} 个文件。", index.getEntriesCount());
     }
 
     public void handleMappingFile(SkyCoreProto.MappingFile file) {
         mappingFiles.put(file.getFileName(), file);
         cacheManager.saveMappingFile(file);
-        SkyCoreMod.LOGGER.info("[SkyCore] 配置文件 {} 已更新。", file.getFileName());
+//        SkyCoreMod.LOGGER.info("[SkyCore] 配置文件 {} 已更新。", file.getFileName());
         applyMappings();
     }
 
@@ -95,7 +94,7 @@ public class RemoteConfigController {
             SkyCoreProto.HeadBarConfig config = SkyCoreProto.HeadBarConfig.parseFrom(headBarFile.getRawPayload());
             HeadBarConfigStore.update(config);
             cacheManager.writeHeadBarConfig(headBarFile.getRawPayload().toByteArray());
-            SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 配置同步完成，共 {} 条规则。", config.getDefinitionsCount());
+//            SkyCoreMod.LOGGER.info("[SkyCore] HeadBar 配置同步完成，共 {} 条规则。", config.getDefinitionsCount());
         } catch (InvalidProtocolBufferException ex) {
             SkyCoreMod.LOGGER.warn("[SkyCore] HeadBar 配置解析失败: {}", ex.getMessage());
         }
