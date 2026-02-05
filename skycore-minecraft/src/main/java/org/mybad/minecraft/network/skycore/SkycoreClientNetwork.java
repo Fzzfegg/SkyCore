@@ -31,7 +31,6 @@ public final class SkycoreClientNetwork {
         buffer.writeBytes(payload);
         try {
             minecraft.getConnection().sendPacket(new CPacketCustomPayload(CHANNEL, buffer));
-            SkyCoreMod.LOGGER.info("[SkyCore] 已向服务器发送握手数据（原因：{}）。", reason);
         } catch (Exception ex) {
             SkyCoreMod.LOGGER.error("[SkyCore] 发送握手数据失败", ex);
         }

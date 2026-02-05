@@ -237,7 +237,7 @@ public class RootMotion {
     /**
      * 获取运动摘要
      */
-    public String getMotionInfo() {
+    public String getMotion() {
         return String.format("RootMotion [Enabled: %b, DeltaPos: (%.2f, %.2f, %.2f), DeltaRot: (%.2f, %.2f, %.2f)]",
                 enabled, deltaPositionX, deltaPositionY, deltaPositionZ,
                 deltaRotationX, deltaRotationY, deltaRotationZ);
