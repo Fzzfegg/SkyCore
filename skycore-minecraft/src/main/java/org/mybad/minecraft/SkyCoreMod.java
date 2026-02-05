@@ -67,8 +67,6 @@ public class SkyCoreMod {
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
     public void preInit(FMLPreInitializationEvent event) {
-        LOGGER.info("[SkyCore] PreInit - 初始化配置...");
-
         // 初始化配置
         this.gameDir = event.getModConfigurationDirectory().getParentFile();
         SkyCoreConfig.init(ResourcePackRegistrar.getPackRoot(gameDir));
@@ -82,14 +80,11 @@ public class SkyCoreMod {
         RemoteConfigController.getInstance().loadCacheOnStartup();
         registerShutdownHook();
 
-        LOGGER.info("[SkyCore] PreInit 完成");
     }
 
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
     public void init(FMLInitializationEvent event) {
-        LOGGER.info("[SkyCore] Init - 注册事件处理器...");
-
         // 注册虚拟资源包
         ResourcePackRegistrar.registerConfigPack(ResourcePackRegistrar.getPackRoot(gameDir), resourceCacheManager.getCipherRegistry());
         
@@ -108,9 +103,6 @@ public class SkyCoreMod {
 
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
         channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
-
-
-        LOGGER.info("[SkyCore] Init 完成");
     }
 
     /**
