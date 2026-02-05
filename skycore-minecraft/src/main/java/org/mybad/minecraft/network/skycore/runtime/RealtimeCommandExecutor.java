@@ -1,10 +1,14 @@
 package org.mybad.minecraft.network.skycore.runtime;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
-import org.mybad.minecraft.common.indicator.IndicatorRendererEvent;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.common.indicator.IndicatorRendererEvent;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
@@ -23,30 +27,25 @@ public final class RealtimeCommandExecutor {
         if (rawUuid == null || rawUuid.isEmpty()) {
             return;
         }
-        java.util.UUID entityUuid;
-        try {
-            entityUuid = java.util.UUID.fromString(rawUuid);
-        } catch (IllegalArgumentException ex) {
-            return;
-        }
         EntityRenderEventHandler handler = SkyCoreMod.getEntityRenderEventHandler();
         if (handler == null) {
             return;
         }
-        String mappingName = handler.resolveMappingByEntity(entityUuid);
-        if (mappingName == null) {
-            return;
-        }
-        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
-        if (mapping == null || mapping.getAnimation() == null) {
-            return;
-        }
         ResourceCacheManager cacheManager = SkyCoreMod.instance.getResourceCacheManager();
-        Animation animation = cacheManager.loadAnimation(mapping.getAnimation(), packet.getClipName());
-        if (animation == null) {
+        if (cacheManager == null) {
             return;
         }
-        handler.setForcedAnimation(entityUuid, animation);
+        java.util.UUID entityUuid;
+        try {
+            entityUuid = java.util.UUID.fromString(rawUuid);
+        } catch (IllegalArgumentException ex) {
+            entityUuid = null;
+        }
+        if (entityUuid != null) {
+            applyForcedAnimation(handler, cacheManager, entityUuid, packet.getClipName());
+        } else {
+            handleForceAnimationByName(handler, cacheManager, rawUuid, packet.getClipName());
+        }
     }
 
     public static void handleSetModelAttributes(SkyCoreProto.SetModelAttributes packet) {
@@ -202,6 +201,96 @@ public final class RealtimeCommandExecutor {
             arr[i] = list.get(i);
         }
         return arr;
+    }
+
+    private static void applyForcedAnimation(EntityRenderEventHandler handler,
+                                             ResourceCacheManager cacheManager,
+                                             java.util.UUID entityUuid,
+                                             String clipName) {
+        if (entityUuid == null || clipName == null) {
+            return;
+        }
+        String mappingName = handler.resolveMappingByEntity(entityUuid);
+        if (mappingName == null) {
+            return;
+        }
+        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(mappingName);
+        if (mapping == null || mapping.getAnimation() == null) {
+            return;
+        }
+        Animation animation = cacheManager.loadAnimation(mapping.getAnimation(), clipName);
+        if (animation == null) {
+            return;
+        }
+        handler.setForcedAnimation(entityUuid, animation);
+    }
+
+    private static void handleForceAnimationByName(EntityRenderEventHandler handler,
+                                                   ResourceCacheManager cacheManager,
+                                                   String rawName,
+                                                   String clipName) {
+        if (rawName == null) {
+            return;
+        }
+        String target = rawName.trim();
+        if (target.isEmpty() || clipName == null) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null) {
+            return;
+        }
+        String normalized = target.toLowerCase(java.util.Locale.ROOT);
+        for (Entity entity : mc.world.loadedEntityList) {
+            if (!(entity instanceof EntityLivingBase)) {
+                continue;
+            }
+            if (entity instanceof EntityPlayer) {
+                continue;
+            }
+            EntityLivingBase living = (EntityLivingBase) entity;
+            java.util.UUID uuid = living.getUniqueID();
+            if (uuid == null) {
+                continue;
+            }
+            String mappingName = handler.resolveMappingByEntity(uuid);
+            if (mappingName == null) {
+                continue;
+            }
+            if (!matchesEntityName(living, mappingName, normalized)) {
+                continue;
+            }
+            applyForcedAnimation(handler, cacheManager, uuid, clipName);
+        }
+    }
+
+    private static boolean matchesEntityName(EntityLivingBase living,
+                                             String mappingName,
+                                             String normalizedTarget) {
+        if (normalizedTarget == null || normalizedTarget.isEmpty()) {
+            return false;
+        }
+        if (living.hasCustomName()) {
+            String custom = living.getCustomNameTag();
+            if (equalsIgnoreCase(custom, normalizedTarget)) {
+                return true;
+            }
+        }
+        String base = living.getName();
+        if (equalsIgnoreCase(base, normalizedTarget)) {
+            return true;
+        }
+        if (mappingName != null && equalsIgnoreCase(mappingName, normalizedTarget)) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean equalsIgnoreCase(String value, String normalizedTarget) {
+        if (value == null || normalizedTarget == null) {
+            return false;
+        }
+        return value.trim().toLowerCase(java.util.Locale.ROOT).equals(normalizedTarget);
     }
 
 }

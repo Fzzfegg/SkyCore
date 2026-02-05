@@ -100,6 +100,7 @@ public class ActiveEmitter implements ParticleContext {
         private float steadyRemainder;
         private boolean instantEmitted;
         private boolean expired;
+        private boolean forceExpireParticles;
         private int activeParticles;
         private boolean spawnedAny;
 
@@ -468,6 +469,7 @@ public class ActiveEmitter implements ParticleContext {
 
         private void updateTransform(float deltaSeconds) {
             if (transformProvider.shouldExpireEmitter()) {
+                forceExpireParticles = true;
                 expire();
                 return;
             }
@@ -516,6 +518,10 @@ public class ActiveEmitter implements ParticleContext {
 
         boolean isAlive() {
             return !expired || activeParticles > 0;
+        }
+
+        boolean shouldForceExpireParticles() {
+            return forceExpireParticles;
         }
 
         float getEmitterAge() {

@@ -60,7 +60,34 @@ public final class AnimationEventArgsParser {
         params.count = count;
         params.mode = mode;
         params.yawOffset = yawOffset;
+        params.expireOnDeath = false;
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int eq = trimmed.indexOf('=');
+            if (eq < 0) {
+                continue;
+            }
+            String key = trimmed.substring(0, eq).trim().toLowerCase();
+            String value = trimmed.substring(eq + 1).trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            if ("expire_on_death".equals(key) || "kill_on_death".equals(key)) {
+                params.expireOnDeath = parseBoolean(value);
+            }
+        }
         return params;
+    }
+
+    private static boolean parseBoolean(String value) {
+        String normalized = value.trim().toLowerCase();
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized) || "on".equals(normalized)) {
+            return true;
+        }
+        return false;
     }
     
     static SoundParams parseSound(String effect) {
@@ -152,6 +179,7 @@ public final class AnimationEventArgsParser {
         int count;
         ParticleTargetMode mode;
         float yawOffset;
+        boolean expireOnDeath;
     }
     
     static final class SoundParams {
@@ -406,9 +434,9 @@ public final class AnimationEventArgsParser {
         public float colorG = 1.0f;
         public float colorB = 1.0f;
         public float alpha = 1.0f;
-        public float uvSpeed = 1.0f;
+        public float uvSpeed = 0.0f;
         public float width = 1.0f;
-        public int segments = 4;
+        public int segments = 6;
         public TrailAxis axis = TrailAxis.Z;
         public boolean stretchUv = true;
         public boolean enableBloom = false;

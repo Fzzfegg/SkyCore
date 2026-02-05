@@ -320,6 +320,9 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
         }
 
         boolean tick() {
+            if (emitter != null && emitter.shouldForceExpireParticles()) {
+                return false;
+            }
             this.prevX = this.x;
             this.prevY = this.y;
             this.prevZ = this.z;

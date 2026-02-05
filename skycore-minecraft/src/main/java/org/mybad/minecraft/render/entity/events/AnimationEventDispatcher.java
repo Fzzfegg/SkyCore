@@ -212,7 +212,7 @@ public final class AnimationEventDispatcher {
         double iy = initialPos != null && initialPos.length > 1 ? initialPos[1] : entity.posY;
         double iz = initialPos != null && initialPos.length > 2 ? initialPos[2] : entity.posZ;
         system.spawn(params.path, new AnimationEventTransformProvider(entity, wrapper, locatorName, ix, iy, iz, emitterYaw,
-            positionYaw, params.mode, params.yawOffset), params.count);
+            positionYaw, params.mode, params.yawOffset, params.expireOnDeath), params.count);
     }
 
     private void triggerTrailEvent(AnimationEventContext context, Animation.Event event) {

@@ -24,6 +24,8 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
     private final float modelScale;
     private boolean usedInitial;
     private boolean missingLocatorWarned;
+    private final boolean expireWithEntity;
+    private boolean expiredOnDeath;
 
     AnimationEventTransformProvider(EntityLivingBase entity,
                                     BedrockModelHandle wrapper,
@@ -34,7 +36,8 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
                                     float initialEmitterYaw,
                                     float initialPositionYaw,
                                     ParticleTargetMode mode,
-                                    float yawOffset) {
+                                    float yawOffset,
+                                    boolean expireWithEntity) {
         this.entity = entity;
         this.wrapper = wrapper;
         this.locatorName = locatorName;
@@ -49,6 +52,8 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         this.modelScale = 1.0f;
         this.usedInitial = false;
         this.missingLocatorWarned = false;
+        this.expireWithEntity = expireWithEntity;
+        this.expiredOnDeath = false;
     }
 
     @Override
@@ -158,5 +163,24 @@ public final class AnimationEventTransformProvider implements EmitterTransformPr
         transform.basisZ[0] = 0.0f;
         transform.basisZ[1] = 0.0f;
         transform.basisZ[2] = 1.0f;
+    }
+
+    @Override
+    public boolean shouldExpireEmitter() {
+        if (!expireWithEntity) {
+            return false;
+        }
+        if (expiredOnDeath) {
+            return true;
+        }
+        if (entity == null) {
+            expiredOnDeath = true;
+            return true;
+        }
+        if (entity.isDead || entity.getHealth() <= 0f) {
+            expiredOnDeath = true;
+            return true;
+        }
+        return false;
     }
 }
