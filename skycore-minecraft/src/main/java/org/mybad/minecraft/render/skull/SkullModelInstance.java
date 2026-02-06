@@ -1,6 +1,7 @@
 package org.mybad.minecraft.render.skull;
 
 import org.mybad.core.animation.Animation;
+import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.render.BedrockModelHandle;
@@ -28,6 +29,9 @@ final class SkullModelInstance implements AnimationEventContext {
     private final SkullAnimationEventTarget eventTarget = new SkullAnimationEventTarget();
     private static final List<EntityAnimationController.OverlayState> NO_OVERLAYS = Collections.emptyList();
     private String activeClip;
+    private String forcedClip;
+    private boolean forcedOnce;
+    private String defaultClip;
     private long lastSeenTick;
     private double lastWorldX;
     private double lastWorldY;
@@ -80,19 +84,88 @@ final class SkullModelInstance implements AnimationEventContext {
 
     void applyProfile(SkullProfileData profile) {
         if (profile != null) {
-            boolean clipApplied = applyClip(profile.getClip());
-            if (!clipApplied) {
-                ensureDefaultClip();
+            if (!applyForcedClipIfNeeded()) {
+                boolean clipApplied = applyClip(profile.getClip());
+                if (!clipApplied) {
+                    applyDefaultClip();
+                }
             }
-            if (profile.getScale() != null) {
-                handle.setModelScale(profile.getScale());
-            } else {
-                handle.setModelScale(mapping.getModelScale());
-            }
+            applyScale(profile);
         } else {
-            ensureDefaultClip();
+            if (!applyForcedClipIfNeeded()) {
+                applyDefaultClip();
+            }
             handle.setModelScale(mapping.getModelScale());
         }
+    }
+
+    boolean forceClip(String clipName, boolean once) {
+        if (clipName == null || clipName.trim().isEmpty() || animations.isEmpty()) {
+            return false;
+        }
+        String key = clipName.toLowerCase(Locale.ROOT);
+        Animation animation = animations.get(key);
+        if (animation == null) {
+            return false;
+        }
+        forcedClip = key;
+        forcedOnce = once;
+        if (key.equals(activeClip)) {
+            handle.restartAnimation();
+            return true;
+        }
+        activeClip = key;
+        handle.setAnimation(animation);
+        handle.restartAnimation();
+        return true;
+    }
+
+    private boolean applyForcedClipIfNeeded() {
+        if (forcedClip == null || forcedClip.isEmpty()) {
+            return false;
+        }
+        if (!applyClip(forcedClip)) {
+            clearForcedClip();
+            return false;
+        }
+        if (!forcedOnce) {
+            return true;
+        }
+        AnimationPlayer player = handle.getActiveAnimationPlayer();
+        if (player != null && player.isFinished()) {
+            clearForcedClip();
+            return false;
+        }
+        return true;
+    }
+
+    private void clearForcedClip() {
+        forcedClip = null;
+        forcedOnce = false;
+    }
+
+    private void applyScale(SkullProfileData profile) {
+        if (profile.getScale() != null) {
+            handle.setModelScale(profile.getScale());
+        } else {
+            handle.setModelScale(mapping.getModelScale());
+        }
+    }
+
+    private void applyDefaultClip() {
+        if (defaultClip == null || defaultClip.isEmpty()) {
+            return;
+        }
+        Animation animation = animations.get(defaultClip);
+        if (animation == null) {
+            return;
+        }
+        if (defaultClip.equals(activeClip)) {
+            return;
+        }
+        activeClip = defaultClip;
+        handle.setAnimation(animation);
+        handle.restartAnimation();
     }
 
     void render(double renderX,
@@ -161,12 +234,14 @@ final class SkullModelInstance implements AnimationEventContext {
     }
 
     private void ensureDefaultClip() {
-        if (!animations.isEmpty() && activeClip == null) {
-            Map.Entry<String, Animation> entry = animations.entrySet().iterator().next();
-            activeClip = entry.getKey();
-            handle.setAnimation(entry.getValue());
-            handle.restartAnimation();
+        if (animations.isEmpty()) {
+            return;
         }
+        if (defaultClip == null) {
+            Map.Entry<String, Animation> entry = animations.entrySet().iterator().next();
+            defaultClip = entry.getKey();
+        }
+        applyDefaultClip();
     }
 
     private static Map<String, Animation> buildAnimationSet(ResourceCacheManager cacheManager, String animationPath) {

@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
@@ -14,6 +15,7 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.entity.EntityAttachmentManager;
+import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.render.world.WorldActorManager;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.skycoreproto.SkyCoreProto;
@@ -121,6 +123,19 @@ public final class RealtimeCommandExecutor {
                 SkyCoreMod.LOGGER.error("[SkyCore] Failed to apply attribute overrides", ex);
             }
         }
+    }
+
+    public static void handleForceSkullAnimation(SkyCoreProto.ForceSkullAnimation packet) {
+        if (packet == null || packet.getClipName() == null || packet.getClipName().trim().isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null || mc.world.provider == null) {
+            return;
+        }
+        int dimension = mc.world.provider.getDimension();
+        BlockPos pos = new BlockPos(packet.getX(), packet.getY(), packet.getZ());
+        SkullModelManager.forceClip(dimension, pos, packet.getClipName(), packet.getOnce());
     }
 
     public static void handleSpawnParticle(SkyCoreProto.SpawnParticle packet) {

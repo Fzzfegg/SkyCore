@@ -10,6 +10,7 @@ public final class SkycorePacketId {
     public static final int BINARY_KEY = 5;
 
     public static final int FORCE_ANIMATION = 16;
+    public static final int FORCE_SKULL_ANIMATION = 17;
     public static final int SET_MODEL_ATTRIBUTES = 18;
 
     public static final int PRELOAD_HINT = 24;

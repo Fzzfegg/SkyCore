@@ -21,7 +21,9 @@ import java.util.function.Consumer;
 
 public final class SkullModelManager {
     private static final Map<SkullModelKey, SkullModelInstance> INSTANCES = new ConcurrentHashMap<>();
+    private static final Map<SkullModelKey, PendingForcedClip> PENDING_FORCED = new ConcurrentHashMap<>();
     private static final AnimationEventDispatcher EVENT_DISPATCHER = new AnimationEventDispatcher();
+    private static final long PENDING_FORCED_EXPIRE_MS = 15000L;
     private static long renderFrameCounter = 0L;
     private static long currentRenderFrameId = 0L;
     private static boolean renderFrameActive = false;
@@ -74,6 +76,7 @@ public final class SkullModelManager {
             }
             INSTANCES.put(key, instance);
         }
+        applyPendingForcedClip(key, instance);
         instance.markSeen(tick);
         instance.applyProfile(profileData);
 
@@ -95,6 +98,7 @@ public final class SkullModelManager {
             instance.dispose();
         }
         INSTANCES.clear();
+        PENDING_FORCED.clear();
     }
 
     public static void remove(TileEntitySkull skull) {
@@ -106,13 +110,45 @@ public final class SkullModelManager {
             return;
         }
         SkullModelKey key = new SkullModelKey(world.provider.getDimension(), skull.getPos());
+        PENDING_FORCED.remove(key);
         disposeAndRemove(key);
+    }
+
+    public static boolean forceClip(int dimension, BlockPos pos, String clipName, boolean once) {
+        if (pos == null || clipName == null || clipName.trim().isEmpty()) {
+            return false;
+        }
+        SkullModelKey key = new SkullModelKey(dimension, pos);
+        SkullModelInstance instance = INSTANCES.get(key);
+        if (instance != null) {
+            return instance.forceClip(clipName, once);
+        }
+        PENDING_FORCED.put(key, new PendingForcedClip(clipName, once, System.currentTimeMillis()));
+        return true;
     }
 
     private static void disposeAndRemove(SkullModelKey key) {
         SkullModelInstance removed = INSTANCES.remove(key);
         if (removed != null) {
             removed.dispose();
+        }
+    }
+
+    private static void applyPendingForcedClip(SkullModelKey key, SkullModelInstance instance) {
+        if (key == null || instance == null) {
+            return;
+        }
+        PendingForcedClip pending = PENDING_FORCED.get(key);
+        if (pending == null) {
+            return;
+        }
+        long ageMs = System.currentTimeMillis() - pending.createdAtMs;
+        if (ageMs > PENDING_FORCED_EXPIRE_MS) {
+            PENDING_FORCED.remove(key);
+            return;
+        }
+        if (instance.forceClip(pending.clipName, pending.once)) {
+            PENDING_FORCED.remove(key);
         }
     }
 
@@ -230,6 +266,18 @@ public final class SkullModelManager {
         public int hashCode() {
             int result = Integer.hashCode(dimension);
             return 31 * result + Long.hashCode(pos);
+        }
+    }
+
+    private static final class PendingForcedClip {
+        private final String clipName;
+        private final boolean once;
+        private final long createdAtMs;
+
+        private PendingForcedClip(String clipName, boolean once, long createdAtMs) {
+            this.clipName = clipName;
+            this.once = once;
+            this.createdAtMs = createdAtMs;
         }
     }
 

@@ -38,6 +38,9 @@ public final class SkycorePacketRouter {
 //                    SkyCoreMod.LOGGER.info("[SkyCore] 收到强制动画指令。");
                     RealtimeCommandExecutor.handleForceAnimation(SkyCoreProto.ForceAnimation.parseFrom(payload));
                     return;
+                case SkycorePacketId.FORCE_SKULL_ANIMATION:
+                    RealtimeCommandExecutor.handleForceSkullAnimation(SkyCoreProto.ForceSkullAnimation.parseFrom(payload));
+                    return;
                 case SkycorePacketId.SET_MODEL_ATTRIBUTES:
 //                    SkyCoreMod.LOGGER.info("[SkyCore] 收到模型属性更新。");
                     RealtimeCommandExecutor.handleSetModelAttributes(SkyCoreProto.SetModelAttributes.parseFrom(payload));
