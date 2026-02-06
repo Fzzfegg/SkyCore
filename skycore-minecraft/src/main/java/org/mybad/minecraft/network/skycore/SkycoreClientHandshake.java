@@ -33,6 +33,7 @@ public final class SkycoreClientHandshake {
         org.mybad.minecraft.resource.ResourceCacheManager manager = org.mybad.minecraft.SkyCoreMod.getResourceCacheManagerInstance();
         if (manager != null) {
             manager.installBinaryCipher(null);
+            manager.clearCache();
         }
     }
 

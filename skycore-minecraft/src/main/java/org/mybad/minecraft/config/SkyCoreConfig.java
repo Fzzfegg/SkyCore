@@ -15,8 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SkyCoreConfig {
     private static SkyCoreConfig instance;
 
-    /** 实体名字 -> 模型映射 */
+    /** 原始映射表（用于枚举/调试） */
     private final Map<String, EntityModelMapping> mappings = new ConcurrentHashMap<>();
+    /** 大小写无关查找索引 */
+    private final Map<String, EntityModelMapping> mappingLookup = new ConcurrentHashMap<>();
 
     private SkyCoreConfig(Path packRoot) {}
 
@@ -46,6 +48,7 @@ public class SkyCoreConfig {
      */
     public void load() {
         mappings.clear();
+        mappingLookup.clear();
     }
 
     /**
@@ -65,7 +68,21 @@ public class SkyCoreConfig {
         if (entityName == null || entityName.isEmpty()) {
             return null;
         }
-        return mappings.get(entityName);
+        EntityModelMapping exact = mappingLookup.get(entityName);
+        if (exact != null) {
+            return exact;
+        }
+        String lower = entityName.toLowerCase(java.util.Locale.ROOT);
+        EntityModelMapping normalized = mappingLookup.get(lower);
+        if (normalized != null) {
+            return normalized;
+        }
+        for (Map.Entry<String, EntityModelMapping> entry : mappingLookup.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(entityName)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     public Collection<EntityModelMapping> getAllMappings() {
@@ -73,8 +90,16 @@ public class SkyCoreConfig {
     }
     public synchronized void applyRemoteMappings(Map<String, EntityModelMapping> newMappings) {
         mappings.clear();
+        mappingLookup.clear();
         if (newMappings != null) {
-            mappings.putAll(newMappings);
+            for (Map.Entry<String, EntityModelMapping> entry : newMappings.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null) {
+                    continue;
+                }
+                mappings.put(entry.getKey(), entry.getValue());
+                mappingLookup.put(entry.getKey(), entry.getValue());
+                mappingLookup.put(entry.getKey().toLowerCase(java.util.Locale.ROOT), entry.getValue());
+            }
         }
     }
 
