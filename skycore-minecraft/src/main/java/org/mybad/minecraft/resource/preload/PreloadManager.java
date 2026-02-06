@@ -138,7 +138,7 @@ public final class PreloadManager {
         warmBinary(mapping.getBloom(), "texture");
         warmBinary(mapping.getBlendTexture(), "texture");
         long cost = System.currentTimeMillis() - start;
-        SkyCoreMod.LOGGER.info("[SkyCore] 预热映射 {} 完成 ({} 资源, {} ms)", mappingName, count, cost);
+//        SkyCoreMod.LOGGER.info("[SkyCore] 预热映射 {} 完成 ({} 资源, {} ms)", mappingName, count, cost);
     }
 
     private void preloadParticle(String path) {
@@ -147,7 +147,7 @@ public final class PreloadManager {
         }
         long start = System.currentTimeMillis();
         if (cacheManager.loadParticle(path) != null) {
-            SkyCoreMod.LOGGER.info("[SkyCore] 预热粒子 {} 完成 ({} ms)", path, System.currentTimeMillis() - start);
+//            SkyCoreMod.LOGGER.info("[SkyCore] 预热粒子 {} 完成 ({} ms)", path, System.currentTimeMillis() - start);
         } else {
             SkyCoreMod.LOGGER.warn("[SkyCore] 预热粒子失败：{}", path);
         }

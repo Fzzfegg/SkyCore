@@ -62,12 +62,12 @@ public class SkycorePluginMessageHandler {
             if (finishFlag == 1) {
                 byte[] data = stream.toByteArray();
                 pendingChunks.remove(packetId);
-                SkyCoreMod.LOGGER.info("[SkyCore] 接收到数据包 {}（{} 字节）", packetId, data.length);
+//                SkyCoreMod.LOGGER.info("[SkyCore] 接收到数据包 {}（{} 字节）", packetId, data.length);
                 SkycorePacketRouter.handle(packetId, data);
             }
         } catch (IOException ex) {
             pendingChunks.clear();
-            SkyCoreMod.LOGGER.error("[SkyCore] 读取插件消息失败", ex);
+//            SkyCoreMod.LOGGER.error("[SkyCore] 读取插件消息失败", ex);
         }
     }
 }

@@ -54,7 +54,6 @@ public final class SoundExistenceCache {
             }
         } catch (IOException ignored) {
         }
-        total = EXISTING.size();
         ready = true;
     }
 

@@ -251,8 +251,5 @@ public class RootMotion {
     public float getPositionScale() { return positionScale; }
     public float getRotationScale() { return rotationScale; }
 
-    @Override
-    public String toString() {
-        return getMotionInfo();
-    }
+
 }
