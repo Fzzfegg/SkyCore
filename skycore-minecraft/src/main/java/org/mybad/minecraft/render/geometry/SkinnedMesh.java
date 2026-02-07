@@ -42,12 +42,29 @@ public final class SkinnedMesh implements AutoCloseable {
 
     private void initOutputVao() {
         int outputBytes = vertexCount * OUTPUT_STRIDE_FLOATS * Float.BYTES;
+        // Some mods leave stale GL errors in the queue; clear them before probing our own allocation.
+        clearGlErrors();
         GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, ssboOutput);
         GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, outputBytes, GL15.GL_DYNAMIC_COPY);
-        int glError = GL11.glGetError();
+        int firstError = GL11.glGetError();
+        int secondError = GL11.glGetError();
+        int allocatedBytes = GL15.glGetBufferParameteri(GL43.GL_SHADER_STORAGE_BUFFER, GL15.GL_BUFFER_SIZE);
         GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
-        if (glError != GL11.GL_NO_ERROR) {
-            GpuSkinningSupport.disableGpuSkinning("SSBO allocation failed (GL error " + glError + ")");
+        boolean outOfMemory = firstError == GL11.GL_OUT_OF_MEMORY || secondError == GL11.GL_OUT_OF_MEMORY;
+        boolean undersized = allocatedBytes < outputBytes;
+        if (outOfMemory || undersized) {
+            GpuSkinningSupport.disableGpuSkinning(
+                "SSBO allocation failed (GL error " + firstError + ", allocated=" + allocatedBytes + ", expected=" + outputBytes + ")"
+            );
+        } else if (firstError != GL11.GL_NO_ERROR || secondError != GL11.GL_NO_ERROR) {
+            // Ignore non-fatal GL noise from other renderers; do not globally disable skinning.
+            org.mybad.minecraft.SkyCoreMod.LOGGER.debug(
+                "[SkyCore] Ignored non-fatal GL error after SSBO upload: first={}, second={}, allocated={}, expected={}",
+                firstError,
+                secondError,
+                allocatedBytes,
+                outputBytes
+            );
         }
 
         GL30.glBindVertexArray(vaoOutput);
@@ -64,6 +81,14 @@ public final class SkinnedMesh implements AutoCloseable {
         GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
         GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
         GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+    }
+
+    private static void clearGlErrors() {
+        for (int i = 0; i < 32; i++) {
+            if (GL11.glGetError() == GL11.GL_NO_ERROR) {
+                return;
+            }
+        }
     }
 
     private void initJointBuffer(int jointCount) {

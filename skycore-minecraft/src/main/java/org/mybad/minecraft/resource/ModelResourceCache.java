@@ -1,6 +1,8 @@
 package org.mybad.minecraft.resource;
 
 import org.mybad.core.binary.BinaryDataReader;
+import org.mybad.core.binary.BinaryResourceFlags;
+import org.mybad.core.binary.BinaryResourceHeader;
 import org.mybad.core.binary.BinaryPayloadCipherRegistry;
 import org.mybad.core.binary.BinaryResourceIO;
 import org.mybad.core.binary.BinaryResourceType;
@@ -8,7 +10,9 @@ import org.mybad.core.binary.SkycoreBinaryArchive;
 import org.mybad.core.binary.model.ModelBinarySerializer;
 import org.mybad.core.data.Model;
 import org.mybad.core.parsing.ModelParser;
+import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 
+import java.security.GeneralSecurityException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -59,6 +63,10 @@ final class ModelResourceCache {
     private Model readBinaryModel(Path path, String key) {
         try {
             byte[] bytes = Files.readAllBytes(path);
+            if (isEncryptedWithoutReadyKey(bytes)) {
+                SkycoreClientHandshake.requestHelloFromServer("key_pending_model");
+                return null;
+            }
             SkycoreBinaryArchive archive = BinaryResourceIO.read(bytes, cipherRegistry::resolve);
             if (archive.getHeader().getType() != BinaryResourceType.MODEL) {
                 reporter.parseFailed(key, path, new IllegalStateException("Unexpected binary type " + archive.getHeader().getType()));
@@ -66,10 +74,24 @@ final class ModelResourceCache {
             }
             BinaryDataReader reader = new BinaryDataReader(archive.getPayload());
             return binarySerializer.read(reader);
+        } catch (GeneralSecurityException securityEx) {
+            reporter.parseFailed(key, path, securityEx);
+            SkycoreClientHandshake.requestHelloFromServer("decrypt_failed_model");
+            return null;
         } catch (Exception ex) {
             reporter.parseFailed(key, path, ex);
             return null;
         }
+    }
+
+    private boolean isEncryptedWithoutReadyKey(byte[] bytes) {
+        if (bytes == null || bytes.length < BinaryResourceHeader.HEADER_SIZE) {
+            return false;
+        }
+        int flags = ((bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF);
+        boolean encrypted = (flags & BinaryResourceFlags.ENCRYPTED) != 0
+            && (flags & BinaryResourceFlags.ALGO_MASK) != BinaryResourceFlags.ALGO_NONE;
+        return encrypted && !BinaryKeyManager.isKeyReady();
     }
 
     void invalidateModel(String path) {

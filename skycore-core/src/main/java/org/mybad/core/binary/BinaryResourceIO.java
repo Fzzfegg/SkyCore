@@ -71,6 +71,12 @@ public final class BinaryResourceIO {
         int headerSize = BinaryResourceHeader.HEADER_SIZE;
         int remaining = data.length - headerSize;
         BinaryPayloadCipher cipher = resolver == null ? BinaryPayloadCipher.NO_OP : resolver.resolve(flags);
+        int algoBits = flags & BinaryResourceFlags.ALGO_MASK;
+        if ((flags & BinaryResourceFlags.ENCRYPTED) != 0
+            && algoBits != BinaryResourceFlags.ALGO_NONE
+            && cipher == BinaryPayloadCipher.NO_OP) {
+            throw new GeneralSecurityException("Missing cipher for encrypted payload flags: " + algoBits);
+        }
         int ivLength = cipher.ivLength();
         int macLength = cipher.macLength();
         int payloadLength = remaining - ivLength - macLength;

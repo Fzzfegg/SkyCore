@@ -18,26 +18,38 @@ public final class SkycoreClientNetwork {
     private SkycoreClientNetwork() {}
 
     public static void sendHello(String reason) {
-        Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft.getConnection() == null) {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 无法发送握手数据：连接尚未建立。");
-            return;
+        sendPacket(SkycorePacketId.HELLO, buildHelloPayload(reason), "握手数据");
+    }
+
+    public static void sendBinaryKeyAck(String detail) {
+        String text = detail == null ? "ok" : detail.trim();
+        if (text.isEmpty()) {
+            text = "ok";
         }
-        byte[] payload = buildHelloPayload(reason);
-        PacketBuffer buffer = new PacketBuffer(Unpooled.buffer(9 + payload.length));
-        buffer.writeByte(HEADER);
-        buffer.writeInt(SkycorePacketId.HELLO);
-        buffer.writeInt(1); // finish flag
-        buffer.writeBytes(payload);
-        try {
-            minecraft.getConnection().sendPacket(new CPacketCustomPayload(CHANNEL, buffer));
-        } catch (Exception ex) {
-            SkyCoreMod.LOGGER.error("[SkyCore] 发送握手数据失败", ex);
-        }
+        sendPacket(SkycorePacketId.BINARY_KEY_ACK, text.getBytes(StandardCharsets.UTF_8), "密钥确认");
     }
 
     private static byte[] buildHelloPayload(String reason) {
         String body = SkyCoreMod.VERSION + "|" + (reason == null ? "" : reason);
         return body.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static void sendPacket(int packetId, byte[] payload, String label) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.getConnection() == null) {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 无法发送{}：连接尚未建立。", label);
+            return;
+        }
+        byte[] body = payload == null ? new byte[0] : payload;
+        PacketBuffer buffer = new PacketBuffer(Unpooled.buffer(9 + body.length));
+        buffer.writeByte(HEADER);
+        buffer.writeInt(packetId);
+        buffer.writeInt(1); // finish flag
+        buffer.writeBytes(body);
+        try {
+            minecraft.getConnection().sendPacket(new CPacketCustomPayload(CHANNEL, buffer));
+        } catch (Exception ex) {
+            SkyCoreMod.LOGGER.error("[SkyCore] 发送{}失败", label, ex);
+        }
     }
 }

@@ -6,11 +6,13 @@ import org.mybad.core.binary.BinaryKeyDeriver;
 import org.mybad.core.binary.BinaryPayloadCipher;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
+import org.mybad.minecraft.network.skycore.SkycoreClientNetwork;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 public final class BinaryKeyManager {
     private BinaryKeyManager() {}
+    private static volatile boolean keyReady;
 
     public static void applyBinaryKey(SkyCoreProto.BinaryKey message) {
         ResourceCacheManager cacheManager = SkyCoreMod.getResourceCacheManagerInstance();
@@ -50,6 +52,16 @@ public final class BinaryKeyManager {
             }
             SkullModelManager.clear();
         }
+        keyReady = true;
+        SkycoreClientNetwork.sendBinaryKeyAck(seed.length == 0 ? "disabled" : "ok");
+    }
+
+    public static void markKeyPending() {
+        keyReady = false;
+    }
+
+    public static boolean isKeyReady() {
+        return keyReady;
     }
 
     private static int sanitizeKeySize(int size) {

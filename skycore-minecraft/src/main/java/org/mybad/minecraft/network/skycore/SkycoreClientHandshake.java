@@ -25,6 +25,7 @@ public final class SkycoreClientHandshake {
     public static void onClientConnected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
         autoHelloPending = true;
         ticksUntilHello = 20; // 1s
+        org.mybad.minecraft.resource.BinaryKeyManager.markKeyPending();
     }
 
     @SubscribeEvent
@@ -35,6 +36,7 @@ public final class SkycoreClientHandshake {
             manager.installBinaryCipher(null);
             manager.clearCache();
         }
+        org.mybad.minecraft.resource.BinaryKeyManager.markKeyPending();
     }
 
     @SubscribeEvent
