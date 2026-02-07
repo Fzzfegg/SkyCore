@@ -287,6 +287,32 @@ public class IndicatorRendererEvent {
         }
     }
 
+    private static double interpolateYaw(Entity entity) {
+        double partial = mc.getRenderPartialTicks();
+        return entity.prevRotationYaw + ((entity.rotationYaw - entity.prevRotationYaw) * partial);
+    }
+
+    private static LocalOffsetSpec parseLocalOffsetSpec(String raw, Axis axis) {
+        if (raw == null || raw.isEmpty() || axis == Axis.Y) {
+            return null;
+        }
+        String[] parts = raw.split(":");
+        if (parts.length != 4 || !"local".equalsIgnoreCase(parts[0])) {
+            return null;
+        }
+        if (!axis.name().equalsIgnoreCase(parts[1])) {
+            return null;
+        }
+        try {
+            return new LocalOffsetSpec(
+                Double.parseDouble(parts[2]),
+                Double.parseDouble(parts[3])
+            );
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     private static IndicatorRenderer fromProto(SkyCoreProto.CircleIndicator proto) {
         if (proto == null) {
             return null;
@@ -371,7 +397,29 @@ public class IndicatorRendererEvent {
         }
         IndicatorValue value;
         if (!proto.getEntityUuid().isEmpty()) {
-            value = new IndicatorValue(proto.getBase(), (entity, ignored) -> interpolatePosition(entity, axis));
+            LocalOffsetSpec local = parseLocalOffsetSpec(proto.getTargetUuid(), axis);
+            if (local != null) {
+                value = new IndicatorValue(proto.getBase(), (entity, ignored) -> {
+                    if (entity == null) {
+                        return 0.0d;
+                    }
+                    double base = interpolatePosition(entity, axis);
+                    double yawRad = Math.toRadians(interpolateYaw(entity));
+                    double sin = Math.sin(yawRad);
+                    double cos = Math.cos(yawRad);
+                    double dx = (-cos * local.right) + (-sin * local.forward);
+                    double dz = (-sin * local.right) + (cos * local.forward);
+                    if (axis == Axis.X) {
+                        return base + dx;
+                    }
+                    if (axis == Axis.Z) {
+                        return base + dz;
+                    }
+                    return base;
+                });
+            } else {
+                value = new IndicatorValue(proto.getBase(), (entity, ignored) -> interpolatePosition(entity, axis));
+            }
             setEntityReferences(value, proto.getEntityUuid(), proto.getTargetUuid());
         } else {
             value = new IndicatorValue(proto.getBase(), null);
@@ -469,6 +517,16 @@ public class IndicatorRendererEvent {
         } catch (Exception ex) {
             org.mybad.minecraft.SkyCoreMod.LOGGER.warn("[Indicator] 无法解析纹理路径 {}，已回退默认。", raw);
             return IndicatorRenderer3.DEFAULT_TEXTURE;
+        }
+    }
+
+    private static final class LocalOffsetSpec {
+        private final double right;
+        private final double forward;
+
+        private LocalOffsetSpec(double right, double forward) {
+            this.right = right;
+            this.forward = forward;
         }
     }
 }

@@ -172,7 +172,7 @@ public final class EntityRenderDispatcher {
     }
 
     public void renderLingeringEntities(float partialTicks) {
-        lingeringManager.render(partialTicks);
+        lingeringManager.render(partialTicks, eventDispatcher);
     }
 
     public String findMappingByUuid(java.util.UUID uuid) {

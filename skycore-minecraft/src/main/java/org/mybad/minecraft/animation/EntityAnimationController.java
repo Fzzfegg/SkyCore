@@ -225,6 +225,12 @@ public class EntityAnimationController {
             float speed = overlay.animation != null ? overlay.animation.getSpeed() : 1f;
             float length = overlay.animation != null ? overlay.animation.getLength() : 0f;
             boolean holdLastFrame = overlay.animation != null && overlay.animation.isHoldOnLastFrame();
+            if (length <= 0f) {
+                // Event-only overlays (e.g. hit/hurt sounds) may have zero length; emit once before finishing.
+                result.add(new OverlayState(overlay.animation, 0f, 1f));
+                overlay.finished = true;
+                continue;
+            }
             overlay.time += deltaTime * speed;
             if (holdLastFrame && length > 0f && overlay.time > length) {
                 overlay.time = length;

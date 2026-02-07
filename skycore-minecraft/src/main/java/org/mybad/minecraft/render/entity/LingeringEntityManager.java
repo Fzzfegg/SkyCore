@@ -4,12 +4,19 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.math.BlockPos;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.entity.events.AnimationEventContext;
+import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
+import org.mybad.minecraft.render.entity.events.AnimationEventState;
+import org.mybad.minecraft.render.entity.events.AnimationEventTarget;
+import org.mybad.minecraft.render.entity.events.OverlayEventCursorCache;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -18,13 +25,16 @@ import java.util.List;
  * so death animations can finish rendering.
  */
 public final class LingeringEntityManager {
-    private static final class LingeringEntry {
+    private static final class LingeringEntry implements AnimationEventContext, AnimationEventTarget {
         final BedrockModelHandle wrapper;
         final double x;
         final double y;
         final double z;
         final float yaw;
         final int packedLight;
+        final AnimationEventState animationState = new AnimationEventState();
+        final OverlayEventCursorCache overlayCursorCache = new OverlayEventCursorCache();
+        boolean disposed;
         int remainingTicks;
 
         LingeringEntry(BedrockModelHandle wrapper,
@@ -41,6 +51,51 @@ public final class LingeringEntityManager {
             this.yaw = yaw;
             this.packedLight = packedLight;
             this.remainingTicks = remainingTicks;
+        }
+
+        @Override
+        public AnimationEventState getPrimaryEventState() {
+            return animationState;
+        }
+
+        @Override
+        public java.util.List<EntityAnimationController.OverlayState> getOverlayStates() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public OverlayEventCursorCache getOverlayCursorCache() {
+            return overlayCursorCache;
+        }
+
+        @Override
+        public double getBaseX() {
+            return x;
+        }
+
+        @Override
+        public double getBaseY() {
+            return y;
+        }
+
+        @Override
+        public double getBaseZ() {
+            return z;
+        }
+
+        @Override
+        public float getHeadYaw() {
+            return yaw;
+        }
+
+        @Override
+        public float getBodyYaw() {
+            return yaw;
+        }
+
+        @Override
+        public boolean isEventTargetExpired() {
+            return disposed;
         }
     }
 
@@ -80,6 +135,7 @@ public final class LingeringEntityManager {
         if (packedLight == 0 && entity instanceof EntityLivingBase) {
             packedLight = ((EntityLivingBase) entity).getBrightnessForRender();
         }
+        packedLight = resolveInitialPackedLight(packedLight, x, y, z);
         entries.add(new LingeringEntry(wrapper, x, y, z, yaw, packedLight, lifetimeTicks));
         entry.trailController.clear();
         return true;
@@ -95,12 +151,13 @@ public final class LingeringEntityManager {
             entry.remainingTicks--;
             if (entry.remainingTicks <= 0 || isAnimationFinished(entry.wrapper)) {
                 entry.wrapper.dispose();
+                entry.disposed = true;
                 iterator.remove();
             }
         }
     }
 
-    void render(float partialTicks) {
+    void render(float partialTicks, AnimationEventDispatcher dispatcher) {
         if (entries.isEmpty()) {
             return;
         }
@@ -117,7 +174,7 @@ public final class LingeringEntityManager {
             if (shouldAdvanceAnimation(entry.wrapper)) {
                 entry.wrapper.updateAnimations();
             }
-            applyLight(entry.packedLight);
+            applyLight(entry.packedLight, prevLightX, prevLightY);
             entry.wrapper.renderBlock(
                 entry.x - cameraX,
                 entry.y - cameraY,
@@ -125,6 +182,9 @@ public final class LingeringEntityManager {
                 entry.yaw,
                 partialTicks
             );
+            if (dispatcher != null) {
+                dispatcher.dispatchAnimationEvents(null, entry, entry, entry.wrapper, partialTicks);
+            }
         }
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
     }
@@ -133,6 +193,7 @@ public final class LingeringEntityManager {
         for (LingeringEntry entry : entries) {
             if (entry.wrapper != null) {
                 entry.wrapper.dispose();
+                entry.disposed = true;
             }
         }
         entries.clear();
@@ -217,12 +278,33 @@ public final class LingeringEntityManager {
         return true;
     }
 
-    private void applyLight(int packedLight) {
-        if (packedLight <= 0) {
-            return;
+    private int resolveInitialPackedLight(int entryPackedLight, double x, double y, double z) {
+        int best = entryPackedLight;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc != null && mc.world != null) {
+            int worldLight = mc.world.getCombinedLight(new BlockPos(x, y, z), 0);
+            if (worldLight > best) {
+                best = worldLight;
+            }
         }
-        int lightX = packedLight & 0xFFFF;
-        int lightY = (packedLight >> 16) & 0xFFFF;
+        if (best <= 0) {
+            // Keep lingering visuals stable when both entity/world sampling fail during despawn.
+            return 0x00F000F0;
+        }
+        return best;
+    }
+
+    private void applyLight(int packedLight, int fallbackX, int fallbackY) {
+        int lightX = fallbackX;
+        int lightY = fallbackY;
+        if (packedLight > 0) {
+            lightX = packedLight & 0xFFFF;
+            lightY = (packedLight >> 16) & 0xFFFF;
+        } else {
+            // Never use frame-volatile fallback for invalid lingering light, or it may flicker.
+            lightX = 240;
+            lightY = 240;
+        }
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, lightX, lightY);
     }
 

@@ -33,6 +33,9 @@ public final class OverlayEventDispatcher {
             OverlayEventCursor cursor = cursorCache.getOrCreate(animation);
             float currentTime = state.time;
             if (!cursor.valid) {
+                if (currentTime >= -EVENT_EPS) {
+                    dispatcher.dispatchEventsForAnimation(entity, context, target, wrapper, animation, 0f, currentTime, false, partialTicks);
+                }
                 cursor.lastTime = currentTime;
                 cursor.lastLoop = 0;
                 cursor.valid = true;
