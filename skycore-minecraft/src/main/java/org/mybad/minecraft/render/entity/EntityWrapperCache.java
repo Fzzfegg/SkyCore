@@ -42,6 +42,9 @@ final class EntityWrapperCache {
                 return entry;
             }
         }
+        if (entity.isDead) {
+            return null;
+        }
 
         BedrockModelHandle wrapper = ModelHandleFactory.create(cacheManager, mapping);
         if (wrapper == null) {

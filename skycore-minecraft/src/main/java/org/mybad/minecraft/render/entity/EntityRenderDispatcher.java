@@ -61,12 +61,11 @@ public final class EntityRenderDispatcher {
         }
         String mappingName = mappingResult.mappingName;
 
-        event.setCanceled(true);
-
         EntityWrapperEntry entry = wrapperCache.getOrCreate(entity, mappingName, mappingResult.mapping);
         if (entry == null || entry.wrapper == null) {
             return;
         }
+        event.setCanceled(true);
 
         long tick = entity.world != null ? entity.world.getTotalWorldTime() : Long.MIN_VALUE;
         if (tick != Long.MIN_VALUE && entry.lastAnimationTick != tick) {
@@ -88,6 +87,9 @@ public final class EntityRenderDispatcher {
                 continue;
             }
             EntityLivingBase living = (EntityLivingBase) entity;
+            if (living.isDead) {
+                continue;
+            }
             EntityMappingResolver.MappingResult mappingResult = EntityMappingResolver.resolve(living);
             if (mappingResult == null) {
                 continue;
