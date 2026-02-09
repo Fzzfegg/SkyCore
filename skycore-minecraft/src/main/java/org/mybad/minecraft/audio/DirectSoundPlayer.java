@@ -2,6 +2,7 @@ package org.mybad.minecraft.audio;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.SoundHandler;
+import net.minecraft.client.resources.IResource;
 import net.minecraft.client.audio.SoundManager;
 import net.minecraft.client.audio.ISound;
 import net.minecraft.client.settings.GameSettings;
@@ -12,16 +13,20 @@ import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import paulscode.sound.SoundSystem;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLStreamHandler;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class DirectSoundPlayer {
     private static final String[] SOUND_MANAGER_FIELDS = {"sndManager", "field_147694_f"};
     private static final String[] SOUND_SYSTEM_FIELDS = {"sndSystem", "field_148620_e"};
+    private static final Map<ResourceLocation, Path> DECODED_SOUND_CACHE = new ConcurrentHashMap<>();
     private DirectSoundPlayer() {}
 
     public static void play(ResourceLocation soundId,
@@ -49,14 +54,11 @@ public final class DirectSoundPlayer {
         if (!SoundExistenceCache.isReady()) {
             return;
         }
-        if (!SoundExistenceCache.exists(soundId)) {
-            SoundExistenceCache.warnMissing(soundId);
-            return;
-        }
 
         ResourceLocation fileLoc = toSoundFileLocation(soundId);
         URL url = getURLForFilePath(fileLoc);
         if (url == null) {
+            SoundExistenceCache.warnMissing(soundId);
             return;
         }
 
@@ -132,12 +134,40 @@ public final class DirectSoundPlayer {
             .resolve("SkyCore")
             .resolve(location.getNamespace())
             .resolve(location.getPath().replace('/', java.io.File.separatorChar));
-        if (!java.nio.file.Files.isRegularFile(file)) {
-            return null;
+        if (Files.isRegularFile(file)) {
+            try {
+                return file.toUri().toURL();
+            } catch (MalformedURLException e) {
+                return null;
+            }
         }
         try {
-            return file.toUri().toURL();
-        } catch (MalformedURLException e) {
+            Path cached = DECODED_SOUND_CACHE.get(location);
+            if (cached != null && Files.isRegularFile(cached)) {
+                return cached.toUri().toURL();
+            }
+            IResource resource = mc.getResourceManager().getResource(location);
+            if (resource == null) {
+                return null;
+            }
+            Path cacheDir = mc.gameDir.toPath().resolve("skycore_cache").resolve("decoded_sounds");
+            Files.createDirectories(cacheDir);
+            String safeName = (location.getNamespace() + "_" + location.getPath())
+                .replace('/', '_')
+                .replace('\\', '_')
+                .replace(':', '_');
+            Path target = cacheDir.resolve(safeName);
+            try (IResource ignored = resource; InputStream in = resource.getInputStream()) {
+                if (in == null) {
+                    return null;
+                }
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+            DECODED_SOUND_CACHE.put(location, target);
+            return target.toUri().toURL();
+        } catch (IOException ex) {
+            return null;
+        } catch (Exception ex) {
             return null;
         }
     }
