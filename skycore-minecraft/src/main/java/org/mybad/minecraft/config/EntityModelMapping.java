@@ -7,6 +7,8 @@ import com.google.gson.annotations.SerializedName;
  * 定义实体名字与模型/动画/纹理的对应关系
  */
 public class EntityModelMapping {
+    public static final int OFFSET_MODE_WORLD = 0;
+    public static final int OFFSET_MODE_LOCAL = 1;
     /** 实体自定义名字 */
     private String name;
 
@@ -73,6 +75,12 @@ public class EntityModelMapping {
     private float renderBoxHeight = 0f;
     /** 自定义渲染包围盒深度（Z方向，单位格） */
     private float renderBoxDepth = 0f;
+    /** 模型渲染偏移（单位格） */
+    private float offsetX = 0f;
+    private float offsetY = 0f;
+    private float offsetZ = 0f;
+    /** 偏移模式：0=world，1=local */
+    private int offsetMode = OFFSET_MODE_WORLD;
 
     public EntityModelMapping() {}
 
@@ -109,6 +117,13 @@ public class EntityModelMapping {
     public float getRenderBoxWidth() { return renderBoxWidth; }
     public float getRenderBoxHeight() { return renderBoxHeight; }
     public float getRenderBoxDepth() { return renderBoxDepth; }
+    public float getOffsetX() { return offsetX; }
+    public float getOffsetY() { return offsetY; }
+    public float getOffsetZ() { return offsetZ; }
+    public int getOffsetMode() { return offsetMode; }
+    public boolean hasModelOffset() {
+        return Math.abs(offsetX) > 1.0E-4f || Math.abs(offsetY) > 1.0E-4f || Math.abs(offsetZ) > 1.0E-4f;
+    }
     public boolean hasCustomRenderBox() {
         return renderBoxWidth > 0f && renderBoxHeight > 0f && renderBoxDepth > 0f;
     }
@@ -145,6 +160,19 @@ public class EntityModelMapping {
     public void setRenderBoxWidth(float renderBoxWidth) { this.renderBoxWidth = renderBoxWidth; }
     public void setRenderBoxHeight(float renderBoxHeight) { this.renderBoxHeight = renderBoxHeight; }
     public void setRenderBoxDepth(float renderBoxDepth) { this.renderBoxDepth = renderBoxDepth; }
+    public void setOffsetX(float offsetX) { this.offsetX = sanitizeFinite(offsetX); }
+    public void setOffsetY(float offsetY) { this.offsetY = sanitizeFinite(offsetY); }
+    public void setOffsetZ(float offsetZ) { this.offsetZ = sanitizeFinite(offsetZ); }
+    public void setOffsetMode(int offsetMode) {
+        this.offsetMode = offsetMode == OFFSET_MODE_LOCAL ? OFFSET_MODE_LOCAL : OFFSET_MODE_WORLD;
+    }
+
+    private float sanitizeFinite(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            return 0f;
+        }
+        return value;
+    }
 
 
 }

@@ -300,6 +300,7 @@ public final class EntityRenderDispatcher {
         }
         float scale = override != null && override.scale != null ? override.scale : mapping.getModelScale();
         handle.setModelScale(scale);
+        handle.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
 
         float emissive = override != null && override.emissiveStrength != null ? override.emissiveStrength : mapping.getEmissiveStrength();
         handle.setEmissiveStrength(emissive);

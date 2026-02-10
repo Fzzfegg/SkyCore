@@ -55,6 +55,10 @@ public final class ProtoMappingConverter {
         if (proto.getBloomOffsetCount() >= 3) {
             mapping.setBloomOffset(toArray(proto.getBloomOffsetList()));
         }
+        mapping.setOffsetX(proto.getOffsetX());
+        mapping.setOffsetY(proto.getOffsetY());
+        mapping.setOffsetZ(proto.getOffsetZ());
+        mapping.setOffsetMode(proto.getOffsetMode());
         return mapping;
     }
 

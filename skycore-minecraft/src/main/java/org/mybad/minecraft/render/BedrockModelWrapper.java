@@ -8,6 +8,7 @@ import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.animation.EntityAnimationController;
 import org.mybad.core.data.Model;
+import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.render.geometry.GeometryCache;
 import org.mybad.minecraft.render.geometry.ModelGeometryBuilder;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
@@ -48,6 +49,10 @@ public class BedrockModelWrapper {
     private float hurtTintG = 0.3f;
     private float hurtTintB = 0.3f;
     private float hurtTintA = 1.0f;
+    private float modelOffsetX = 0f;
+    private float modelOffsetY = 0f;
+    private float modelOffsetZ = 0f;
+    private int modelOffsetMode = EntityModelMapping.OFFSET_MODE_WORLD;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -166,6 +171,10 @@ public class BedrockModelWrapper {
             blendG,
             blendB,
             blendA,
+            modelOffsetX,
+            modelOffsetY,
+            modelOffsetZ,
+            modelOffsetMode,
             skinningPipeline,
             applyYaw
         );
@@ -340,6 +349,15 @@ public class BedrockModelWrapper {
         }
         this.modelScale = scale;
         markAnimationsDirty();
+    }
+
+    void setModelOffset(float x, float y, float z, int mode) {
+        this.modelOffsetX = sanitizeOffsetComponent(x);
+        this.modelOffsetY = sanitizeOffsetComponent(y);
+        this.modelOffsetZ = sanitizeOffsetComponent(z);
+        this.modelOffsetMode = mode == EntityModelMapping.OFFSET_MODE_LOCAL
+            ? EntityModelMapping.OFFSET_MODE_LOCAL
+            : EntityModelMapping.OFFSET_MODE_WORLD;
     }
 
     float getModelScale() {

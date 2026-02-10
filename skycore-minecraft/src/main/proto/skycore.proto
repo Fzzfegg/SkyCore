@@ -33,6 +33,10 @@ message EntityMapping {
   int32 bloom_passes = 25;
   float bloom_scale_step = 26;
   float bloom_downscale = 27;
+  float offset_x = 28;
+  float offset_y = 29;
+  float offset_z = 30;
+  int32 offset_mode = 31;
 }
 
 message MappingFile {

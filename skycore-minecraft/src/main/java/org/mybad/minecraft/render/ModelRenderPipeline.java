@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
+import org.mybad.minecraft.config.EntityModelMapping;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.mybad.minecraft.render.skinning.SkinningPipeline;
@@ -45,6 +46,10 @@ final class ModelRenderPipeline {
                 float blendG,
                 float blendB,
                 float blendA,
+                float modelOffsetX,
+                float modelOffsetY,
+                float modelOffsetZ,
+                int modelOffsetMode,
                 SkinningPipeline skinningPipeline,
                 boolean applyYaw) {
         if (skinningPipeline == null) {
@@ -66,6 +71,7 @@ final class ModelRenderPipeline {
 
         GlStateManager.pushMatrix();
         GlStateManager.translate((float) x, (float) y, (float) z);
+        applyModelOffset(modelOffsetX, modelOffsetY, modelOffsetZ, modelOffsetMode, entityYaw);
         if (modelScale != 1.0f) {
             GlStateManager.scale(modelScale, modelScale, modelScale);
         }
@@ -132,6 +138,22 @@ final class ModelRenderPipeline {
         GlStateManager.disableRescaleNormal();
         GlStateManager.enableDepth();
         GlStateManager.enableCull();
+    }
+
+    private void applyModelOffset(float offsetX, float offsetY, float offsetZ, int mode, float entityYaw) {
+        if (offsetX == 0f && offsetY == 0f && offsetZ == 0f) {
+            return;
+        }
+        if (mode == EntityModelMapping.OFFSET_MODE_LOCAL) {
+            double yawRad = Math.toRadians(entityYaw);
+            double sin = Math.sin(yawRad);
+            double cos = Math.cos(yawRad);
+            double worldX = (-cos * offsetX) + (-sin * offsetZ);
+            double worldZ = (-sin * offsetX) + (cos * offsetZ);
+            GlStateManager.translate(worldX, offsetY, worldZ);
+            return;
+        }
+        GlStateManager.translate(offsetX, offsetY, offsetZ);
     }
 
     private void renderEmissivePass(ResourceLocation emissiveTexture,

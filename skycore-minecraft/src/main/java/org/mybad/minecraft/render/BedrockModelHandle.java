@@ -112,6 +112,10 @@ public final class BedrockModelHandle {
         wrapper.setModelScale(scale);
     }
 
+    public void setModelOffset(float x, float y, float z, int mode) {
+        wrapper.setModelOffset(x, y, z, mode);
+    }
+
     public void setRenderHurtTint(boolean renderHurtTint) {
         wrapper.setRenderHurtTint(renderHurtTint);
     }

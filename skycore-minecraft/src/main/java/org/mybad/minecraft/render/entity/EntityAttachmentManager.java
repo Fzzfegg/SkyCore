@@ -347,6 +347,7 @@ public final class EntityAttachmentManager {
         handle.setBloomDownscale(mapping.getBloomDownscale());
         handle.setBloomOffset(mapping.getBloomOffset());
         handle.setModelScale(mapping.getModelScale());
+        handle.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());
     }
