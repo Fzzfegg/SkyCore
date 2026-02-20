@@ -41,9 +41,7 @@ public abstract class MixinSoundManager {
 
     private boolean shouldMuteByPosition(ISound sound, EntityRenderEventHandler handler) {
         WorldClient world = Minecraft.getMinecraft().world;
-        if (world == null) {
-            return false;
-        }
+        if (world == null) {return false;}
         float x = sound.getXPosF();
         float y = sound.getYPosF();
         float z = sound.getZPosF();
@@ -53,9 +51,7 @@ public abstract class MixinSoundManager {
             x + radius, y + radius, z + radius
         );
         List<EntityLivingBase> entities = world.getEntitiesWithinAABB(EntityLivingBase.class, box);
-        if (entities == null || entities.isEmpty()) {
-            return false;
-        }
+        if (entities.isEmpty()) {return false;}
         for (EntityLivingBase living : entities) {
             if (living != null && handler.isSkyCoreEntity(living)) {
                 return true;
@@ -69,9 +65,7 @@ public abstract class MixinSoundManager {
         while (type != null && type != Object.class) {
             Field[] fields = type.getDeclaredFields();
             for (Field field : fields) {
-                if (!Entity.class.isAssignableFrom(field.getType())) {
-                    continue;
-                }
+                if (!Entity.class.isAssignableFrom(field.getType())) {continue;}
                 try {
                     field.setAccessible(true);
                     Object value = field.get(sound);

@@ -11,7 +11,8 @@
     "render.MixinRenderManager",
     "render.MixinTileEntitySkullRenderer",
     "render.MixinTileEntity",
-    "render.MixinEntityRenderBox"
+    "render.MixinEntityRenderBox",
+    "client.MixinMinecraft"
   ],
   "server": []
 }
