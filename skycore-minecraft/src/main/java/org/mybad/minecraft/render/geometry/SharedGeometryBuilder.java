@@ -11,7 +11,7 @@ import java.nio.FloatBuffer;
 import java.util.Map;
 
 final class SharedGeometryBuilder {
-    private static final float NORMAL_OFFSET_EPS = 0.0002f;
+private static final float NORMAL_OFFSET_EPS = 0.0f;
 
     private final Model model;
     private final int textureWidth;
