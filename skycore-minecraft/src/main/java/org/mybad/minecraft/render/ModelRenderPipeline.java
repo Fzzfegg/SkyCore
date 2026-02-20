@@ -66,8 +66,8 @@ final class ModelRenderPipeline {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.enableColorMaterial();
+        GlStateManager.disableLighting();
+        GlStateManager.disableColorMaterial();
 
         GlStateManager.pushMatrix();
         GlStateManager.translate((float) x, (float) y, (float) z);
@@ -138,6 +138,8 @@ final class ModelRenderPipeline {
         GlStateManager.disableRescaleNormal();
         GlStateManager.enableDepth();
         GlStateManager.enableCull();
+        GlStateManager.enableColorMaterial();
+        GlStateManager.enableLighting();
     }
 
     private void applyModelOffset(float offsetX, float offsetY, float offsetZ, int mode, float entityYaw) {
