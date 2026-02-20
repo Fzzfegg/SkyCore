@@ -298,9 +298,9 @@ public class ModelParser {
             for (String face : faces) {
                 if (uvObj.has(face)) {
                     JsonObject faceData = uvObj.get(face).getAsJsonObject();
-                    // uv 和 uv_size 都是数组 [x, y]
-                    int[] uvArr = ParseUtils.getIntArray(faceData, "uv", 0, 0);
-                    int[] uvSizeArr = ParseUtils.getIntArray(faceData, "uv_size", 0, 0);
+                    // uv 和 uv_size 都是数组 [x, y]，允许浮点
+                    float[] uvArr = ParseUtils.getFloatArray(faceData, "uv", 0f, 0f);
+                    float[] uvSizeArr = ParseUtils.getFloatArray(faceData, "uv_size", 0f, 0f);
                     uv.setFaceUV(face, uvArr[0], uvArr[1], uvSizeArr[0], uvSizeArr[1]);
                 }
             }
