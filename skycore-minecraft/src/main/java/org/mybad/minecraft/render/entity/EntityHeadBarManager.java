@@ -42,6 +42,8 @@ public final class EntityHeadBarManager {
         return format;
     });
 
+    private static final int DEATH_FADE_TICKS = 20;
+
     private final MolangCompiler molangCompiler = ParticleMolangCompiler.get();
     private final Map<String, MolangExpression> expressionCache = new HashMap<>();
     private final HeadBarMolangContext molangContext = new HeadBarMolangContext();
@@ -114,7 +116,7 @@ public final class EntityHeadBarManager {
             if (task == null || task.definition == null || task.state == null || task.entity == null) {
                 continue;
             }
-            if (task.entity.isDead) {
+            if (task.state.alpha <= 0f) {
                 continue;
             }
             molangContext.update(task.state);
@@ -127,7 +129,7 @@ public final class EntityHeadBarManager {
             GlStateManager.scale(-scale, -scale, scale);
             GlStateManager.translate(0.0F, 0.0F, -0.05F);
             for (Layer layer : task.definition.layers) {
-                layer.render(mc, fr, task.state, this::evaluateExpression, this::formatText);
+                layer.render(mc, fr, task.state, this::evaluateExpression, this::formatText, task.state.alpha);
             }
             GlStateManager.popMatrix();
         }
@@ -239,6 +241,7 @@ public final class EntityHeadBarManager {
         final double hpPercent;
         final double hpMissing;
         final String entityName;
+        final float alpha;
 
         RenderState(EntityLivingBase entity, double hp, double maxHp, double hpPercent) {
             this.entity = entity;
@@ -251,6 +254,12 @@ public final class EntityHeadBarManager {
                 : entity.getDisplayName().getFormattedText();
             String stripped = TextFormatting.getTextWithoutFormattingCodes(rawName);
             this.entityName = stripped == null ? "" : stripped;
+            float fade = 1.0f;
+            if (entity.isDead || entity.deathTime > 0) {
+                int deathTicks = Math.min(entity.deathTime + 1, DEATH_FADE_TICKS);
+                fade = Math.max(0f, 1f - (deathTicks / (float) DEATH_FADE_TICKS));
+            }
+            this.alpha = fade;
         }
     }
 
@@ -267,7 +276,8 @@ public final class EntityHeadBarManager {
                              FontRenderer fontRenderer,
                              RenderState state,
                              BiFunction<MolangExpression, RenderState, Double> evaluator,
-                             BiFunction<String, RenderState, String> formatter);
+                             BiFunction<String, RenderState, String> formatter,
+                             float alpha);
     }
 
     private static class ImageLayer extends Layer {
@@ -287,7 +297,8 @@ public final class EntityHeadBarManager {
         @Override
         void render(Minecraft mc, FontRenderer fontRenderer, RenderState state,
                     BiFunction<MolangExpression, RenderState, Double> evaluator,
-                    BiFunction<String, RenderState, String> formatter) {
+                    BiFunction<String, RenderState, String> formatter,
+                    float alpha) {
             if (texture == null) {
                 return;
             }
@@ -295,7 +306,7 @@ public final class EntityHeadBarManager {
             float halfWidth = width / 2.0f;
             float halfHeight = height / 2.0f;
             GlStateManager.enableTexture2D();
-            setGlColor(color);
+            setGlColor(applyAlpha(color, alpha));
             Tessellator tessellator = Tessellator.getInstance();
             BufferBuilder buffer = tessellator.getBuffer();
             buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
@@ -325,7 +336,8 @@ public final class EntityHeadBarManager {
         @Override
         void render(Minecraft mc, FontRenderer fontRenderer, RenderState state,
                     BiFunction<MolangExpression, RenderState, Double> evaluator,
-                    BiFunction<String, RenderState, String> formatter) {
+                    BiFunction<String, RenderState, String> formatter,
+                    float alpha) {
             double target = MathHelper.clamp(evaluator.apply(progressExpression, state), 0.0, 1.0);
             double ratio = smoothRatio(state, target);
             float filledWidth = (float) (width * ratio);
@@ -336,7 +348,7 @@ public final class EntityHeadBarManager {
             float xStart = anchorLeft ? offsetX - width / 2.0f : offsetX - filledWidth / 2.0f;
             float y = offsetY - height / 2.0f;
             GlStateManager.enableTexture2D();
-            setGlColor(color);
+            setGlColor(applyAlpha(color, alpha));
             Tessellator tessellator = Tessellator.getInstance();
             BufferBuilder buffer = tessellator.getBuffer();
             buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
@@ -382,7 +394,8 @@ public final class EntityHeadBarManager {
         @Override
         void render(Minecraft mc, FontRenderer fontRenderer, RenderState state,
                     BiFunction<MolangExpression, RenderState, Double> evaluator,
-                    BiFunction<String, RenderState, String> formatter) {
+                    BiFunction<String, RenderState, String> formatter,
+                    float alpha) {
             if (text == null || text.isEmpty()) {
                 return;
             }
@@ -391,9 +404,15 @@ public final class EntityHeadBarManager {
             GlStateManager.translate(offsetX, offsetY, 0);
             GlStateManager.scale(scale, scale, scale);
             int width = fontRenderer.getStringWidth(content);
-            fontRenderer.drawString(content, -width / 2, -fontRenderer.FONT_HEIGHT / 2, color, shadow);
+            int argb = applyAlpha(color, alpha);
+            fontRenderer.drawString(content, -width / 2, -fontRenderer.FONT_HEIGHT / 2, argb, shadow);
             GlStateManager.popMatrix();
         }
+    }
+
+    private static int applyAlpha(int color, float alpha) {
+        int a = Math.max(0, Math.min(255, (int) (((color >>> 24) & 0xFF) * alpha)));
+        return (a << 24) | (color & 0x00FFFFFF);
     }
 
     private static final class HeadBarDefinition {
