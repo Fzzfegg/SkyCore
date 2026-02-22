@@ -84,12 +84,6 @@ public final class RealtimeCommandExecutor {
                 if (packet.getBloomOffsetCount() >= 3) {
                     mapping.setBloomOffset(toArray(packet.getBloomOffsetList()));
                 }
-                SkyCoreMod.LOGGER.info("[SkyCore] realtime bloom params for '{}' -> strength={}, passes={}, scaleStep={}, downscale={}",
-                    mappingName,
-                    mapping.getBloomStrength(),
-                    mapping.getBloomPasses(),
-                    mapping.getBloomScaleStep(),
-                    mapping.getBloomDownscale());
                 if (packet.hasTexture()) {
                     mapping.setTexture(packet.getTexture());
                 }

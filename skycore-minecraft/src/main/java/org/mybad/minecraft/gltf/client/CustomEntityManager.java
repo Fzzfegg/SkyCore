@@ -4,9 +4,7 @@ import org.mybad.minecraft.gltf.GltfLog;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.util.math.Vec3d;
 
 /**
  * Manages {@link CustomEntityInstance}s bound to remote entity appearance profiles.
@@ -67,23 +65,4 @@ public final class CustomEntityManager {
         return instance.render(entity, x, y, z, entityYaw, partialTicks);
     }
 
-    @Nullable
-    public static Vec3d getBoneWorldPosition(EntityLivingBase entity, String boneName, float partialTicks) {
-        if (entity == null) {
-            return null;
-        }
-        UUID entityId = entity.getUniqueID();
-        CustomPlayerConfig config = CONFIGS.get(entityId);
-        if (config == null) {
-            return null;
-        }
-        CustomEntityInstance instance = INSTANCES.computeIfAbsent(entityId, key -> new CustomEntityInstance());
-        if (!instance.isBoundTo(config)) {
-            instance.bindConfiguration(config);
-        }
-        if (!instance.isBoundTo(config)) {
-            return null;
-        }
-        return instance.sampleBoneWorldPosition(entity, boneName, partialTicks);
-    }
 }

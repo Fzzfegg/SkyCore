@@ -66,7 +66,6 @@ final class DecorationInstance {
             if (renderModel != null) {
                 renderModel.setGlobalScale(config.modelScale);
                 renderModel.setDefaultTexture(baseTexture);
-                applyMaterialOverrides();
             } else {
                 if (CustomPlayerManager.shouldLogMissingModel(config.modelPath)) {
                     GltfLog.LOGGER.warn("Failed to load decoration model: {}", config.modelPath);
@@ -76,30 +75,6 @@ final class DecorationInstance {
             if (CustomPlayerManager.shouldLogMissingModel(config.modelPath)) {
                 GltfLog.LOGGER.error("Error loading decoration model {}", config.modelPath, e);
             }
-        }
-    }
-
-    private void applyMaterialOverrides() {
-        if (renderModel == null || config == null || config.materials.isEmpty()) {
-            return;
-        }
-        try {
-            if (renderModel.geoModel != null && renderModel.geoModel.materials != null) {
-                renderModel.geoModel.materials.values().forEach(material -> {
-                    CustomPlayerConfig.MaterialOverride override = config.getMaterialOverride(material.name);
-                    if (override == null) {
-                        override = config.getDefaultOverride();
-                    }
-                    if (override == null) {
-                        override = config.getFirstOverride();
-                    }
-                    if (override != null) {
-                        override.applyTo(material);
-                    }
-                });
-            }
-        } catch (Exception e) {
-            GltfLog.LOGGER.error("Error applying decoration material overrides", e);
         }
     }
 
@@ -135,8 +110,6 @@ final class DecorationInstance {
             if (scaleMultiplier != 1.0f) {
                 GlStateManager.scale(scaleMultiplier, scaleMultiplier, scaleMultiplier);
             }
-
-            applyRenderOffset();
 
             renderModel.renderAll();
             logGlError("decoration.render " + (config != null ? config.name : "null"));
@@ -202,35 +175,6 @@ final class DecorationInstance {
         long delta = now - lastSampleTimeNanos;
         lastSampleTimeNanos = now;
         return delta / 1_000_000_000.0f;
-    }
-
-    private void applyRenderOffset() {
-        if (config == null || config.renderOffset == null) {
-            return;
-        }
-        CustomPlayerConfig.OffsetConfig offset = config.renderOffset;
-        float posX = offset.getPosition(0, 0.0f);
-        float posY = offset.getPosition(1, 0.0f);
-        float posZ = offset.getPosition(2, 0.0f);
-        if (posX != 0.0f || posY != 0.0f || posZ != 0.0f) {
-            GlStateManager.translate(posX, posY, posZ);
-        }
-        float rotX = offset.getRotation(0, 0.0f);
-        float rotY = offset.getRotation(1, 0.0f);
-        float rotZ = offset.getRotation(2, 0.0f);
-        if (rotZ != 0.0f) {
-            GlStateManager.rotate(rotZ, 0.0f, 0.0f, 1.0f);
-        }
-        if (rotY != 0.0f) {
-            GlStateManager.rotate(rotY, 0.0f, 1.0f, 0.0f);
-        }
-        if (rotX != 0.0f) {
-            GlStateManager.rotate(rotX, 1.0f, 0.0f, 0.0f);
-        }
-        float scale = offset.getScale(1.0f);
-        if (scale != 1.0f) {
-            GlStateManager.scale(scale, scale, scale);
-        }
     }
 
     private float advancePhase(float current, CustomPlayerConfig.AnimationConfig anim, float deltaTime) {

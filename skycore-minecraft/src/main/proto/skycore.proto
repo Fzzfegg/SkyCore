@@ -269,6 +269,17 @@ message GltfProfile {
   float model_scale = 4;
   int32 fps = 5;
   double blend_duration = 6;
+  repeated GltfAnimationClip animations = 7;
+}
+
+message GltfAnimationClip {
+  string name = 1;
+  double start_time = 2;
+  double end_time = 3;
+  double speed = 4;
+  double blend_duration = 5;
+  bool loop = 6;
+  bool hold_last_frame = 7;
 }
 
 message GltfProfileAssignment {

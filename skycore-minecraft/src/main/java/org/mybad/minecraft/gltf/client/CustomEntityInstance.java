@@ -14,9 +14,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
 /**
@@ -106,7 +103,6 @@ public class CustomEntityInstance {
             if (renderModel != null) {
                 renderModel.setGlobalScale(config.modelScale);
                 renderModel.setDefaultTexture(baseTexture);
-                applyMaterialOverrides();
                 GltfLog.LOGGER.debug("Bound model to entity instance: {}", config.modelPath);
             } else {
                 GltfLog.LOGGER.warn("Failed to load model for entity instance: {}", config.modelPath);
@@ -409,58 +405,6 @@ public class CustomEntityInstance {
         }
         double fps = Math.max(config.fps, 1);
         return (float) (frameValue / fps);
-    }
-
-    private void applyMaterialOverrides() {
-        if (config == null || renderModel == null || config.materials.isEmpty()) {
-            return;
-        }
-        try {
-            if (renderModel.geoModel != null && renderModel.geoModel.materials != null) {
-                renderModel.geoModel.materials.values().forEach(material -> {
-                    CustomPlayerConfig.MaterialOverride override = config.getMaterialOverride(material.name);
-                    if (override != null) {
-                        override.applyTo(material);
-                    }
-                });
-            }
-        } catch (Exception e) {
-            GltfLog.LOGGER.error("Error applying entity material overrides", e);
-        }
-    }
-
-    @Nullable
-    public Vec3d sampleBoneWorldPosition(EntityLivingBase entity, String boneName, float partialTicks) {
-        if (renderModel == null || boneName == null || boneName.isEmpty()) {
-            return null;
-        }
-        if (renderModel.nodeStates == null || renderModel.nodeStates.isEmpty()) {
-            return null;
-        }
-        GltfRenderModel.NodeState state = renderModel.nodeStates.get(boneName);
-        if (state == null || state.mat == null) {
-            return null;
-        }
-
-        Matrix4f matrix = new Matrix4f(state.mat);
-        Vector3f translation = new Vector3f();
-        matrix.getTranslation(translation);
-        translation.mul(renderModel.getGlobalScale());
-
-        double baseX = entity.prevPosX + (entity.posX - entity.prevPosX) * partialTicks;
-        double baseY = entity.prevPosY + (entity.posY - entity.prevPosY) * partialTicks;
-        double baseZ = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * partialTicks;
-
-        float yaw = entity.prevRenderYawOffset +
-            (entity.renderYawOffset - entity.prevRenderYawOffset) * partialTicks;
-        double yawRad = Math.toRadians(-yaw);
-        double cos = Math.cos(yawRad);
-        double sin = Math.sin(yawRad);
-
-        double rotatedX = translation.x * cos - translation.z * sin;
-        double rotatedZ = translation.x * sin + translation.z * cos;
-
-        return new Vec3d(baseX + rotatedX, baseY + translation.y, baseZ + rotatedZ);
     }
 
     private static final class MovementState {

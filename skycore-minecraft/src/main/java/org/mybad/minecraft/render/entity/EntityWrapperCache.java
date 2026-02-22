@@ -58,8 +58,6 @@ final class EntityWrapperCache {
         wrapper.setBloomScaleStep(mapping.getBloomScaleStep());
         wrapper.setBloomDownscale(mapping.getBloomDownscale());
         wrapper.setBloomOffset(mapping.getBloomOffset());
-        SkyCoreMod.LOGGER.info("[SkyCore] bloom params for '{}' -> passes={}, scaleStep={}, downscale={}",
-            mapping.getName(), mapping.getBloomPasses(), mapping.getBloomScaleStep(), mapping.getBloomDownscale());
         wrapper.setModelScale(mapping.getModelScale());
         wrapper.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         wrapper.setRenderHurtTint(mapping.isRenderHurtTint());

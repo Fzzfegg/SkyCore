@@ -57,46 +57,32 @@ public final class RemoteProfileRegistry {
         if (proto.getBlendDuration() > 0) {
             config.blendDuration = proto.getBlendDuration();
         }
-        // animations field requires updated proto; guarded by generated accessors
-        try {
-            java.util.List<?> clipsList = (java.util.List<?>) proto.getClass().getMethod("getAnimationsList").invoke(proto);
-            if (clipsList != null && !clipsList.isEmpty()) {
-                java.util.HashMap<String, CustomPlayerConfig.AnimationConfig> clips = new java.util.HashMap<>();
-                for (Object clipObj : clipsList) {
-                    if (clipObj == null) {
-                        continue;
-                    }
-                    Class<?> clipClass = clipObj.getClass();
-                    String name = (String) clipClass.getMethod("getName").invoke(clipObj);
-                    if (name == null || name.isEmpty()) {
-                        continue;
-                    }
-                    CustomPlayerConfig.AnimationConfig anim = new CustomPlayerConfig.AnimationConfig();
-                    anim.startTime = ((Number) clipClass.getMethod("getStartTime").invoke(clipObj)).doubleValue();
-                    anim.endTime = ((Number) clipClass.getMethod("getEndTime").invoke(clipObj)).doubleValue();
-                    double speed = ((Number) clipClass.getMethod("getSpeed").invoke(clipObj)).doubleValue();
-                    if (speed > 0) {
-                        anim.speed = speed;
-                    }
-                    double blend = ((Number) clipClass.getMethod("getBlendDuration").invoke(clipObj)).doubleValue();
-                    if (blend > 0) {
-                        anim.blendDuration = blend;
-                    }
-                    boolean loop = (Boolean) clipClass.getMethod("getLoop").invoke(clipObj);
-                    if (loop) {
-                        anim.loop = Boolean.TRUE;
-                    }
-                    boolean holdLast = (Boolean) clipClass.getMethod("getHoldLastFrame").invoke(clipObj);
-                    if (holdLast) {
-                        anim.holdLastFrame = Boolean.TRUE;
-                    }
-                    clips.put(name, anim);
+        if (proto.getAnimationsCount() > 0) {
+            java.util.HashMap<String, CustomPlayerConfig.AnimationConfig> clips = new java.util.HashMap<>();
+            for (SkyCoreProto.GltfAnimationClip clip : proto.getAnimationsList()) {
+                if (clip == null || clip.getName().isEmpty()) {
+                    continue;
                 }
-                if (!clips.isEmpty()) {
-                    config.animations = clips;
+                CustomPlayerConfig.AnimationConfig anim = new CustomPlayerConfig.AnimationConfig();
+                anim.startTime = clip.getStartTime();
+                anim.endTime = clip.getEndTime();
+                if (clip.getSpeed() > 0) {
+                    anim.speed = clip.getSpeed();
                 }
+                if (clip.getBlendDuration() > 0) {
+                    anim.blendDuration = clip.getBlendDuration();
+                }
+                if (clip.getLoop()) {
+                    anim.loop = Boolean.TRUE;
+                }
+                if (clip.getHoldLastFrame()) {
+                    anim.holdLastFrame = Boolean.TRUE;
+                }
+                clips.put(clip.getName(), anim);
             }
-        } catch (ReflectiveOperationException ignored) {
+            if (!clips.isEmpty()) {
+                config.animations = clips;
+            }
         }
         registerProfile(proto.getProfileId(), config);
         org.mybad.minecraft.resource.preload.PreloadManager manager = SkyCoreMod.getPreloadManager();

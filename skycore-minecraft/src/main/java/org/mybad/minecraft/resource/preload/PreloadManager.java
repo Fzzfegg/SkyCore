@@ -199,17 +199,6 @@ public final class PreloadManager {
             SkyCoreMod.LOGGER.warn("[SkyCore] 预热 GLTF 模型失败：{}", config.modelPath);
         }
         warmBinary(config.texturePath, "texture");
-        if (config.materials != null) {
-            config.materials.values().forEach(override -> {
-                if (override == null) {
-                    return;
-                }
-                warmBinary(override.baseColorTexture, "texture");
-                warmBinary(override.metallicRoughnessTexture, "texture");
-                warmBinary(override.normalTexture, "texture");
-                warmBinary(override.occlusionTexture, "texture");
-            });
-        }
         long cost = System.currentTimeMillis() - start;
 //        SkyCoreMod.LOGGER.info("[SkyCore] 预热 GLTF Profile {} 完成 ({} ms)", config.name, cost);
     }

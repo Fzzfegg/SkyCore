@@ -61,7 +61,6 @@ tasks.register('copyBuiltMods') {
                 exclude '*-dev.jar'
                 exclude '*-deobf.jar'
             }
-            into modsDir
         }
         def versionedJarName = "SkyCoreMod-${projectVersion}.jar"
         def versionedJar = file("skycore-minecraft/build/libs/${versionedJarName}")
