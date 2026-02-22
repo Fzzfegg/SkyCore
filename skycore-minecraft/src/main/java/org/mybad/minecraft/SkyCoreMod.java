@@ -23,6 +23,7 @@ import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
+import org.mybad.minecraft.gltf.GltfSubsystem;
 
 import java.io.File;
 
@@ -63,6 +64,8 @@ public class SkyCoreMod {
     @SideOnly(Side.CLIENT)
     private Thread shutdownHook;
     private File gameDir;
+    @SideOnly(Side.CLIENT)
+    private GltfSubsystem gltfSubsystem;
 
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
@@ -79,6 +82,7 @@ public class SkyCoreMod {
         SoundExistenceCache.rescan(gameDir != null ? gameDir.toPath() : null);
         RemoteConfigController.getInstance().loadCacheOnStartup();
         registerShutdownHook();
+        gltfSubsystem = new GltfSubsystem(resourceCacheManager);
 
     }
 
@@ -100,6 +104,9 @@ public class SkyCoreMod {
         MinecraftForge.EVENT_BUS.register(new HiddenReloadHotkey());
         indicatorRendererEvent = new IndicatorRendererEvent();
         MinecraftForge.EVENT_BUS.register(indicatorRendererEvent);
+        if (gltfSubsystem != null) {
+            gltfSubsystem.install();
+        }
 
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
         channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
@@ -124,6 +131,10 @@ public class SkyCoreMod {
         }
         if (indicatorRendererEvent != null) {
             IndicatorRendererEvent.ACTIVE_INDICATORS.clear();
+        }
+        if (gltfSubsystem != null) {
+            gltfSubsystem.uninstall();
+            gltfSubsystem.install();
         }
         SkullModelManager.clear();
         DebugRenderController.clear();

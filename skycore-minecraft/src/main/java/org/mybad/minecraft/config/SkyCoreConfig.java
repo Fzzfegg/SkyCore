@@ -43,6 +43,10 @@ public class SkyCoreConfig {
         return instance;
     }
 
+    public static boolean isInitialized() {
+        return instance != null;
+    }
+
     /**
      * 加载配置文件
      */

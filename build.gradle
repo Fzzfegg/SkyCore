@@ -43,15 +43,11 @@ subprojects {
     }
 }
 
-def modsDir = file('D:/Minecraft/记忆之间客户端模型测试/.minecraft/mods')
 
 tasks.register('copyBuiltMods') {
     group = 'build'
     dependsOn ':skycore-core:jar', ':skycore-bedrockparticle:jar', ':skycore-minecraft:reobfJar'
     doLast {
-        if (!modsDir.exists()) {
-            modsDir.mkdirs()
-        }
         copy {
 //            from('skycore-core/build/libs') {
 //                include '*.jar'

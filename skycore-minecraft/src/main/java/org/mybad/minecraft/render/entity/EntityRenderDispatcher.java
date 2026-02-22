@@ -3,6 +3,7 @@ package org.mybad.minecraft.render.entity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -14,6 +15,9 @@ import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.render.world.WorldActorManager;
+import org.mybad.minecraft.gltf.client.CustomEntityManager;
+import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
+import org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 @SideOnly(Side.CLIENT)
@@ -57,6 +61,15 @@ public final class EntityRenderDispatcher {
 
         EntityMappingResolver.MappingResult mappingResult = EntityMappingResolver.resolve(entity);
         if (mappingResult == null) {
+            return;
+        }
+        EntityModelMapping mapping = mappingResult.mapping;
+        if (mapping != null && mapping.getGltfProfileId() != null && !mapping.getGltfProfileId().isEmpty()
+            && !(entity instanceof EntityPlayer)) {
+            CustomPlayerConfig profile = RemoteProfileRegistry.getProfile(mapping.getGltfProfileId());
+            if (profile != null) {
+                CustomEntityManager.setEntityConfiguration(entity.getUniqueID(), profile);
+            }
             return;
         }
         String mappingName = mappingResult.mappingName;

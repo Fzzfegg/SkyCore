@@ -10,7 +10,7 @@ public final class EntityMappingResolver {
     }
 
     public static MappingResult resolve(EntityLivingBase entity) {
-        if (entity == null) {
+        if (entity == null || !SkyCoreConfig.isInitialized()) {
             return null;
         }
         String mappingName = getEntityCustomName(entity);

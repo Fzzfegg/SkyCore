@@ -98,7 +98,7 @@ public final class ResourceResolver {
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
-    byte[] readResourceBytes(String path) {
+    public byte[] readResourceBytes(String path) {
         Path filePath = locateResourcePath(path);
         if (filePath == null) {
             return null;

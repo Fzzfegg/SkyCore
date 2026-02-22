@@ -37,6 +37,7 @@ message EntityMapping {
   float offset_y = 29;
   float offset_z = 30;
   int32 offset_mode = 31;
+  string gltf_profile = 32;
 }
 
 message MappingFile {
@@ -259,6 +260,21 @@ message PreloadHint {
   repeated string textures = 3;
   repeated string particles = 4;
   repeated string sounds = 5;
+}
+
+message GltfProfile {
+  string profile_id = 1;
+  string model_path = 2;
+  string texture_path = 3;
+  float model_scale = 4;
+  int32 fps = 5;
+  double blend_duration = 6;
+}
+
+message GltfProfileAssignment {
+  string profile_id = 1;
+  string player_name = 2;
+  bool clear = 3;
 }
 
 message ClearParticles {

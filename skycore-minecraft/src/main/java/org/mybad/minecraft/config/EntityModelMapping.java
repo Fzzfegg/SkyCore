@@ -14,6 +14,9 @@ public class EntityModelMapping {
 
     /** 模型文件路径 (如: skycore/models/zombie.geo.json) */
     private String model;
+    /** 远程 GLTF profile 标识（引用客户端缓存的 profile） */
+    @SerializedName("gltfProfile")
+    private String gltfProfileId;
 
     /** 动画文件路径 (如: skycore/animations/zombie.animation.json) */
     private String animation;
@@ -94,6 +97,7 @@ public class EntityModelMapping {
     // Getters
     public String getName() { return name; }
     public String getModel() { return model; }
+    public String getGltfProfileId() { return gltfProfileId; }
     public String getAnimation() { return animation; }
     public String getTexture() { return texture; }
     public String getEmissive() { return emissive; }
@@ -131,6 +135,7 @@ public class EntityModelMapping {
     // Setters
     public void setName(String name) { this.name = name; }
     public void setModel(String model) { this.model = model; }
+    public void setGltfProfileId(String gltfProfileId) { this.gltfProfileId = gltfProfileId; }
     public void setAnimation(String animation) { this.animation = animation; }
     public void setTexture(String texture) { this.texture = texture; }
     public void setEmissive(String emissive) { this.emissive = emissive; }

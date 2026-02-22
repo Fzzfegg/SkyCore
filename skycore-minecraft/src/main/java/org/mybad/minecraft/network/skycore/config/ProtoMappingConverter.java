@@ -59,6 +59,9 @@ public final class ProtoMappingConverter {
         mapping.setOffsetY(proto.getOffsetY());
         mapping.setOffsetZ(proto.getOffsetZ());
         mapping.setOffsetMode(proto.getOffsetMode());
+        if (!proto.getGltfProfile().isEmpty()) {
+            mapping.setGltfProfileId(nullIfEmpty(proto.getGltfProfile()));
+        }
         return mapping;
     }
 

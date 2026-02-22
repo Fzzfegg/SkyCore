@@ -4,6 +4,9 @@ import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.resource.ResourceCacheManager;
+import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
+import org.mybad.minecraft.gltf.client.CustomPlayerManager;
+import org.mybad.minecraft.gltf.core.data.GltfRenderModel;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 import java.util.Locale;
@@ -45,6 +48,19 @@ public final class PreloadManager {
         drain();
     }
 
+    public void enqueueGltfProfile(String profileId, CustomPlayerConfig config) {
+        if (profileId == null || profileId.trim().isEmpty() || config == null) {
+            return;
+        }
+        String normalized = profileId.trim();
+        String key = makeKey(TaskType.GLTF_PROFILE, normalized);
+        if (!scheduledKeys.add(key)) {
+            return;
+        }
+        queue.add(new PreloadTask(TaskType.GLTF_PROFILE, normalized, null, config));
+        drain();
+    }
+
     public void clear() {
         queue.clear();
         scheduledKeys.clear();
@@ -64,7 +80,7 @@ public final class PreloadManager {
         if (!scheduledKeys.add(key)) {
             return;
         }
-        queue.add(new PreloadTask(type, normalized, group));
+        queue.add(new PreloadTask(type, normalized, group, null));
     }
 
     private void drain() {
@@ -108,6 +124,9 @@ public final class PreloadManager {
                 break;
             case SOUND:
                 warmBinary(task.identifier, "sound");
+                break;
+            case GLTF_PROFILE:
+                warmGltfProfile(task.gltfConfig);
                 break;
         }
     }
@@ -168,6 +187,40 @@ public final class PreloadManager {
         }
     }
 
+    private void warmGltfProfile(CustomPlayerConfig config) {
+        if (config == null || isBlank(config.modelPath)) {
+            return;
+        }
+        long start = System.currentTimeMillis();
+        GltfRenderModel model = CustomPlayerManager.loadModelFresh(config.modelPath);
+        if (model != null) {
+            model.cleanup();
+        } else {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 预热 GLTF 模型失败：{}", config.modelPath);
+        }
+        warmBinary(config.texturePath, "texture");
+        if (config.materials != null) {
+            config.materials.values().forEach(override -> {
+                if (override == null) {
+                    return;
+                }
+                warmBinary(override.baseColorTexture, "texture");
+                warmBinary(override.metallicRoughnessTexture, "texture");
+                warmBinary(override.normalTexture, "texture");
+                warmBinary(override.occlusionTexture, "texture");
+                if (override.overlays != null) {
+                    override.overlays.forEach(layer -> {
+                        if (layer != null) {
+                            warmBinary(layer.texturePath, "texture");
+                        }
+                    });
+                }
+            });
+        }
+        long cost = System.currentTimeMillis() - start;
+//        SkyCoreMod.LOGGER.info("[SkyCore] 预热 GLTF Profile {} 完成 ({} ms)", config.name, cost);
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
@@ -180,18 +233,21 @@ public final class PreloadManager {
         MAPPING,
         TEXTURE,
         PARTICLE,
-        SOUND
+        SOUND,
+        GLTF_PROFILE
     }
 
     private static final class PreloadTask {
         final TaskType type;
         final String identifier;
         final String group;
+        final CustomPlayerConfig gltfConfig;
 
-        PreloadTask(TaskType type, String identifier, String group) {
+        PreloadTask(TaskType type, String identifier, String group, CustomPlayerConfig gltfConfig) {
             this.type = Objects.requireNonNull(type);
             this.identifier = identifier;
             this.group = group;
+            this.gltfConfig = gltfConfig;
         }
     }
 }
