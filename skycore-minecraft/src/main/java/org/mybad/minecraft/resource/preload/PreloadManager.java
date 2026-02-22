@@ -4,7 +4,7 @@ import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.resource.ResourceCacheManager;
-import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
+import org.mybad.minecraft.gltf.client.GltfProfile;
 import org.mybad.minecraft.gltf.client.CustomPlayerManager;
 import org.mybad.minecraft.gltf.core.data.GltfRenderModel;
 import org.mybad.skycoreproto.SkyCoreProto;
@@ -25,6 +25,7 @@ public final class PreloadManager {
     private final ConcurrentLinkedQueue<PreloadTask> queue = new ConcurrentLinkedQueue<>();
     private final Set<String> scheduledKeys = ConcurrentHashMap.newKeySet();
     private final Set<String> warmedResources = ConcurrentHashMap.newKeySet();
+    private final Map<String, String> profileHashes = new ConcurrentHashMap<>();
     private final AtomicBoolean workerRunning = new AtomicBoolean(false);
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "SkyCore-Preload");
@@ -48,22 +49,30 @@ public final class PreloadManager {
         drain();
     }
 
-    public void enqueueGltfProfile(String profileId, CustomPlayerConfig config) {
-        if (profileId == null || profileId.trim().isEmpty() || config == null) {
+    public void enqueueGltfProfile(GltfProfile profile) {
+        if (profile == null || profile.getName() == null || profile.getName().trim().isEmpty()) {
             return;
         }
-        String normalized = profileId.trim();
+        String normalized = profile.getName().trim();
+        String profileHash = profile.getHash();
+        if (profileHash != null && !profileHash.isEmpty()) {
+            String cached = profileHashes.get(normalized);
+            if (profileHash.equals(cached)) {
+                return;
+            }
+        }
         String key = makeKey(TaskType.GLTF_PROFILE, normalized);
         if (!scheduledKeys.add(key)) {
             return;
         }
-        queue.add(new PreloadTask(TaskType.GLTF_PROFILE, normalized, null, config));
+        queue.add(new PreloadTask(TaskType.GLTF_PROFILE, normalized, null, profile));
         drain();
     }
 
     public void clear() {
         queue.clear();
         scheduledKeys.clear();
+        profileHashes.clear();
     }
 
     public void shutdown() {
@@ -126,7 +135,7 @@ public final class PreloadManager {
                 warmBinary(task.identifier, "sound");
                 break;
             case GLTF_PROFILE:
-                warmGltfProfile(task.gltfConfig);
+                warmGltfProfile(task.gltfProfile);
                 break;
         }
     }
@@ -187,20 +196,36 @@ public final class PreloadManager {
         }
     }
 
-    private void warmGltfProfile(CustomPlayerConfig config) {
-        if (config == null || isBlank(config.modelPath)) {
+    private void warmGltfProfile(GltfProfile profile) {
+        if (profile == null || isBlank(profile.getModelPath())) {
             return;
         }
         long start = System.currentTimeMillis();
-        GltfRenderModel model = CustomPlayerManager.loadModelFresh(config.modelPath);
+        GltfRenderModel model = CustomPlayerManager.loadModelFresh(profile.getModelPath());
+        boolean success = model != null;
         if (model != null) {
             model.cleanup();
         } else {
-            SkyCoreMod.LOGGER.warn("[SkyCore] 预热 GLTF 模型失败：{}", config.modelPath);
+            SkyCoreMod.LOGGER.warn("[SkyCore] 预热 GLTF 模型失败：{}", profile.getModelPath());
         }
-        warmBinary(config.texturePath, "texture");
+        warmBinary(profile.getTexturePath(), "texture");
         long cost = System.currentTimeMillis() - start;
-//        SkyCoreMod.LOGGER.info("[SkyCore] 预热 GLTF Profile {} 完成 ({} ms)", config.name, cost);
+        if (success) {
+            if (profile.getHash() != null && !profile.getHash().isEmpty()) {
+                profileHashes.put(profile.getName(), profile.getHash());
+            }
+            SkyCoreMod.LOGGER.info("[SkyCore] 预热 GLTF Profile {}@v{} 成功 (hash={}, {} ms)",
+                profile.getName(),
+                profile.getVersion(),
+                shortHash(profile.getHash()),
+                cost);
+        } else {
+            SkyCoreMod.LOGGER.warn("[SkyCore] 预热 GLTF Profile {}@v{} 失败 (hash={}, {} ms)",
+                profile.getName(),
+                profile.getVersion(),
+                shortHash(profile.getHash()),
+                cost);
+        }
     }
 
     private static boolean isBlank(String value) {
@@ -223,13 +248,20 @@ public final class PreloadManager {
         final TaskType type;
         final String identifier;
         final String group;
-        final CustomPlayerConfig gltfConfig;
+        final GltfProfile gltfProfile;
 
-        PreloadTask(TaskType type, String identifier, String group, CustomPlayerConfig gltfConfig) {
+        PreloadTask(TaskType type, String identifier, String group, GltfProfile gltfProfile) {
             this.type = Objects.requireNonNull(type);
             this.identifier = identifier;
             this.group = group;
-            this.gltfConfig = gltfConfig;
+            this.gltfProfile = gltfProfile;
         }
+    }
+
+    private static String shortHash(String hash) {
+        if (hash == null || hash.isEmpty()) {
+            return "<none>";
+        }
+        return hash.length() <= 8 ? hash : hash.substring(0, 8);
     }
 }

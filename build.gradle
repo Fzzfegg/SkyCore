@@ -48,20 +48,6 @@ tasks.register('copyBuiltMods') {
     group = 'build'
     dependsOn ':skycore-core:jar', ':skycore-bedrockparticle:jar', ':skycore-minecraft:reobfJar'
     doLast {
-        copy {
-//            from('skycore-core/build/libs') {
-//                include '*.jar'
-//            }
-//            from('skycore-bedrockparticle/build/libs') {
-//                include '*.jar'
-//            }
-            from('build/libs') {
-                include '*.jar'
-                exclude '*-sources.jar'
-                exclude '*-dev.jar'
-                exclude '*-deobf.jar'
-            }
-        }
         def versionedJarName = "SkyCoreMod-${projectVersion}.jar"
         def versionedJar = file("skycore-minecraft/build/libs/${versionedJarName}")
         if (!versionedJar.exists()) {

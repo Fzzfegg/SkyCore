@@ -2,23 +2,30 @@ package org.mybad.minecraft.gltf.client;
 
 import org.mybad.minecraft.gltf.GltfLog;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.world.World;
 
 /**
  * Manages {@link CustomEntityInstance}s bound to remote entity appearance profiles.
  */
 public final class CustomEntityManager {
 
-    private static final Map<UUID, CustomPlayerConfig> CONFIGS = new HashMap<>();
+    private static final Map<UUID, GltfProfile> CONFIGS = new HashMap<>();
     private static final Map<UUID, CustomEntityInstance> INSTANCES = new HashMap<>();
 
     private CustomEntityManager() {
     }
 
-    public static void setEntityConfiguration(UUID entityId, CustomPlayerConfig config) {
+    public static void setEntityConfiguration(UUID entityId, GltfProfile config) {
         if (entityId == null || config == null) {
+            return;
+        }
+        GltfProfile previous = CONFIGS.get(entityId);
+        if (previous == config) {
             return;
         }
         CONFIGS.put(entityId, config);
@@ -26,7 +33,13 @@ public final class CustomEntityManager {
         if (instance != null) {
             instance.bindConfiguration(config);
         }
-        GltfLog.LOGGER.debug("Registered entity appearance for {}", entityId);
+        String newProfile = config.getName() != null && !config.getName().isEmpty() ? config.getName() : "<unnamed>";
+        if (previous == null) {
+            GltfLog.LOGGER.info("Entity {} 绑定 GLTF profile {}", entityId, newProfile);
+        } else {
+            String oldProfile = previous.getName() != null && !previous.getName().isEmpty() ? previous.getName() : "<unnamed>";
+            GltfLog.LOGGER.info("Entity {} 切换 GLTF profile: {} -> {}", entityId, oldProfile, newProfile);
+        }
     }
 
     public static void removeEntity(UUID entityId) {
@@ -39,6 +52,48 @@ public final class CustomEntityManager {
             instance.unbindModel();
         }
         GltfLog.LOGGER.debug("Removed entity appearance for {}", entityId);
+    }
+
+    public static boolean hasConfiguration(UUID entityId) {
+        if (entityId == null) {
+            return false;
+        }
+        return CONFIGS.containsKey(entityId);
+    }
+
+    public static void pruneMissing(World world) {
+        if (world == null) {
+            return;
+        }
+        Iterator<Map.Entry<UUID, GltfProfile>> iterator = CONFIGS.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, GltfProfile> entry = iterator.next();
+            UUID uuid = entry.getKey();
+            if (!containsEntityWithUuid(world, uuid)) {
+                iterator.remove();
+                CustomEntityInstance instance = INSTANCES.remove(uuid);
+                if (instance != null) {
+                    instance.unbindModel();
+                }
+                GltfLog.LOGGER.debug("Pruned stale GLTF entity {}", uuid);
+            }
+        }
+    }
+
+    private static boolean containsEntityWithUuid(World world, UUID uuid) {
+        if (uuid == null) {
+            return false;
+        }
+        Entity entity = world.getPlayerEntityByUUID(uuid);
+        if (entity != null) {
+            return true;
+        }
+        for (Entity candidate : world.loadedEntityList) {
+            if (uuid.equals(candidate.getUniqueID())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void clear() {
@@ -54,7 +109,7 @@ public final class CustomEntityManager {
             return false;
         }
         UUID entityId = entity.getUniqueID();
-        CustomPlayerConfig config = CONFIGS.get(entityId);
+        GltfProfile config = CONFIGS.get(entityId);
         if (config == null) {
             return false;
         }

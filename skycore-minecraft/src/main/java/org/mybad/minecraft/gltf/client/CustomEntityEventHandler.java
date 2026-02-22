@@ -1,7 +1,6 @@
 package org.mybad.minecraft.gltf.client;
 
 import org.mybad.minecraft.gltf.GltfLog;
-import org.mybad.minecraft.gltf.client.network.RemoteEntityAppearanceRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -9,10 +8,13 @@ import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+/**
+ * Hooks into render/tick events to draw GLTF-bound entities.
+ */
 public class CustomEntityEventHandler {
 
     @SubscribeEvent
-    public void onRenderLivingPre(RenderLivingEvent.Pre event) {
+    public void onRenderLivingPre(RenderLivingEvent.Pre<?> event) {
         if (event.getEntity() == null) {
             return;
         }
@@ -20,7 +22,7 @@ public class CustomEntityEventHandler {
         if (entity instanceof EntityPlayer) {
             return;
         }
-        if (!RemoteEntityAppearanceRegistry.hasAppearance(entity.getUniqueID())) {
+        if (!CustomEntityManager.hasConfiguration(entity.getUniqueID())) {
             return;
         }
         try {
@@ -29,7 +31,7 @@ public class CustomEntityEventHandler {
                 event.getX(),
                 event.getY(),
                 event.getZ(),
-                event.getEntity().rotationYaw,
+                entity.rotationYaw,
                 event.getPartialRenderTick()
             );
             if (rendered) {
@@ -50,6 +52,6 @@ public class CustomEntityEventHandler {
         if (mc == null || mc.world == null) {
             return;
         }
-        RemoteEntityAppearanceRegistry.pruneMissing(mc.world);
+        CustomEntityManager.pruneMissing(mc.world);
     }
 }

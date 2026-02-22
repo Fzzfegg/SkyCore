@@ -23,7 +23,7 @@ public class CustomEntityInstance {
 
     private static final float DEFAULT_BLEND_DURATION_SECONDS = 0.2f;
 
-    private CustomPlayerConfig config;
+    private GltfProfile config;
     private GltfRenderModel renderModel;
 
     private float idleTime;
@@ -44,16 +44,16 @@ public class CustomEntityInstance {
     private PoseSignature lastPoseSignature = PoseSignature.invalid();
     private ResourceLocation baseTexture;
 
-    public boolean isBoundTo(CustomPlayerConfig candidate) {
+    public boolean isBoundTo(GltfProfile candidate) {
         return this.config == candidate && renderModel != null;
     }
 
     @Nullable
-    public CustomPlayerConfig getConfig() {
+    public GltfProfile getProfile() {
         return config;
     }
 
-    public void bindConfiguration(CustomPlayerConfig config) {
+    public void bindConfiguration(GltfProfile config) {
         if (config == null) {
             unbindModel();
             return;
@@ -63,7 +63,7 @@ public class CustomEntityInstance {
         }
         unbindModel();
         this.config = config;
-        this.baseTexture = safeTexture(config.texturePath);
+        this.baseTexture = safeTexture(config.getTexturePath());
         resetAnimationState();
         loadModel();
     }
@@ -94,21 +94,21 @@ public class CustomEntityInstance {
     }
 
     private void loadModel() {
-        if (config == null || config.modelPath == null || config.modelPath.isEmpty()) {
+        if (config == null || config.getModelPath() == null || config.getModelPath().isEmpty()) {
             return;
         }
         try {
             // 使用非缓存加载，避免不同配置互相污染材质
-            renderModel = CustomPlayerManager.loadModelFresh(config.modelPath);
+            renderModel = CustomPlayerManager.loadModelFresh(config.getModelPath());
             if (renderModel != null) {
-                renderModel.setGlobalScale(config.modelScale);
+                renderModel.setGlobalScale(config.getModelScale());
                 renderModel.setDefaultTexture(baseTexture);
-                GltfLog.LOGGER.debug("Bound model to entity instance: {}", config.modelPath);
+                GltfLog.LOGGER.debug("Bound model to entity instance: {}", config.getModelPath());
             } else {
-                GltfLog.LOGGER.warn("Failed to load model for entity instance: {}", config.modelPath);
+                GltfLog.LOGGER.warn("Failed to load model for entity instance: {}", config.getModelPath());
             }
         } catch (Exception e) {
-            GltfLog.LOGGER.error("Error binding model for entity instance: {}", config.modelPath, e);
+            GltfLog.LOGGER.error("Error binding model for entity instance: {}", config.getModelPath(), e);
         }
     }
 
@@ -138,7 +138,7 @@ public class CustomEntityInstance {
             GlStateManager.rotate(yaw, 0.0f, -1.0f, 0.0f);
 
             renderModel.renderAll();
-            logGlError("entity.render " + (config != null ? config.modelPath : "null"));
+            logGlError("entity.render " + (config != null ? config.getModelPath() : "null"));
             return true;
         } catch (Exception e) {
             GltfLog.LOGGER.error("Error rendering custom entity instance", e);
@@ -229,7 +229,7 @@ public class CustomEntityInstance {
         if (config == null || renderModel == null) {
             return false;
         }
-        CustomPlayerConfig.AnimationConfig anim = config.getAnimation(state.getClipId());
+        GltfProfile.AnimationClip anim = config.getAnimation(state.getClipId());
         if (anim == null) {
             return false;
         }
@@ -274,7 +274,7 @@ public class CustomEntityInstance {
         if (clipName == null || config == null) {
             return 0.0f;
         }
-        CustomPlayerConfig.AnimationConfig anim = config.getAnimation(clipName);
+        GltfProfile.AnimationClip anim = config.getAnimation(clipName);
         if (anim == null) {
             return 0.0f;
         }
@@ -283,9 +283,9 @@ public class CustomEntityInstance {
     }
 
     private float getBlendDurationForClip(@Nullable String clipName) {
-        double defaultDuration = config != null ? config.blendDuration : DEFAULT_BLEND_DURATION_SECONDS;
+        double defaultDuration = config != null ? config.getBlendDuration() : DEFAULT_BLEND_DURATION_SECONDS;
         if (config != null && clipName != null) {
-            CustomPlayerConfig.AnimationConfig anim = config.getAnimation(clipName);
+            GltfProfile.AnimationClip anim = config.getAnimation(clipName);
             if (anim != null) {
                 return anim.getBlendDurationSeconds(defaultDuration);
             }
@@ -333,21 +333,21 @@ public class CustomEntityInstance {
             return;
         }
 
-        CustomPlayerConfig.AnimationConfig idleAnim = config.getAnimation("idle");
+        GltfProfile.AnimationClip idleAnim = config.getAnimation("idle");
         if (!state.moving && !state.sneaking) {
             idleTime = advancePhase(idleTime, idleAnim, deltaTime);
         } else {
             idleTime = 0.0f;
         }
 
-        CustomPlayerConfig.AnimationConfig walkAnim = config.getAnimation("walk");
+        GltfProfile.AnimationClip walkAnim = config.getAnimation("walk");
         if (state.walking) {
             walkTime = advancePhase(walkTime, walkAnim, deltaTime);
         } else {
             walkTime = 0.0f;
         }
 
-        CustomPlayerConfig.AnimationConfig sprintAnim = config.getAnimation("sprint");
+        GltfProfile.AnimationClip sprintAnim = config.getAnimation("sprint");
         if (state.sprinting) {
             sprintTime = advancePhase(sprintTime, sprintAnim, deltaTime);
             walkTime = 0.0f;
@@ -355,7 +355,7 @@ public class CustomEntityInstance {
             sprintTime = 0.0f;
         }
 
-        CustomPlayerConfig.AnimationConfig sneakAnim = config.getAnimation("sneak");
+        GltfProfile.AnimationClip sneakAnim = config.getAnimation("sneak");
         if (state.sneaking) {
             sneakTime = advancePhase(sneakTime, sneakAnim, deltaTime);
         } else {
@@ -363,13 +363,13 @@ public class CustomEntityInstance {
         }
     }
 
-    private float advancePhase(float current, @Nullable CustomPlayerConfig.AnimationConfig anim, float deltaTime) {
+    private float advancePhase(float current, @Nullable GltfProfile.AnimationClip anim, float deltaTime) {
         if (anim == null || config == null) {
             return 0.0f;
         }
-        boolean loop = anim.loop != null ? anim.loop : true;
-        boolean hold = anim.holdLastFrame != null ? anim.holdLastFrame : false;
-        current += (float) (anim.getAnimationSpeed(config.fps) * deltaTime);
+        boolean loop = anim.isLoop();
+        boolean hold = anim.shouldHoldLastFrame();
+        current += (float) (anim.getAnimationSpeed(config.getFps()) * deltaTime);
         if (loop) {
             return wrapPhase(current);
         } else {
@@ -391,19 +391,19 @@ public class CustomEntityInstance {
         return value;
     }
 
-    private float toAnimationSeconds(CustomPlayerConfig.AnimationConfig anim, float phase) {
-        if (anim == null || config == null || config.fps <= 0) {
+    private float toAnimationSeconds(GltfProfile.AnimationClip anim, float phase) {
+        if (anim == null || config == null || config.getFps() <= 0) {
             return 0.0f;
         }
-        double startFrame = anim.getStartFrame(config.fps);
-        double endFrame = anim.getEndFrame(config.fps);
+        double startFrame = anim.getStartFrame();
+        double endFrame = anim.getEndFrame();
         double frameSpan = endFrame - startFrame;
 
         double frameValue = startFrame;
         if (frameSpan > 0.0) {
             frameValue += phase * frameSpan;
         }
-        double fps = Math.max(config.fps, 1);
+        double fps = Math.max(config.getFps(), 1);
         return (float) (frameValue / fps);
     }
 
@@ -518,10 +518,10 @@ public class CustomEntityInstance {
     }
 
     public List<String> getAnimationNames() {
-        if (config == null || config.animations == null || config.animations.isEmpty()) {
+        if (config == null || config.getAnimations().isEmpty()) {
             return Collections.emptyList();
         }
-        return sortedCopy(config.animations.keySet());
+        return sortedCopy(config.getAnimations().keySet());
     }
 
     public List<String> getBoneNames() {

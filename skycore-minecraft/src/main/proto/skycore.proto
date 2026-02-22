@@ -38,6 +38,8 @@ message EntityMapping {
   float offset_z = 30;
   int32 offset_mode = 31;
   string gltf_profile = 32;
+  string hash = 33;
+  uint64 version = 34;
 }
 
 message MappingFile {

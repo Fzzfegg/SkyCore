@@ -1,7 +1,7 @@
 package org.mybad.minecraft.gltf.client.decoration;
 
 import org.mybad.minecraft.gltf.GltfLog;
-import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
+import org.mybad.minecraft.gltf.client.GltfProfile;
 import org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
@@ -85,7 +85,7 @@ public final class DecorationManager {
         if (profileId == null) {
             return false;
         }
-        CustomPlayerConfig config = RemoteProfileRegistry.getProfile(profileId);
+        GltfProfile config = RemoteProfileRegistry.getProfile(profileId);
         if (config == null) {
             return false;
         }
@@ -213,35 +213,10 @@ public final class DecorationManager {
     }
 
     public static String extractProfileId(PropertyMap properties) {
-        // 1) new path: single value gltf_profile
         java.util.Collection<Property> custom = properties.get("gltf_profile");
         if (custom != null && !custom.isEmpty()) {
             return custom.iterator().next().getValue();
         }
-//        // 2) fallback: textures.Value Base64(JSON) with url http://gltf/<id>
-//        java.util.Collection<Property> textures = properties.get("textures");
-//        if (textures != null && !textures.isEmpty()) {
-//            for (Property p : textures) {
-//                try {
-//                    String decoded = new String(java.util.Base64.getDecoder().decode(p.getValue()), java.nio.charset.StandardCharsets.UTF_8);
-//                    com.google.gson.JsonObject obj = new com.google.gson.JsonParser().parse(decoded).getAsJsonObject();
-//                    if (obj.has("textures")) {
-//                        com.google.gson.JsonObject tex = obj.getAsJsonObject("textures");
-//                        if (tex.has("SKIN")) {
-//                            com.google.gson.JsonObject skin = tex.getAsJsonObject("SKIN");
-//                            if (skin.has("url")) {
-//                                String url = skin.get("url").getAsString();
-//                                String prefix = "http://gltf/";
-//                                if (url.startsWith(prefix)) {
-//                                    return url.substring(prefix.length());
-//                                }
-//                            }
-//                        }
-//                    }
-//                } catch (Exception ignored) {
-//                }
-//            }
-//        }
         return null;
     }
 

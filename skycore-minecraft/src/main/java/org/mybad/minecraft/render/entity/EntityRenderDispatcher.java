@@ -10,14 +10,17 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.core.animation.Animation;
 import org.mybad.core.animation.AnimationPlayer;
 import org.mybad.minecraft.config.EntityModelMapping;
+import org.mybad.minecraft.gltf.GltfLog;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.entity.events.AnimationEventDispatcher;
 import org.mybad.minecraft.render.trail.WeaponTrailRenderer;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.render.world.WorldActorManager;
 import org.mybad.minecraft.gltf.client.CustomEntityManager;
-import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
+import org.mybad.minecraft.gltf.client.GltfProfile;
 import org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry;
+import java.util.HashSet;
+import java.util.Set;
 import org.mybad.skycoreproto.SkyCoreProto;
 
 @SideOnly(Side.CLIENT)
@@ -31,6 +34,7 @@ public final class EntityRenderDispatcher {
     private final EntityHeadBarManager headBarManager;
     private final EntityRenderPipeline renderPipeline;
     private final LingeringEntityManager lingeringManager;
+    private final Set<String> warnedMissingProfiles = new HashSet<>();
     private long renderFrameCounter = 0L;
     private long currentRenderFrameId = 0L;
     private boolean renderFrameActive = false;
@@ -63,16 +67,20 @@ public final class EntityRenderDispatcher {
         if (mappingResult == null) {
             return;
         }
+        String mappingName = mappingResult.mappingName;
         EntityModelMapping mapping = mappingResult.mapping;
         if (mapping != null && mapping.getGltfProfileId() != null && !mapping.getGltfProfileId().isEmpty()
             && !(entity instanceof EntityPlayer)) {
-            CustomPlayerConfig profile = RemoteProfileRegistry.getProfile(mapping.getGltfProfileId());
+            GltfProfile profile = RemoteProfileRegistry.getProfile(mapping.getGltfProfileId());
             if (profile != null) {
                 CustomEntityManager.setEntityConfiguration(entity.getUniqueID(), profile);
+            } else if (warnedMissingProfiles.add(mapping.getGltfProfileId())) {
+                String resolvedName = mappingName != null && !mappingName.isEmpty() ? mappingName : "<unknown>";
+                GltfLog.LOGGER.warn("映射 {} 引用了不存在的 GLTF profile {}", resolvedName, mapping.getGltfProfileId());
             }
             return;
         }
-        String mappingName = mappingResult.mappingName;
+        
 
         EntityWrapperEntry entry = wrapperCache.getOrCreate(entity, mappingName, mappingResult.mapping);
         if (entry == null || entry.wrapper == null) {
@@ -142,6 +150,7 @@ public final class EntityRenderDispatcher {
         lingeringManager.clear();
         headBarManager.reload();
         overrideStore.clearAll();
+        warnedMissingProfiles.clear();
     }
 
     public void invalidateWrapper(String entityName) {

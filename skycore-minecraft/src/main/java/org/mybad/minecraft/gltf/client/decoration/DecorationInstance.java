@@ -1,7 +1,7 @@
 package org.mybad.minecraft.gltf.client.decoration;
 
 import org.mybad.minecraft.gltf.GltfLog;
-import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
+import org.mybad.minecraft.gltf.client.GltfProfile;
 import org.mybad.minecraft.gltf.client.CustomPlayerManager;
 import org.mybad.minecraft.gltf.core.data.GltfRenderModel;
 import net.minecraft.client.Minecraft;
@@ -16,18 +16,18 @@ import javax.annotation.Nullable;
  */
 final class DecorationInstance {
 
-    private CustomPlayerConfig config;
+    private GltfProfile config;
     private GltfRenderModel renderModel;
     private ResourceLocation baseTexture;
     private String activeClip;
     private float clipPhase;
     private long lastSampleTimeNanos = -1L;
 
-    boolean isBoundTo(CustomPlayerConfig candidate) {
+    boolean isBoundTo(GltfProfile candidate) {
         return config == candidate && renderModel != null;
     }
 
-    void bindConfiguration(CustomPlayerConfig config) {
+    void bindConfiguration(GltfProfile config) {
         if (config == null) {
             unbind();
             return;
@@ -37,7 +37,7 @@ final class DecorationInstance {
         }
         unbind();
         this.config = config;
-        this.baseTexture = safeTexture(config.texturePath);
+        this.baseTexture = safeTexture(config.getTexturePath());
         this.activeClip = null;
         this.clipPhase = 0.0f;
         this.lastSampleTimeNanos = -1L;
@@ -62,18 +62,18 @@ final class DecorationInstance {
         }
         try {
             // 使用非缓存加载，避免不同装饰配置互相污染材质
-            renderModel = CustomPlayerManager.loadModelFresh(config.modelPath);
+            renderModel = CustomPlayerManager.loadModelFresh(config.getModelPath());
             if (renderModel != null) {
-                renderModel.setGlobalScale(config.modelScale);
+                renderModel.setGlobalScale(config.getModelScale());
                 renderModel.setDefaultTexture(baseTexture);
             } else {
-                if (CustomPlayerManager.shouldLogMissingModel(config.modelPath)) {
-                    GltfLog.LOGGER.warn("Failed to load decoration model: {}", config.modelPath);
+                if (CustomPlayerManager.shouldLogMissingModel(config.getModelPath())) {
+                    GltfLog.LOGGER.warn("Failed to load decoration model: {}", config.getModelPath());
                 }
             }
         } catch (Exception e) {
-            if (CustomPlayerManager.shouldLogMissingModel(config.modelPath)) {
-                GltfLog.LOGGER.error("Error loading decoration model {}", config.modelPath, e);
+            if (CustomPlayerManager.shouldLogMissingModel(config.getModelPath())) {
+                GltfLog.LOGGER.error("Error loading decoration model {}", config.getModelPath(), e);
             }
         }
     }
@@ -112,7 +112,7 @@ final class DecorationInstance {
             }
 
             renderModel.renderAll();
-            logGlError("decoration.render " + (config != null ? config.name : "null"));
+            logGlError("decoration.render " + (config != null ? config.getName() : "null"));
             return true;
         } catch (Exception e) {
             GltfLog.LOGGER.error("Error rendering decoration instance", e);
@@ -139,7 +139,7 @@ final class DecorationInstance {
             activeClip = desiredClip;
             clipPhase = 0.0f;
         }
-        CustomPlayerConfig.AnimationConfig anim = config.getAnimation(activeClip);
+        GltfProfile.AnimationClip anim = config.getAnimation(activeClip);
         if (anim == null) {
             return;
         }
@@ -163,7 +163,7 @@ final class DecorationInstance {
         if (activeClip != null && config.hasAnimation(activeClip)) {
             return activeClip;
         }
-        return config.animations.keySet().stream().findFirst().orElse(null);
+        return config.getAnimations().keySet().stream().findFirst().orElse(null);
     }
 
     private float sampleDeltaSeconds() {
@@ -177,13 +177,13 @@ final class DecorationInstance {
         return delta / 1_000_000_000.0f;
     }
 
-    private float advancePhase(float current, CustomPlayerConfig.AnimationConfig anim, float deltaTime) {
+    private float advancePhase(float current, GltfProfile.AnimationClip anim, float deltaTime) {
         if (anim == null || config == null) {
             return 0.0f;
         }
-        boolean loop = anim.loop != null ? anim.loop : true;
-        boolean hold = anim.holdLastFrame != null ? anim.holdLastFrame : false;
-        current += (float) (anim.getAnimationSpeed(config.fps) * deltaTime);
+        boolean loop = anim.isLoop();
+        boolean hold = anim.shouldHoldLastFrame();
+        current += (float) (anim.getAnimationSpeed(config.getFps()) * deltaTime);
         if (loop) {
             return wrapPhase(current);
         } else {
@@ -218,18 +218,18 @@ final class DecorationInstance {
         return value;
     }
 
-    private float toAnimationSeconds(CustomPlayerConfig.AnimationConfig anim, float phase) {
-        if (anim == null || config == null || config.fps <= 0) {
+    private float toAnimationSeconds(GltfProfile.AnimationClip anim, float phase) {
+        if (anim == null || config == null || config.getFps() <= 0) {
             return 0.0f;
         }
-        double startFrame = anim.getStartFrame(config.fps);
-        double endFrame = anim.getEndFrame(config.fps);
+        double startFrame = anim.getStartFrame();
+        double endFrame = anim.getEndFrame();
         double frameSpan = endFrame - startFrame;
         double frameValue = startFrame;
         if (frameSpan > 0.0) {
             frameValue += phase * frameSpan;
         }
-        double fps = Math.max(config.fps, 1);
+        double fps = Math.max(config.getFps(), 1);
         return (float) (frameValue / fps);
     }
 
@@ -241,12 +241,12 @@ final class DecorationInstance {
             GltfLog.LOGGER.error("GL error 0x{} @ {} (decoration={}, modelInstance={})",
                 Integer.toHexString(error),
                 stage,
-                config != null ? config.name : "null",
-                renderModel != null ? renderModel.getInstanceId() : -1);
+                config != null ? config.getName() : "null",
+            renderModel != null ? renderModel.getInstanceId() : -1);
         }
         if (!logged && GltfLog.LOGGER.isDebugEnabled()) {
             GltfLog.LOGGER.debug("GL OK @ {} (decoration={})", stage,
-                config != null ? config.name : "null");
+                config != null ? config.getName() : "null");
         }
     }
 

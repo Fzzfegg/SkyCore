@@ -9,7 +9,7 @@ public final class ProtoMappingConverter {
     public static EntityModelMapping toEntityModelMapping(SkyCoreProto.EntityMapping proto) {
         EntityModelMapping mapping = new EntityModelMapping();
         mapping.setName(proto.getName());
-        mapping.setModel(proto.getModel());
+        mapping.setModel(nullIfEmpty(proto.getModel()));
         mapping.setAnimation(nullIfEmpty(proto.getAnimation()));
         mapping.setTexture(nullIfEmpty(proto.getTexture()));
         mapping.setEmissive(nullIfEmpty(proto.getEmissive()));
