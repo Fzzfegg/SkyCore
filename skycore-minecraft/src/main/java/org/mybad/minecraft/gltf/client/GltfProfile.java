@@ -152,5 +152,13 @@ public final class GltfProfile {
         public boolean shouldHoldLastFrame() {
             return holdLastFrame != null ? holdLastFrame : Boolean.FALSE;
         }
+
+        public boolean resolveLoop(boolean fallback) {
+            return loop != null ? loop : fallback;
+        }
+
+        public boolean resolveHoldLastFrame(boolean fallback) {
+            return holdLastFrame != null ? holdLastFrame : fallback;
+        }
     }
 }

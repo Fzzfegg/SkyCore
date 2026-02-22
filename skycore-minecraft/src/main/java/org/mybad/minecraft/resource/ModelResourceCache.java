@@ -32,6 +32,9 @@ final class ModelResourceCache {
     }
 
     Model loadModel(String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
         String key = resolver.normalizePath(path);
         Model cached = modelCache.get(key);
         if (cached != null) {

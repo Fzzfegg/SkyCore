@@ -82,21 +82,11 @@ final class SkullModelInstance implements AnimationEventContext {
         return lastSeenTick;
     }
 
-    void applyProfile(SkullProfileData profile) {
-        if (profile != null) {
-            if (!applyForcedClipIfNeeded()) {
-                boolean clipApplied = applyClip(profile.getClip());
-                if (!clipApplied) {
-                    applyDefaultClip();
-                }
-            }
-            applyScale(profile);
-        } else {
-            if (!applyForcedClipIfNeeded()) {
-                applyDefaultClip();
-            }
-            handle.setModelScale(mapping.getModelScale());
+    void applyProfile() {
+        if (!applyForcedClipIfNeeded()) {
+            applyDefaultClip();
         }
+        handle.setModelScale(mapping.getModelScale());
     }
 
     boolean forceClip(String clipName, boolean once) {
@@ -142,14 +132,6 @@ final class SkullModelInstance implements AnimationEventContext {
     private void clearForcedClip() {
         forcedClip = null;
         forcedOnce = false;
-    }
-
-    private void applyScale(SkullProfileData profile) {
-        if (profile.getScale() != null) {
-            handle.setModelScale(profile.getScale());
-        } else {
-            handle.setModelScale(mapping.getModelScale());
-        }
     }
 
     private void applyDefaultClip() {

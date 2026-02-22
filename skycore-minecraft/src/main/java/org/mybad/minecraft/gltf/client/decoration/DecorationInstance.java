@@ -15,18 +15,18 @@ import javax.annotation.Nullable;
  * Lightweight renderer for static decoration anchors (e.g. skulls) that display a GLTF profile.
  */
 final class DecorationInstance {
-
+    
     private GltfProfile config;
     private GltfRenderModel renderModel;
     private ResourceLocation baseTexture;
     private String activeClip;
     private float clipPhase;
     private long lastSampleTimeNanos = -1L;
-
+    
     boolean isBoundTo(GltfProfile candidate) {
         return config == candidate && renderModel != null;
     }
-
+    
     void bindConfiguration(GltfProfile config) {
         if (config == null) {
             unbind();
@@ -43,7 +43,7 @@ final class DecorationInstance {
         this.lastSampleTimeNanos = -1L;
         loadModel();
     }
-
+    
     void unbind() {
         if (renderModel != null) {
             renderModel.cleanup();
@@ -55,7 +55,7 @@ final class DecorationInstance {
         clipPhase = 0.0f;
         lastSampleTimeNanos = -1L;
     }
-
+    
     private void loadModel() {
         if (config == null) {
             return;
@@ -77,7 +77,7 @@ final class DecorationInstance {
             }
         }
     }
-
+    
     boolean render(double worldX, double worldY, double worldZ,
                    double relX, double relY, double relZ,
                    float yawDegrees, float pitchDegrees,
@@ -87,19 +87,19 @@ final class DecorationInstance {
             return false;
         }
         updateAnimation(requestedClip);
-
+        
         boolean matrixPushed = false;
         boolean shadeAdjusted = false;
         try {
             if (baseTexture != null) {
                 Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
             }
-
+            
             GlStateManager.pushMatrix();
             matrixPushed = true;
             GlStateManager.shadeModel(GL11.GL_SMOOTH);
             shadeAdjusted = true;
-
+            
             GlStateManager.translate(relX, relY, relZ);
             if (yawDegrees != 0.0f) {
                 GlStateManager.rotate(yawDegrees, 0.0f, -1.0f, 0.0f);
@@ -110,9 +110,8 @@ final class DecorationInstance {
             if (scaleMultiplier != 1.0f) {
                 GlStateManager.scale(scaleMultiplier, scaleMultiplier, scaleMultiplier);
             }
-
+            
             renderModel.renderAll();
-            logGlError("decoration.render " + (config != null ? config.getName() : "null"));
             return true;
         } catch (Exception e) {
             GltfLog.LOGGER.error("Error rendering decoration instance", e);
@@ -126,7 +125,7 @@ final class DecorationInstance {
             }
         }
     }
-
+    
     private void updateAnimation(@Nullable String requestedClip) {
         if (config == null || renderModel == null) {
             return;
@@ -148,7 +147,7 @@ final class DecorationInstance {
         float targetSeconds = toAnimationSeconds(anim, clipPhase);
         renderModel.updateAnimation(targetSeconds, true);
     }
-
+    
     @Nullable
     private String resolveClip(@Nullable String requestedClip) {
         if (config == null) {
@@ -165,7 +164,7 @@ final class DecorationInstance {
         }
         return config.getAnimations().keySet().stream().findFirst().orElse(null);
     }
-
+    
     private float sampleDeltaSeconds() {
         long now = System.nanoTime();
         if (lastSampleTimeNanos < 0L) {
@@ -176,7 +175,7 @@ final class DecorationInstance {
         lastSampleTimeNanos = now;
         return delta / 1_000_000_000.0f;
     }
-
+    
     private float advancePhase(float current, GltfProfile.AnimationClip anim, float deltaTime) {
         if (anim == null || config == null) {
             return 0.0f;
@@ -196,7 +195,7 @@ final class DecorationInstance {
             return current;
         }
     }
-
+    
     @Nullable
     private ResourceLocation safeTexture(@Nullable String path) {
         if (path == null || path.isEmpty()) {
@@ -209,7 +208,7 @@ final class DecorationInstance {
             return null;
         }
     }
-
+    
     private float wrapPhase(float value) {
         value = value % 1.0f;
         if (value < 0.0f) {
@@ -217,7 +216,7 @@ final class DecorationInstance {
         }
         return value;
     }
-
+    
     private float toAnimationSeconds(GltfProfile.AnimationClip anim, float phase) {
         if (anim == null || config == null || config.getFps() <= 0) {
             return 0.0f;
@@ -232,22 +231,4 @@ final class DecorationInstance {
         double fps = Math.max(config.getFps(), 1);
         return (float) (frameValue / fps);
     }
-
-    private void logGlError(String stage) {
-        int error;
-        boolean logged = false;
-        while ((error = GL11.glGetError()) != GL11.GL_NO_ERROR) {
-            logged = true;
-            GltfLog.LOGGER.error("GL error 0x{} @ {} (decoration={}, modelInstance={})",
-                Integer.toHexString(error),
-                stage,
-                config != null ? config.getName() : "null",
-            renderModel != null ? renderModel.getInstanceId() : -1);
-        }
-        if (!logged && GltfLog.LOGGER.isDebugEnabled()) {
-            GltfLog.LOGGER.debug("GL OK @ {} (decoration={})", stage,
-                config != null ? config.getName() : "null");
-        }
-    }
-
 }

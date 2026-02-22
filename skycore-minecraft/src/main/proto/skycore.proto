@@ -272,6 +272,8 @@ message GltfProfile {
   int32 fps = 5;
   double blend_duration = 6;
   repeated GltfAnimationClip animations = 7;
+  string hash = 8;
+  int64 version = 9;
 }
 
 message GltfAnimationClip {

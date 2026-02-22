@@ -1,9 +1,5 @@
 package org.mybad.minecraft.render.skull;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
@@ -12,33 +8,15 @@ import java.util.Collection;
 
 final class SkullProfileData {
     private static final String PROPERTY_KEY = "model_profile";
-    private static final JsonParser PARSER = new JsonParser();
 
     private final String mappingName;
-    private final String clip;
-    private final Float scale;
-    private final Boolean loop;
-    private SkullProfileData(String mappingName, String clip, Float scale, Boolean loop) {
+
+    private SkullProfileData(String mappingName) {
         this.mappingName = mappingName;
-        this.clip = clip;
-        this.scale = scale;
-        this.loop = loop;
     }
 
     String getMappingName() {
         return mappingName;
-    }
-
-    String getClip() {
-        return clip;
-    }
-
-    Float getScale() {
-        return scale;
-    }
-
-    Boolean getLoop() {
-        return loop;
     }
 
     static SkullProfileData from(GameProfile profile) {
@@ -61,70 +39,13 @@ final class SkullProfileData {
     }
 
     private static SkullProfileData parseValue(String raw) {
-        if (raw == null || raw.trim().isEmpty()) {
+        if (raw == null) {
             return null;
         }
         String value = raw.trim();
-        if (value.startsWith("{") && value.endsWith("}")) {
-            try {
-                JsonElement element = PARSER.parse(value);
-                if (!element.isJsonObject()) {
-                    return null;
-                }
-                JsonObject obj = element.getAsJsonObject();
-                String mapping = getString(obj, "mapping");
-                if (mapping == null || mapping.isEmpty()) {
-                    return null;
-                }
-                String clip = getString(obj, "clip");
-                Float scale = getFloat(obj, "scale");
-                Boolean loop = getBoolean(obj, "loop");
-                return new SkullProfileData(mapping, clip, scale, loop);
-            } catch (JsonSyntaxException ignored) {
-                return simpleValue(value);
-            }
-        }
-        return simpleValue(value);
-    }
-
-    private static SkullProfileData simpleValue(String value) {
-        if (value == null || value.isEmpty()) {
+        if (value.isEmpty()) {
             return null;
         }
-        return new SkullProfileData(value, null, null, null);
-    }
-
-    private static String getString(JsonObject obj, String member) {
-        if (obj == null || !obj.has(member)) {
-            return null;
-        }
-        JsonElement element = obj.get(member);
-        if (!element.isJsonPrimitive()) {
-            return null;
-        }
-        String text = element.getAsString();
-        return text != null ? text.trim() : null;
-    }
-
-    private static Float getFloat(JsonObject obj, String member) {
-        if (obj == null || !obj.has(member)) {
-            return null;
-        }
-        try {
-            return obj.get(member).getAsFloat();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static Boolean getBoolean(JsonObject obj, String member) {
-        if (obj == null || !obj.has(member)) {
-            return null;
-        }
-        try {
-            return obj.get(member).getAsBoolean();
-        } catch (Exception ignored) {
-            return null;
-        }
+        return new SkullProfileData(value);
     }
 }

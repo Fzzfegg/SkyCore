@@ -41,7 +41,6 @@ public class CustomEntityInstance {
     private float blendSourceTimeSeconds;
 
     private final MovementBlendTree movementBlendTree = new MovementBlendTree();
-    private PoseSignature lastPoseSignature = PoseSignature.invalid();
     private ResourceLocation baseTexture;
 
     public boolean isBoundTo(GltfProfile candidate) {
@@ -75,7 +74,6 @@ public class CustomEntityInstance {
         }
         config = null;
         baseTexture = null;
-        lastPoseSignature = PoseSignature.invalid();
     }
 
     private void resetAnimationState() {
@@ -90,7 +88,6 @@ public class CustomEntityInstance {
         blendTimer = 0.0f;
         blendDurationSeconds = DEFAULT_BLEND_DURATION_SECONDS;
         blendSourceTimeSeconds = 0.0f;
-        lastPoseSignature = PoseSignature.invalid();
     }
 
     private void loadModel() {
@@ -138,7 +135,6 @@ public class CustomEntityInstance {
             GlStateManager.rotate(yaw, 0.0f, -1.0f, 0.0f);
 
             renderModel.renderAll();
-            logGlError("entity.render " + (config != null ? config.getModelPath() : "null"));
             return true;
         } catch (Exception e) {
             GltfLog.LOGGER.error("Error rendering custom entity instance", e);
@@ -201,27 +197,14 @@ public class CustomEntityInstance {
         if (blending && previousClip != null) {
             blendTimer += deltaTime;
             float weight = computeBlendWeight();
-            PoseSignature signature = PoseSignature.blended(previousClip, blendSourceTimeSeconds,
-                activeClip, targetClipTime, weight);
-            if (!signature.equals(lastPoseSignature)) {
-                renderModel.updateAnimationBlended(blendSourceTimeSeconds, targetClipTime, weight, true);
-                lastPoseSignature = signature;
-            }
+            renderModel.updateAnimationBlended(blendSourceTimeSeconds, targetClipTime, weight, true);
             if (weight >= 0.999f) {
                 finishBlend();
                 float finalClipTime = sampleClipTime(activeClip);
-                PoseSignature finalSignature = PoseSignature.single(activeClip, finalClipTime);
-                if (!finalSignature.equals(lastPoseSignature)) {
-                    renderModel.updateAnimation(finalClipTime, true);
-                }
-                lastPoseSignature = finalSignature;
+                renderModel.updateAnimation(finalClipTime, true);
             }
         } else {
-            PoseSignature signature = PoseSignature.single(activeClip, targetClipTime);
-            if (!signature.equals(lastPoseSignature)) {
-                renderModel.updateAnimation(targetClipTime, true);
-                lastPoseSignature = signature;
-            }
+            renderModel.updateAnimation(targetClipTime, true);
         }
     }
 
@@ -233,8 +216,8 @@ public class CustomEntityInstance {
         if (anim == null) {
             return false;
         }
-        boolean loop = anim.loop != null ? anim.loop : state.shouldLoop();
-        boolean hold = anim.holdLastFrame != null ? anim.holdLastFrame : state.shouldHoldLastFrame();
+        boolean loop = anim.resolveLoop(state.shouldLoop());
+        boolean hold = anim.resolveHoldLastFrame(state.shouldHoldLastFrame());
         float phase = state.phaseAt(System.currentTimeMillis(), loop, hold);
         if (!loop && !hold && phase >= 0.9999f) {
             RemoteAnimationController.clear(state.getSubjectId());
@@ -248,7 +231,6 @@ public class CustomEntityInstance {
         blendTimer = 0.0f;
         blendDurationSeconds = state.getBlendDuration();
         blendSourceTimeSeconds = targetClipTime;
-        lastPoseSignature = PoseSignature.single(activeClip, targetClipTime);
         return true;
     }
 
@@ -445,71 +427,6 @@ public class CustomEntityInstance {
         }
     }
 
-    private static final class PoseSignature {
-        private static final float EPSILON = 1.0e-4f;
-
-        private final String fromClip;
-        private final float fromTime;
-        private final String toClip;
-        private final float toTime;
-        private final float weight;
-        private final boolean blended;
-
-        private PoseSignature(String fromClip, float fromTime, String toClip, float toTime, float weight,
-                              boolean blended) {
-            this.fromClip = fromClip;
-            this.fromTime = fromTime;
-            this.toClip = toClip;
-            this.toTime = toTime;
-            this.weight = weight;
-            this.blended = blended;
-        }
-
-        static PoseSignature single(String clip, float time) {
-            return new PoseSignature(null, 0.0f, clip, time, 1.0f, false);
-        }
-
-        static PoseSignature blended(String fromClip, float fromTime, String toClip, float toTime, float weight) {
-            return new PoseSignature(fromClip, fromTime, toClip, toTime, weight, true);
-        }
-
-        static PoseSignature invalid() {
-            return new PoseSignature(null, Float.NaN, null, Float.NaN, Float.NaN, false);
-        }
-
-        boolean equals(PoseSignature other) {
-            if (other == null) {
-                return false;
-            }
-            if (this.blended != other.blended) {
-                return false;
-            }
-            if (this.blended) {
-                return equalsClip(this.fromClip, other.fromClip)
-                    && equalsClip(this.toClip, other.toClip)
-                    && approximatelyEqual(this.fromTime, other.fromTime)
-                    && approximatelyEqual(this.toTime, other.toTime)
-                    && approximatelyEqual(this.weight, other.weight);
-            }
-            return equalsClip(this.toClip, other.toClip)
-                && approximatelyEqual(this.toTime, other.toTime);
-        }
-
-        private boolean equalsClip(String a, String b) {
-            if (a == null) {
-                return b == null;
-            }
-            return a.equals(b);
-        }
-
-        private boolean approximatelyEqual(float a, float b) {
-            if (Float.isNaN(a) || Float.isNaN(b)) {
-                return false;
-            }
-            return Math.abs(a - b) <= EPSILON;
-        }
-    }
-
     public List<String> getMaterialNames() {
         if (renderModel == null || renderModel.geoModel == null || renderModel.geoModel.materials == null) {
             return Collections.emptyList();
@@ -529,24 +446,6 @@ public class CustomEntityInstance {
             return Collections.emptyList();
         }
         return sortedCopy(renderModel.geoModel.nodes.keySet());
-    }
-
-    private void logGlError(String stage) {
-        int error;
-        boolean logged = false;
-        while ((error = GL11.glGetError()) != GL11.GL_NO_ERROR) {
-            logged = true;
-            GltfLog.LOGGER.error("GL error 0x{} @ {} (entityInstance={}, model={}, instanceId={})",
-                Integer.toHexString(error),
-                stage,
-                Integer.toHexString(System.identityHashCode(this)),
-                renderModel != null ? renderModel.getDebugSourceId() : "null",
-                renderModel != null ? renderModel.getInstanceId() : -1);
-        }
-        if (!logged && GltfLog.LOGGER.isDebugEnabled()) {
-            GltfLog.LOGGER.debug("GL OK @ {} (model={})", stage,
-                renderModel != null ? renderModel.getDebugSourceId() : "null");
-        }
     }
 
     private List<String> sortedCopy(Set<String> source) {

@@ -78,7 +78,7 @@ public final class SkullModelManager {
         }
         applyPendingForcedClip(key, instance);
         instance.markSeen(tick);
-        instance.applyProfile(profileData);
+        instance.applyProfile();
 
         Transform transform = computeTransform(world, pos, skull);
         double renderX = x + transform.offsetX;
