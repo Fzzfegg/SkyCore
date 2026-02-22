@@ -2,12 +2,9 @@ package org.mybad.minecraft.gltf.client.network;
 
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
-import org.mybad.minecraft.gltf.client.CustomPlayerManager;
 
 import org.mybad.skycoreproto.SkyCoreProto;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
@@ -15,7 +12,6 @@ import javax.annotation.Nullable;
 public final class RemoteProfileRegistry {
 
     private static final Map<String, CustomPlayerConfig> PROFILES = new ConcurrentHashMap<>();
-    private static final Map<String, List<String>> PENDING_ASSIGNMENTS = new ConcurrentHashMap<>();
 
     private RemoteProfileRegistry() {
     }
@@ -26,32 +22,10 @@ public final class RemoteProfileRegistry {
         }
         config.name = profileId;
         PROFILES.put(profileId, config);
-        CustomPlayerManager.registerRemoteConfig(profileId, config);
-        List<String> pending = PENDING_ASSIGNMENTS.remove(profileId);
-        if (pending != null) {
-            for (String playerName : pending) {
-                CustomPlayerManager.setPlayerConfiguration(playerName, profileId);
-            }
-        }
-    }
-
-    public static void assignProfile(String playerName, String profileId) {
-        if (playerName == null || profileId == null) {
-            return;
-        }
-        CustomPlayerConfig profile = PROFILES.get(profileId);
-        if (profile != null) {
-            CustomPlayerManager.registerRemoteConfig(profileId, profile);
-            CustomPlayerManager.setPlayerConfiguration(playerName, profileId);
-        } else {
-            PENDING_ASSIGNMENTS.computeIfAbsent(profileId, key -> new ArrayList<>()).add(playerName);
-        }
     }
 
     public static void clear() {
         PROFILES.clear();
-        PENDING_ASSIGNMENTS.clear();
-        CustomPlayerManager.clearRemoteConfigs();
     }
 
     @Nullable
@@ -131,14 +105,5 @@ public final class RemoteProfileRegistry {
         }
     }
 
-    public static void handleProfileAssignment(SkyCoreProto.GltfProfileAssignment proto) {
-        if (proto == null || proto.getPlayerName().isEmpty()) {
-            return;
-        }
-        if (proto.getClear()) {
-            CustomPlayerManager.clearPlayerConfiguration(proto.getPlayerName());
-            return;
-        }
-        assignProfile(proto.getPlayerName(), proto.getProfileId());
-    }
+    // Player-specific GLTF assignments have been removed for simplified entity-only use cases.
 }

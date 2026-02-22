@@ -4,7 +4,6 @@ import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import org.mybad.minecraft.gltf.client.CustomEntityEventHandler;
-import org.mybad.minecraft.gltf.client.CustomPlayerEventHandler;
 import org.mybad.minecraft.gltf.client.decoration.DecorationRenderHandler;
 import org.mybad.minecraft.gltf.client.decoration.DecorationSkullRenderer;
 
@@ -19,7 +18,6 @@ import org.mybad.minecraft.resource.ResourceCacheManager;
 public final class GltfSubsystem {
 
 
-    private final CustomPlayerEventHandler playerHandler = new CustomPlayerEventHandler();
     private final CustomEntityEventHandler entityHandler = new CustomEntityEventHandler();
     private final DecorationRenderHandler decorationRenderHandler = new DecorationRenderHandler();
     private final GltfResourceLoader resourceLoader;
@@ -31,7 +29,6 @@ public final class GltfSubsystem {
 
     public void install() {
         GltfResourceAccess.install(resourceLoader);
-        MinecraftForge.EVENT_BUS.register(playerHandler);
         MinecraftForge.EVENT_BUS.register(entityHandler);
         MinecraftForge.EVENT_BUS.register(decorationRenderHandler);
 
@@ -40,7 +37,6 @@ public final class GltfSubsystem {
     }
 
     public void uninstall() {
-        MinecraftForge.EVENT_BUS.unregister(playerHandler);
         MinecraftForge.EVENT_BUS.unregister(entityHandler);
         MinecraftForge.EVENT_BUS.unregister(decorationRenderHandler);
         GltfResourceAccess.clear();

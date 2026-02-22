@@ -208,13 +208,6 @@ public final class PreloadManager {
                 warmBinary(override.metallicRoughnessTexture, "texture");
                 warmBinary(override.normalTexture, "texture");
                 warmBinary(override.occlusionTexture, "texture");
-                if (override.overlays != null) {
-                    override.overlays.forEach(layer -> {
-                        if (layer != null) {
-                            warmBinary(layer.texturePath, "texture");
-                        }
-                    });
-                }
             });
         }
         long cost = System.currentTimeMillis() - start;

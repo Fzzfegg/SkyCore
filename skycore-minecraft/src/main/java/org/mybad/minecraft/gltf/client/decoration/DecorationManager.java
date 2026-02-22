@@ -3,7 +3,6 @@ package org.mybad.minecraft.gltf.client.decoration;
 import org.mybad.minecraft.gltf.GltfLog;
 import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
 import org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry;
-import org.mybad.minecraft.gltf.core.data.DataMaterial;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
@@ -28,8 +27,6 @@ public final class DecorationManager {
 
     private static final Map<DecorationKey, DecorationInstance> INSTANCES = new HashMap<>();
     private static final Map<DecorationKey, PendingClip> PENDING_CLIPS = new HashMap<>();
-    private static final Map<DecorationKey, java.util.List<PendingPulseOverride>> PENDING_PULSES = new HashMap<>();
-    private static final Map<DecorationKey, java.util.List<PendingColorPulseOverride>> PENDING_COLOR_PULSES = new HashMap<>();
     private static boolean DEBUG_BOUNDING_BOX = false;
 
     private DecorationManager() {
@@ -66,8 +63,6 @@ public final class DecorationManager {
     public static void clear() {
         INSTANCES.values().forEach(DecorationInstance::unbind);
         INSTANCES.clear();
-        PENDING_PULSES.clear();
-        PENDING_COLOR_PULSES.clear();
     }
 
     private static boolean renderSkull(TileEntitySkull skull, float partialTicks,
@@ -100,7 +95,6 @@ public final class DecorationManager {
         if (!instance.isBoundTo(config)) {
             instance.bindConfiguration(config);
         }
-        applyPendingOverrides(key, instance);
 
         BlockPos pos = skull.getPos();
         double worldX = pos.getX() + 0.5;
@@ -129,7 +123,7 @@ public final class DecorationManager {
 
         String requestedClip = override != null ? override.clipId : clip;
 
-        boolean rendered = instance.render(pos, worldX, worldY, worldZ,
+        boolean rendered = instance.render(worldX, worldY, worldZ,
             relX, relY, relZ, yaw, 0.0f, 1.0f, partialTicks, requestedClip);
         if (!rendered) {
             GltfLog.LOGGER.debug("Failed to render decoration at {}", pos);
@@ -156,46 +150,6 @@ public final class DecorationManager {
         int dimension = mc.world.provider.getDimension();
         DecorationKey key = new DecorationKey(dimension, new BlockPos(x, y, z));
         PENDING_CLIPS.put(key, new PendingClip(clipId, speed, loop));
-    }
-
-    public static void applyOverlayPulseOverride(int x, int y, int z,
-                                                 String materialName, String overlayId,
-                                                 DataMaterial.OverlayLayer.PulseSettings pulse,
-                                                 long durationMs) {
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.world == null || mc.world.provider == null) {
-            return;
-        }
-        int dimension = mc.world.provider.getDimension();
-        DecorationKey key = new DecorationKey(dimension, new BlockPos(x, y, z));
-        DecorationInstance instance = INSTANCES.get(key);
-        if (instance != null) {
-            instance.applyOverlayPulseOverride(materialName, overlayId, pulse, durationMs);
-            return;
-        }
-        PENDING_PULSES
-            .computeIfAbsent(key, unused -> new java.util.ArrayList<>())
-            .add(new PendingPulseOverride(materialName, overlayId, pulse, durationMs));
-    }
-
-    public static void applyOverlayColorPulseOverride(int x, int y, int z,
-                                                      String materialName, String overlayId,
-                                                      DataMaterial.OverlayLayer.ColorPulseSettings pulse,
-                                                      long durationMs) {
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.world == null || mc.world.provider == null) {
-            return;
-        }
-        int dimension = mc.world.provider.getDimension();
-        DecorationKey key = new DecorationKey(dimension, new BlockPos(x, y, z));
-        DecorationInstance instance = INSTANCES.get(key);
-        if (instance != null) {
-            instance.applyOverlayColorPulseOverride(materialName, overlayId, pulse, durationMs);
-            return;
-        }
-        PENDING_COLOR_PULSES
-            .computeIfAbsent(key, unused -> new java.util.ArrayList<>())
-            .add(new PendingColorPulseOverride(materialName, overlayId, pulse, durationMs));
     }
 
     private static final class DecorationKey {
@@ -248,119 +202,6 @@ public final class DecorationManager {
         boolean shouldKeep() {
             return loop || ticksRemaining > 0;
         }
-    }
-
-    private static final class PendingPulseOverride {
-        private final String materialName;
-        private final String overlayId;
-        private final DataMaterial.OverlayLayer.PulseSettings pulse = new DataMaterial.OverlayLayer.PulseSettings();
-        private final long expireAtMs;
-
-        private PendingPulseOverride(String materialName, String overlayId,
-                                     DataMaterial.OverlayLayer.PulseSettings source, long durationMs) {
-            this.materialName = materialName;
-            this.overlayId = overlayId;
-            if (source != null) {
-                this.pulse.copyFrom(source);
-            }
-            this.expireAtMs = durationMs > 0 ? System.currentTimeMillis() + durationMs : 0L;
-        }
-
-        boolean isExpired(long now) {
-            return expireAtMs > 0 && now >= expireAtMs;
-        }
-
-        boolean apply(DecorationInstance instance, long now) {
-            if (instance == null) {
-                return false;
-            }
-            if (isExpired(now)) {
-                return false;
-            }
-            long remaining = expireAtMs > 0 ? Math.max(0L, expireAtMs - now) : 0L;
-            instance.applyOverlayPulseOverride(materialName, overlayId, pulse, remaining);
-            return true;
-        }
-    }
-
-    private static final class PendingColorPulseOverride {
-        private final String materialName;
-        private final String overlayId;
-        private final DataMaterial.OverlayLayer.ColorPulseSettings pulse = new DataMaterial.OverlayLayer.ColorPulseSettings();
-        private final long expireAtMs;
-
-        private PendingColorPulseOverride(String materialName, String overlayId,
-                                          DataMaterial.OverlayLayer.ColorPulseSettings source, long durationMs) {
-            this.materialName = materialName;
-            this.overlayId = overlayId;
-            if (source != null) {
-                this.pulse.copyFrom(source);
-            }
-            this.expireAtMs = durationMs > 0 ? System.currentTimeMillis() + durationMs : 0L;
-        }
-
-        boolean isExpired(long now) {
-            return expireAtMs > 0 && now >= expireAtMs;
-        }
-
-        boolean apply(DecorationInstance instance, long now) {
-            if (instance == null) {
-                return false;
-            }
-            if (isExpired(now)) {
-                return false;
-            }
-            long remaining = expireAtMs > 0 ? Math.max(0L, expireAtMs - now) : 0L;
-            instance.applyOverlayColorPulseOverride(materialName, overlayId, pulse, remaining);
-            return true;
-        }
-    }
-
-    private static void applyPendingPulseOverrides(DecorationKey key, DecorationInstance instance) {
-        java.util.List<PendingPulseOverride> queue = PENDING_PULSES.get(key);
-        if (queue == null || queue.isEmpty() || instance == null) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        queue.removeIf(entry -> {
-            if (entry == null) {
-                return true;
-            }
-            if (entry.isExpired(now)) {
-                return true;
-            }
-            entry.apply(instance, now);
-            return true;
-        });
-        if (queue.isEmpty()) {
-            PENDING_PULSES.remove(key);
-        }
-    }
-
-    private static void applyPendingColorPulseOverrides(DecorationKey key, DecorationInstance instance) {
-        java.util.List<PendingColorPulseOverride> queue = PENDING_COLOR_PULSES.get(key);
-        if (queue == null || queue.isEmpty() || instance == null) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        queue.removeIf(entry -> {
-            if (entry == null) {
-                return true;
-            }
-            if (entry.isExpired(now)) {
-                return true;
-            }
-            entry.apply(instance, now);
-            return true;
-        });
-        if (queue.isEmpty()) {
-            PENDING_COLOR_PULSES.remove(key);
-        }
-    }
-
-    private static void applyPendingOverrides(DecorationKey key, DecorationInstance instance) {
-        applyPendingPulseOverrides(key, instance);
-        applyPendingColorPulseOverrides(key, instance);
     }
 
     public static void setDebugBoundingBox(boolean enabled) {

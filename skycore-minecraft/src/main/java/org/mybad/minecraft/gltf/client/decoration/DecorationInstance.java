@@ -3,20 +3,11 @@ package org.mybad.minecraft.gltf.client.decoration;
 import org.mybad.minecraft.gltf.GltfLog;
 import org.mybad.minecraft.gltf.client.CustomPlayerConfig;
 import org.mybad.minecraft.gltf.client.CustomPlayerManager;
-import org.mybad.minecraft.gltf.core.data.DataMaterial;
 import org.mybad.minecraft.gltf.core.data.GltfRenderModel;
-import org.mybad.minecraft.gltf.core.data.OverlayRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import org.lwjgl.opengl.GL11;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -28,10 +19,6 @@ final class DecorationInstance {
     private CustomPlayerConfig config;
     private GltfRenderModel renderModel;
     private ResourceLocation baseTexture;
-    private final java.util.List<PulseOverrideCommand> pendingPulseOverrides = new java.util.ArrayList<>();
-    private final java.util.List<ColorPulseOverrideCommand> pendingColorPulseOverrides = new java.util.ArrayList<>();
-    private final OverlayRenderContext overlayRenderContext = new OverlayRenderContext();
-
     private String activeClip;
     private float clipPhase;
     private long lastSampleTimeNanos = -1L;
@@ -55,7 +42,6 @@ final class DecorationInstance {
         this.clipPhase = 0.0f;
         this.lastSampleTimeNanos = -1L;
         loadModel();
-        reapplyPendingPulseOverrides();
     }
 
     void unbind() {
@@ -81,7 +67,6 @@ final class DecorationInstance {
                 renderModel.setGlobalScale(config.modelScale);
                 renderModel.setDefaultTexture(baseTexture);
                 applyMaterialOverrides();
-                reapplyPendingPulseOverrides();
             } else {
                 if (CustomPlayerManager.shouldLogMissingModel(config.modelPath)) {
                     GltfLog.LOGGER.warn("Failed to load decoration model: {}", config.modelPath);
@@ -118,7 +103,7 @@ final class DecorationInstance {
         }
     }
 
-    boolean render(BlockPos blockPos, double worldX, double worldY, double worldZ,
+    boolean render(double worldX, double worldY, double worldZ,
                    double relX, double relY, double relZ,
                    float yawDegrees, float pitchDegrees,
                    float scaleMultiplier, float partialTicks,
@@ -126,7 +111,6 @@ final class DecorationInstance {
         if (config == null || renderModel == null) {
             return false;
         }
-        purgeExpiredPulseOverrides();
         updateAnimation(requestedClip);
 
         boolean matrixPushed = false;
@@ -153,7 +137,6 @@ final class DecorationInstance {
             }
 
             applyRenderOffset();
-            prepareOverlayContextForDecoration(blockPos, worldX, worldY, worldZ, yawDegrees, pitchDegrees, scaleMultiplier, partialTicks);
 
             renderModel.renderAll();
             logGlError("decoration.render " + (config != null ? config.name : "null"));
@@ -169,28 +152,6 @@ final class DecorationInstance {
                 GlStateManager.popMatrix();
             }
         }
-    }
-
-    private void prepareOverlayContextForDecoration(BlockPos blockPos, double worldX, double worldY, double worldZ,
-                                                    float yawDegrees, float pitchDegrees, float scaleMultiplier,
-                                                    float partialTicks) {
-        if (renderModel == null) {
-            return;
-        }
-        overlayRenderContext.reset();
-        overlayRenderContext.setHoverBlock(false);
-        overlayRenderContext.setHoverModel(false);
-        overlayRenderContext.setHoveredNodes(Collections.emptySet());
-        renderModel.setOverlayContext(overlayRenderContext);
-    }
-
-    @Nullable
-    private Vec3d sampleNodeWorldPosition(String nodeName, double worldX, double worldY, double worldZ,
-                                          float yawDegrees, float pitchDegrees, float scaleMultiplier) {
-        if (renderModel == null) {
-            return null;
-        }
-        return renderModel.sampleNodeWorldPosition(nodeName, worldX, worldY, worldZ, yawDegrees, pitchDegrees, scaleMultiplier);
     }
 
     private void updateAnimation(@Nullable String requestedClip) {
@@ -305,105 +266,6 @@ final class DecorationInstance {
         }
     }
 
-    void applyOverlayPulseOverride(String materialName, String overlayId,
-                                   DataMaterial.OverlayLayer.PulseSettings pulse, long durationMs) {
-        PulseOverrideCommand command = PulseOverrideCommand.create(materialName, overlayId, pulse, durationMs);
-        if (command == null) {
-            return;
-        }
-        purgeExpiredPulseOverrides();
-        pendingPulseOverrides.removeIf(existing -> existing.matches(command));
-        pendingPulseOverrides.add(command);
-        long now = System.currentTimeMillis();
-        boolean applied = applyPulseOverride(command, now);
-        if (command.isExpired(now)) {
-            pendingPulseOverrides.remove(command);
-        } else if (!applied && GltfLog.LOGGER.isDebugEnabled()) {
-            GltfLog.LOGGER.debug("Decoration pulse queued (material={}, overlay={})",
-                command.getMaterialName(), command.getOverlayId());
-        }
-    }
-
-    void applyOverlayColorPulseOverride(String materialName, String overlayId,
-                                        DataMaterial.OverlayLayer.ColorPulseSettings pulse, long durationMs) {
-        ColorPulseOverrideCommand command = ColorPulseOverrideCommand.create(materialName, overlayId, pulse, durationMs);
-        if (command == null) {
-            return;
-        }
-        purgeExpiredPulseOverrides();
-        pendingColorPulseOverrides.removeIf(existing -> existing.matches(command));
-        pendingColorPulseOverrides.add(command);
-        long now = System.currentTimeMillis();
-        boolean applied = applyColorPulseOverride(command, now);
-        if (command.isExpired(now)) {
-            pendingColorPulseOverrides.remove(command);
-        } else if (!applied && GltfLog.LOGGER.isDebugEnabled()) {
-            GltfLog.LOGGER.debug("Decoration color pulse queued (material={}, overlay={})",
-                command.getMaterialName(), command.getOverlayId());
-        }
-    }
-
-    private void reapplyPendingPulseOverrides() {
-        reapplyPendingAlphaPulseOverrides();
-        reapplyPendingColorPulseOverrides();
-    }
-
-    private void reapplyPendingAlphaPulseOverrides() {
-        if (pendingPulseOverrides.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        java.util.Iterator<PulseOverrideCommand> iterator = pendingPulseOverrides.iterator();
-        while (iterator.hasNext()) {
-            PulseOverrideCommand command = iterator.next();
-            if (command == null || command.isExpired(now)) {
-                iterator.remove();
-                continue;
-            }
-            applyPulseOverride(command, now);
-        }
-    }
-
-    private void reapplyPendingColorPulseOverrides() {
-        if (pendingColorPulseOverrides.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        java.util.Iterator<ColorPulseOverrideCommand> iterator = pendingColorPulseOverrides.iterator();
-        while (iterator.hasNext()) {
-            ColorPulseOverrideCommand command = iterator.next();
-            if (command == null || command.isExpired(now)) {
-                iterator.remove();
-                continue;
-            }
-            applyColorPulseOverride(command, now);
-        }
-    }
-
-    private void purgeExpiredPulseOverrides() {
-        long now = System.currentTimeMillis();
-        if (!pendingPulseOverrides.isEmpty()) {
-            pendingPulseOverrides.removeIf(command -> command == null || command.isExpired(now));
-        }
-        if (!pendingColorPulseOverrides.isEmpty()) {
-            pendingColorPulseOverrides.removeIf(command -> command == null || command.isExpired(now));
-        }
-    }
-
-    private boolean applyPulseOverride(@Nullable PulseOverrideCommand command, long now) {
-        if (renderModel == null || command == null || command.isExpired(now)) {
-            return false;
-        }
-        return command.apply(renderModel, now);
-    }
-
-    private boolean applyColorPulseOverride(@Nullable ColorPulseOverrideCommand command, long now) {
-        if (renderModel == null || command == null || command.isExpired(now)) {
-            return false;
-        }
-        return command.apply(renderModel, now);
-    }
-
     private float wrapPhase(float value) {
         value = value % 1.0f;
         if (value < 0.0f) {
@@ -444,121 +306,4 @@ final class DecorationInstance {
         }
     }
 
-    private static final class PulseOverrideCommand {
-        private final String materialName;
-        private final String overlayId;
-        private final DataMaterial.OverlayLayer.PulseSettings pulse;
-        private final long expireAtMs;
-
-        private PulseOverrideCommand(String materialName, String overlayId,
-                                     DataMaterial.OverlayLayer.PulseSettings pulse, long expireAtMs) {
-            this.materialName = materialName;
-            this.overlayId = overlayId;
-            this.pulse = pulse;
-            this.expireAtMs = expireAtMs;
-        }
-
-        static PulseOverrideCommand create(String materialName, String overlayId,
-                                           DataMaterial.OverlayLayer.PulseSettings pulse, long durationMs) {
-            if (materialName == null || overlayId == null || pulse == null) {
-                return null;
-            }
-            String trimmedMaterial = materialName.trim();
-            String trimmedOverlay = overlayId.trim();
-            if (trimmedMaterial.isEmpty() || trimmedOverlay.isEmpty()) {
-                return null;
-            }
-            DataMaterial.OverlayLayer.PulseSettings copy = new DataMaterial.OverlayLayer.PulseSettings();
-            copy.copyFrom(pulse);
-            long expireAt = durationMs > 0 ? System.currentTimeMillis() + durationMs : 0L;
-            return new PulseOverrideCommand(trimmedMaterial, trimmedOverlay, copy, expireAt);
-        }
-
-        boolean matches(PulseOverrideCommand other) {
-            if (other == null) {
-                return false;
-            }
-            return materialName.equals(other.materialName) && overlayId.equals(other.overlayId);
-        }
-
-        boolean isExpired(long now) {
-            return expireAtMs > 0 && now >= expireAtMs;
-        }
-
-        boolean apply(@Nullable GltfRenderModel model, long now) {
-            if (model == null || isExpired(now)) {
-                return false;
-            }
-            long remaining = expireAtMs > 0 ? Math.max(0L, expireAtMs - now) : 0L;
-            model.applyOverlayPulseOverride(materialName, overlayId, pulse, remaining);
-            return true;
-        }
-
-        String getMaterialName() {
-            return materialName;
-        }
-
-        String getOverlayId() {
-            return overlayId;
-        }
-    }
-
-    private static final class ColorPulseOverrideCommand {
-        private final String materialName;
-        private final String overlayId;
-        private final DataMaterial.OverlayLayer.ColorPulseSettings pulse;
-        private final long expireAtMs;
-
-        private ColorPulseOverrideCommand(String materialName, String overlayId,
-                                          DataMaterial.OverlayLayer.ColorPulseSettings pulse, long expireAtMs) {
-            this.materialName = materialName;
-            this.overlayId = overlayId;
-            this.pulse = pulse;
-            this.expireAtMs = expireAtMs;
-        }
-
-        static ColorPulseOverrideCommand create(String materialName, String overlayId,
-                                                DataMaterial.OverlayLayer.ColorPulseSettings pulse, long durationMs) {
-            if (materialName == null || overlayId == null || pulse == null) {
-                return null;
-            }
-            String trimmedMaterial = materialName.trim();
-            String trimmedOverlay = overlayId.trim();
-            if (trimmedMaterial.isEmpty() || trimmedOverlay.isEmpty()) {
-                return null;
-            }
-            DataMaterial.OverlayLayer.ColorPulseSettings copy = new DataMaterial.OverlayLayer.ColorPulseSettings();
-            copy.copyFrom(pulse);
-            long expireAt = durationMs > 0 ? System.currentTimeMillis() + durationMs : 0L;
-            return new ColorPulseOverrideCommand(trimmedMaterial, trimmedOverlay, copy, expireAt);
-        }
-
-        boolean matches(ColorPulseOverrideCommand other) {
-            if (other == null) {
-                return false;
-            }
-            return materialName.equals(other.materialName) && overlayId.equals(other.overlayId);
-        }
-
-        boolean isExpired(long now) {
-            return expireAtMs > 0 && now >= expireAtMs;
-        }
-
-        boolean apply(@Nullable GltfRenderModel model, long now) {
-            if (model == null || isExpired(now)) {
-                return false;
-            }
-            long remaining = expireAtMs > 0 ? Math.max(0L, expireAtMs - now) : 0L;
-            model.applyOverlayColorPulseOverride(materialName, overlayId, pulse, remaining);
-            return true;
-        }
-
-        String getMaterialName() {
-            return materialName;
-        }
-
-        String getOverlayId() {
-            return overlayId;
-        }
-    }
 }

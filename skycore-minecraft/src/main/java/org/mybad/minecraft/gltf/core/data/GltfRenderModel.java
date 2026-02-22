@@ -32,7 +32,6 @@ public class GltfRenderModel {
     private static final AtomicInteger ACTIVE_INSTANCES = new AtomicInteger();
     private static final HashSet<String> setObj = new HashSet<String>();
     private static final FloatBuffer MATRIX_BUFFER = BufferUtils.createFloatBuffer(16);
-    private static final long PULSE_TIME_REF = System.nanoTime();
     // Sort materials so opaque renders first, then translucent, with stable fallback ordering.
     private static final Comparator<DataMaterial> COMPARATOR_MATE = new Comparator<DataMaterial>() {
 
@@ -77,8 +76,6 @@ public class GltfRenderModel {
     private volatile String debugSourceId = "unknown";
     private volatile boolean cleaned;
     private ResourceLocation defaultBaseTexture;
-    private final OverlayOverrideRegistry overlayOverrides = new OverlayOverrideRegistry();
-    private final OverlayRenderContext overlayContext = new OverlayRenderContext();
 
     public static class NodeState {
         public Matrix4f mat = new Matrix4f();
@@ -133,38 +130,11 @@ public class GltfRenderModel {
         return defaultBaseTexture;
     }
 
-    public void applyOverlayPulseOverride(String materialName, String overlayId,
-        DataMaterial.OverlayLayer.PulseSettings pulse, long durationMs) {
-        overlayOverrides.applyPulse(materialName, overlayId, pulse, durationMs);
-    }
-
-    public void clearOverlayPulseOverride(String materialName, String overlayId) {
-        overlayOverrides.clearPulse(materialName, overlayId);
-    }
-
-    public void applyOverlayColorPulseOverride(String materialName, String overlayId,
-        DataMaterial.OverlayLayer.ColorPulseSettings pulse, long durationMs) {
-        overlayOverrides.applyColorPulse(materialName, overlayId, pulse, durationMs);
-    }
-
-    public void clearOverlayColorPulseOverride(String materialName, String overlayId) {
-        overlayOverrides.clearColorPulse(materialName, overlayId);
-    }
-
-    public void setOverlayContext(@Nullable OverlayRenderContext context) {
-        if (context == null) {
-            this.overlayContext.reset();
-        } else {
-            this.overlayContext.copyFrom(context);
-        }
-    }
-
     public void cleanup() {
         if (cleaned) {
             return;
         }
         cleaned = true;
-        overlayOverrides.clearAll();
         cpuJointMatrices = null;
         if (jointMatsBufferId >= 0) {
             GL15.glDeleteBuffers(jointMatsBufferId);
@@ -516,7 +486,6 @@ public class GltfRenderModel {
                 bindMaterialTexture(mat);
                 mesh.render();
                 state.restore();
-                renderOverlayPass(mesh, mat, materialKey);
                 GlStateManager.popMatrix();
             });
         }
@@ -585,192 +554,6 @@ public class GltfRenderModel {
     }
 
 
-    // renderBloomPass removed (use per-overlay bloom instead)
-
-    private void renderOverlayPass(DataMesh mesh, DataMaterial mat, String materialName) {
-        if (mat == null || mat.overlays == null || mat.overlays.isEmpty()) {
-            return;
-        }
-        OverlayRenderContext context = this.overlayContext;
-        boolean blendWas = GL11.glIsEnabled(GL11.GL_BLEND);
-        boolean depthMaskWas = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
-        int depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
-        boolean alphaTestWas = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
-        boolean lightingWas = GL11.glIsEnabled(GL11.GL_LIGHTING);
-        boolean tex2dWas = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
-
-        GlStateManager.enableBlend();
-        GlStateManager.depthMask(false);
-        GlStateManager.depthFunc(GL11.GL_LEQUAL);
-        // 不改写帧缓冲 alpha，避免叠加把原模型挖空
-        GlStateManager.colorMask(true, true, true, false);
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GlStateManager.disableLighting();
-        // 覆盖层默认不做 AlphaTest，避免继承主体材质的 cutout 造成“挖洞”
-        GL11.glDisable(GL11.GL_ALPHA_TEST);
-
-        final float currentSeconds = (System.nanoTime() - PULSE_TIME_REF) / 1_000_000_000f;
-        for (DataMaterial.OverlayLayer layer : mat.overlays) {
-            if (layer == null || layer.texturePath == null || layer.texturePath.isEmpty()) {
-                continue;
-            }
-            if (!shouldRenderLayer(layer, context)) {
-                continue;
-            }
-            // 避免改写帧缓冲 Alpha，保持主体透明度
-            GlStateManager.colorMask(true, true, true, false);
-            try {
-                Minecraft.getMinecraft().getTextureManager().bindTexture(new ResourceLocation(layer.texturePath));
-            } catch (Exception ignored) {
-                continue;
-            }
-
-            // 混合方式
-            switch (layer.blendMode) {
-                case ADD:
-                    GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
-                    break;
-                case MULTIPLY:
-                    GlStateManager.blendFunc(GL11.GL_DST_COLOR, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    break;
-                case ALPHA:
-                default:
-                    GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    break;
-            }
-
-            DataMaterial.OverlayLayer.PulseSettings activePulse = getActivePulse(materialName, layer);
-            String overlayKey = OverlayPulseCalculator.buildOverlayKey(materialName, layer != null ? layer.id : null);
-            float pulseFactor = OverlayPulseCalculator.computeAlphaPulse(overlayKey, activePulse, currentSeconds);
-
-            float baseR = layer.color.x;
-            float baseG = layer.color.y;
-            float baseB = layer.color.z;
-            float baseA = layer.color.w;
-            boolean clampAlpha = true;
-
-            DataMaterial.OverlayLayer.ColorPulseSettings activeColorPulse = getActiveColorPulse(materialName, layer);
-            if (activeColorPulse != null && activeColorPulse.enabled) {
-                float blend = OverlayPulseCalculator.computeColorPulse(activeColorPulse, currentSeconds);
-                float pulseR = OverlayPulseCalculator.clamp01(
-                    OverlayPulseCalculator.lerp(activeColorPulse.colorA.x, activeColorPulse.colorB.x, blend));
-                float pulseG = OverlayPulseCalculator.clamp01(
-                    OverlayPulseCalculator.lerp(activeColorPulse.colorA.y, activeColorPulse.colorB.y, blend));
-                float pulseB = OverlayPulseCalculator.clamp01(
-                    OverlayPulseCalculator.lerp(activeColorPulse.colorA.z, activeColorPulse.colorB.z, blend));
-                float pulseA = OverlayPulseCalculator.clamp01(
-                    OverlayPulseCalculator.lerp(activeColorPulse.colorA.w, activeColorPulse.colorB.w, blend));
-                if (activeColorPulse.mode == DataMaterial.OverlayLayer.ColorPulseMode.MULTIPLY) {
-                    baseR = OverlayPulseCalculator.clamp01(baseR * pulseR);
-                    baseG = OverlayPulseCalculator.clamp01(baseG * pulseG);
-                    baseB = OverlayPulseCalculator.clamp01(baseB * pulseB);
-                    baseA = OverlayPulseCalculator.clamp01(baseA * pulseA);
-                } else {
-                    baseR = pulseR;
-                    baseG = pulseG;
-                    baseB = pulseB;
-                    baseA = pulseA;
-                }
-                clampAlpha = activeColorPulse.clampAlpha;
-            }
-
-            float colorR = OverlayPulseCalculator.clamp01(baseR * pulseFactor);
-            float colorG = OverlayPulseCalculator.clamp01(baseG * pulseFactor);
-            float colorB = OverlayPulseCalculator.clamp01(baseB * pulseFactor);
-            float colorA = clampAlpha
-                ? OverlayPulseCalculator.clamp01(baseA * pulseFactor)
-                : OverlayPulseCalculator.clamp01(baseA);
-            GlStateManager.color(colorR, colorG, colorB, colorA);
-
-            GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL13.GL_COMBINE);
-
-            if (layer.useTextureAlpha) {
-                // RGB: 贴图 * overlay颜色
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_MODULATE);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL11.GL_TEXTURE);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_RGB, GL11.GL_SRC_COLOR);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE1_RGB, GL13.GL_PRIMARY_COLOR);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND1_RGB, GL11.GL_SRC_COLOR);
-
-                // Alpha: 贴图 Alpha * overlay颜色Alpha（仅用于混合权重，不写入帧缓冲 alpha）
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_MODULATE);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL11.GL_TEXTURE);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_ALPHA, GL11.GL_SRC_ALPHA);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE1_ALPHA, GL13.GL_PRIMARY_COLOR);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND1_ALPHA, GL11.GL_SRC_ALPHA);
-            } else {
-                // 完全不用贴图：RGB/Alpha 都用 overlay 颜色
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_REPLACE);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL13.GL_PRIMARY_COLOR);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_RGB, GL11.GL_SRC_COLOR);
-
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_REPLACE);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL13.GL_PRIMARY_COLOR);
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_ALPHA, GL11.GL_SRC_ALPHA);
-            }
-
-            mesh.render();
-
-            if (layer.bloomEnabled && layer.bloomPasses > 0 && layer.bloomIntensity > 0f) {
-                renderOverlayBloom(mesh, layer, colorR, colorG, colorB, colorA);
-            }
-
-            // 恢复默认 MODULATE
-            GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
-            GlStateManager.colorMask(true, true, true, true);
-        }
-
-        GlStateManager.color(1f, 1f, 1f, 1f);
-        GlStateManager.depthMask(depthMaskWas);
-        GlStateManager.depthFunc(depthFunc);
-        GlStateManager.colorMask(true, true, true, true);
-        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
-        if (lightingWas) {
-            GlStateManager.enableLighting();
-        } else {
-            GlStateManager.disableLighting();
-        }
-        if (tex2dWas) {
-            GL11.glEnable(GL11.GL_TEXTURE_2D);
-        } else {
-            GL11.glDisable(GL11.GL_TEXTURE_2D);
-        }
-        if (alphaTestWas) {
-            GL11.glEnable(GL11.GL_ALPHA_TEST);
-        } else {
-            GL11.glDisable(GL11.GL_ALPHA_TEST);
-        }
-        if (!blendWas) {
-            GlStateManager.disableBlend();
-        } else {
-            GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        }
-    }
-
-    private DataMaterial.OverlayLayer.PulseSettings getActivePulse(String materialName, DataMaterial.OverlayLayer layer) {
-        if (layer == null) {
-            return null;
-        }
-        if (layer.id == null || layer.id.isEmpty()) {
-            return layer.pulse;
-        }
-        DataMaterial.OverlayLayer.PulseSettings overridePulse =
-            overlayOverrides.getActivePulse(materialName, layer.id, System.currentTimeMillis());
-        return overridePulse != null ? overridePulse : layer.pulse;
-    }
-
-    private DataMaterial.OverlayLayer.ColorPulseSettings getActiveColorPulse(String materialName, DataMaterial.OverlayLayer layer) {
-        if (layer == null) {
-            return null;
-        }
-        if (layer.id == null || layer.id.isEmpty()) {
-            return layer.colorPulse;
-        }
-        DataMaterial.OverlayLayer.ColorPulseSettings overridePulse =
-            overlayOverrides.getActiveColorPulse(materialName, layer.id, System.currentTimeMillis());
-        return overridePulse != null ? overridePulse : layer.colorPulse;
-    }
-
     private void applyAlphaMode(DataMaterial mat) {
         if (mat == null) {
             return;
@@ -810,77 +593,6 @@ public class GltfRenderModel {
             if (minecraft != null) {
                 minecraft.getTextureManager().bindTexture(toBind);
             }
-        }
-    }
-
-    private void renderOverlayBloom(DataMesh mesh, DataMaterial.OverlayLayer layer,
-                                    float colorRBase, float colorGBase, float colorBBase, float colorABase) {
-        RenderState state = RenderState.capture();
-        try {
-            GlStateManager.enableBlend();
-            // 让 Alpha 参与权重，透明区不再加白
-            GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
-            GlStateManager.depthMask(false);
-            GlStateManager.depthFunc(GL11.GL_LEQUAL);
-            GlStateManager.disableLighting();
-            if (layer.alphaCutoff != null) {
-                GL11.glEnable(GL11.GL_ALPHA_TEST);
-                GL11.glAlphaFunc(GL11.GL_GREATER, layer.alphaCutoff);
-            } else {
-                GL11.glDisable(GL11.GL_ALPHA_TEST);
-            }
-            GlStateManager.colorMask(true, true, true, false);
-
-            float baseIntensity = layer.bloomIntensity <= 0 ? 1f : layer.bloomIntensity;
-            float scaleStep = 0.06f / Math.max(1, layer.bloomDownscale);
-
-            for (int i = 0; i < layer.bloomPasses; i++) {
-                float attenuate = baseIntensity / (i + 1f);
-                GlStateManager.pushMatrix();
-                float scale = 1f + (i + 1) * scaleStep;
-                GlStateManager.scale(scale, scale, scale);
-
-                float colorR = OverlayPulseCalculator.clamp01(colorRBase * attenuate);
-                float colorG = OverlayPulseCalculator.clamp01(colorGBase * attenuate);
-                float colorB = OverlayPulseCalculator.clamp01(colorBBase * attenuate);
-                float colorA = OverlayPulseCalculator.clamp01(colorABase);
-            GlStateManager.color(colorR, colorG, colorB, colorA);
-
-                try {
-                    Minecraft.getMinecraft().getTextureManager().bindTexture(new ResourceLocation(layer.texturePath));
-                } catch (Exception ignored) {
-                }
-
-                GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL13.GL_COMBINE);
-                if (layer.useTextureAlpha) {
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_MODULATE);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL11.GL_TEXTURE);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_RGB, GL11.GL_SRC_COLOR);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE1_RGB, GL13.GL_PRIMARY_COLOR);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND1_RGB, GL11.GL_SRC_COLOR);
-
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_MODULATE);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL11.GL_TEXTURE);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_ALPHA, GL11.GL_SRC_ALPHA);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE1_ALPHA, GL13.GL_PRIMARY_COLOR);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND1_ALPHA, GL11.GL_SRC_ALPHA);
-                } else {
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_REPLACE);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL13.GL_PRIMARY_COLOR);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_RGB, GL11.GL_SRC_COLOR);
-
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_REPLACE);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL13.GL_PRIMARY_COLOR);
-                    GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_OPERAND0_ALPHA, GL11.GL_SRC_ALPHA);
-                }
-
-                mesh.render();
-                GlStateManager.popMatrix();
-            }
-        } finally {
-            state.restore();
-            GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
-            GlStateManager.colorMask(true, true, true, true);
         }
     }
 
@@ -1016,56 +728,6 @@ public class GltfRenderModel {
             z = rotatedZ;
         }
         return new Vector3f(x, y, z);
-    }
-
-    private boolean shouldRenderLayer(@Nullable DataMaterial.OverlayLayer layer, @Nullable OverlayRenderContext ctx) {
-        if (layer == null) {
-            return false;
-        }
-        if (layer.triggers == null || layer.triggers.isEmpty()) {
-            return true;
-        }
-        boolean requireAll = layer.triggerMatchMode == DataMaterial.OverlayLayer.TriggerMatchMode.ALL;
-        boolean hasAny = false;
-        for (DataMaterial.OverlayLayer.TriggerCondition condition : layer.triggers) {
-            if (condition == null) {
-                continue;
-            }
-            hasAny = true;
-            boolean satisfied = evaluateTrigger(condition, ctx);
-            if (!requireAll && satisfied) {
-                return true;
-            }
-            if (requireAll && !satisfied) {
-                return false;
-            }
-        }
-        return requireAll ? true : !hasAny;
-    }
-
-    private boolean evaluateTrigger(@Nullable DataMaterial.OverlayLayer.TriggerCondition condition,
-                                    @Nullable OverlayRenderContext ctx) {
-        if (condition == null) {
-            return true;
-        }
-        DataMaterial.OverlayLayer.TriggerType type = condition.type;
-        if (type == null) {
-            return true;
-        }
-        if (ctx == null) {
-            return type == DataMaterial.OverlayLayer.TriggerType.ALWAYS;
-        }
-        switch (type) {
-            case HOVER_MODEL:
-                return ctx.isHoverModel();
-            case HOVER_BLOCK:
-                return ctx.isHoverBlock();
-            case HOVER_NODE:
-                return condition.node != null && ctx.isNodeHovered(condition.node);
-            case ALWAYS:
-            default:
-                return true;
-        }
     }
 
     private static class RenderState {

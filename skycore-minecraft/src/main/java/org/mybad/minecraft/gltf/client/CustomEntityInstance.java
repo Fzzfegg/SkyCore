@@ -20,8 +20,7 @@ import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
 /**
- * Entity-specific renderer instance that mirrors {@link CustomPlayerInstance} behaviour for
- * third-person models without first-person weapon support.
+ * Renderer instance for non-player GLTF models (bosses, NPCs, decorations).
  */
 public class CustomEntityInstance {
 
