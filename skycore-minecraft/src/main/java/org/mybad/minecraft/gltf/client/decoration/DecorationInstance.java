@@ -103,6 +103,7 @@ final class DecorationInstance {
             if (baseTexture != null) {
                 Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
             }
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             applyLighting(worldX, worldY, worldZ);
             if (GL11.glIsEnabled(GL11.GL_BLEND)) {
                 GlStateManager.disableBlend();

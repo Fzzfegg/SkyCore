@@ -8,6 +8,7 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.util.math.BlockPos;
@@ -52,7 +53,7 @@ public final class DecorationManager {
             }
             TileEntitySkull skull = (TileEntitySkull) tileEntity;
             DecorationKey key = new DecorationKey(dimension, skull.getPos());
-            if (renderSkull(skull, partialTicks, cameraX, cameraY, cameraZ)) {
+            if (renderSkullInternal(skull, partialTicks, cameraX, cameraY, cameraZ)) {
                 visibleKeys.add(key);
             }
         }
@@ -65,8 +66,18 @@ public final class DecorationManager {
         INSTANCES.clear();
     }
 
-    private static boolean renderSkull(TileEntitySkull skull, float partialTicks,
-                                       double cameraX, double cameraY, double cameraZ) {
+    public static boolean renderTesr(TileEntitySkull skull, double x, double y, double z, float partialTicks) {
+        if (skull == null) {
+            return false;
+        }
+        double cameraX = TileEntityRendererDispatcher.staticPlayerX;
+        double cameraY = TileEntityRendererDispatcher.staticPlayerY;
+        double cameraZ = TileEntityRendererDispatcher.staticPlayerZ;
+        return renderSkullInternal(skull, partialTicks, cameraX, cameraY, cameraZ);
+    }
+
+    private static boolean renderSkullInternal(TileEntitySkull skull, float partialTicks,
+                                               double cameraX, double cameraY, double cameraZ) {
         World world = skull.getWorld();
         if (world == null) {
             return false;

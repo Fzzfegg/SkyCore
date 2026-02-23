@@ -22,11 +22,13 @@ public class DecorationSkullRenderer extends TileEntitySkullRenderer {
                        float partialTicks, int destroyStage, float alpha) {
         try {
             if (shouldHideVanilla(skull)) {
-                // GLTF 装饰会在 RenderWorldLastEvent 中单独渲染，这里不再绘制原版头颅。
+                DecorationManager.renderTesr(skull, x, y, z, partialTicks);
                 return;
             }
             super.render(skull, x, y, z, partialTicks, destroyStage, alpha);
-        }catch (Exception e){}
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**

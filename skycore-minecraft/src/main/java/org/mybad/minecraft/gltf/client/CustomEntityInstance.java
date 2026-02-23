@@ -12,6 +12,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
@@ -114,10 +115,18 @@ public class CustomEntityInstance {
 
         boolean matrixPushed = false;
         boolean shadeAdjusted = false;
+        boolean prevLightingEnabled = GL11.glIsEnabled(GL11.GL_LIGHTING);
+        boolean prevColorMaterialEnabled = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
+        float prevLightX = OpenGlHelper.lastBrightnessX;
+        float prevLightY = OpenGlHelper.lastBrightnessY;
         try {
             if (baseTexture != null) {
                 Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
             }
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            applyEntityLighting(entity);
+            GlStateManager.disableLighting();
+            GlStateManager.disableColorMaterial();
 
             updateAnimation(entity, partialTicks);
 
@@ -137,6 +146,17 @@ public class CustomEntityInstance {
             GltfLog.LOGGER.error("Error rendering custom entity instance", e);
             return false;
         } finally {
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
+            if (prevColorMaterialEnabled) {
+                GlStateManager.enableColorMaterial();
+            } else {
+                GlStateManager.disableColorMaterial();
+            }
+            if (prevLightingEnabled) {
+                GlStateManager.enableLighting();
+            } else {
+                GlStateManager.disableLighting();
+            }
             if (shadeAdjusted) {
                 GlStateManager.shadeModel(GL11.GL_FLAT);
             }
@@ -144,6 +164,13 @@ public class CustomEntityInstance {
                 GlStateManager.popMatrix();
             }
         }
+    }
+
+    private void applyEntityLighting(EntityLivingBase entity) {
+        int brightness = entity.getBrightnessForRender();
+        int block = brightness & 0xFFFF;
+        int sky = (brightness >> 16) & 0xFFFF;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) block, (float) sky);
     }
 
     @Nullable
