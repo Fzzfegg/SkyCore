@@ -30,9 +30,9 @@
     <property name="synthetize-methods" value="disable"/>
     <property name="synthetize-fields" value="disable"/>
     <property name="remove-toString" value="disable"/>
-    <property name="update-resource-names" value="enable"/>
-    <property name="update-resource-contents" value="enable"/>
-
+<!--	<property name="update-resource-names"    value="disable"/>-->
+<!--	<property name="update-resource-contents" value="disable"/>-->
+    
     <!-- Jar input/output -->
     <input basedir="build/libs">
         <jar in="SkyCore-deobf.jar" out="SkyCoreMod.jar"/>
@@ -40,11 +40,28 @@
     <classpath>
         <jar name="E:/脚本/混淆/forge.jar"/>
         <jar name="E:/脚本/混淆/!mixinbooter-10.6.jar"/>
+        <jar name="E:/脚本/混淆/fasterxml-jackson-2.12.x"/>
         <jar name="E:/脚本/混淆/gson.jar"/>
     </classpath>
 
+    <ignore-classes>
+		<class template="class org.spongepowered.**"/>
+        <class template="class org.joml.**"/>
+        <class template="class com.fasterxml.**"/>
+        <class template="class org.mybad.skycoreproto.**"/>
+        <class template="class com.google.**"/>
+	</ignore-classes>
+
+    
     <keep-names>
-        <!-- Godlike mod classes -->
+        <field  template="field_*"/>
+		<method template="func_*(**)"/>
+		<method template="toString()"/>
+		<method template="hashCode()"/>
+		<method template="equals(*)"/>
+        <class template="class ** implements java.lang.annotation.Annotation"/>
+        
+
         <class template="class org.mybad.minecraft.SkyCoreMod">
             <method template="*(**)"/>
             <field template="*"/>
@@ -60,10 +77,6 @@
         </class>
         
         <class template="class org.mybad.minecraft.mixin.**">
-            <method template="*(**)"/>
-            <field template="*"/>
-        </class>
-        <class template="class com.google.**">
             <method template="*(**)"/>
             <field template="*"/>
         </class>
@@ -92,8 +105,7 @@
             <field template="*"/>
         </class>  
         
-        
-        <class template="class org.mybad.minecraft.gltf.jgltf.**">
+        <class template="class org.mybad.**">
             <method template="*(**)"/>
             <field template="*"/>
         </class>
