@@ -23,9 +23,11 @@
 
     <!-- Metadata trimming -->
     <property name="line-numbers" value="remove"/>
-    <property name="generics" value="remove"/>
+<!--    不能开 开了会导致gltf不识别-->
+<!--    <property name="generics" value="remove"/>-->
     <property name="inner-classes" value="remove"/>
     <property name="throws-clause" value="remove"/>
+    
     <property name="member-reorder" value="random"/>
     <property name="synthetize-methods" value="disable"/>
     <property name="synthetize-fields" value="disable"/>
@@ -40,7 +42,7 @@
     <classpath>
         <jar name="E:/脚本/混淆/forge.jar"/>
         <jar name="E:/脚本/混淆/!mixinbooter-10.6.jar"/>
-        <jar name="E:/脚本/混淆/fasterxml-jackson-2.12.x"/>
+        <jar name="E:/脚本/混淆/fasterxml-jackson-2.12.x.jar"/>
         <jar name="E:/脚本/混淆/gson.jar"/>
     </classpath>
 
@@ -105,7 +107,7 @@
             <field template="*"/>
         </class>  
         
-        <class template="class org.mybad.**">
+        <class template="class org.mybad.minecraft.gltf.jgltf.impl.**">
             <method template="*(**)"/>
             <field template="*"/>
         </class>

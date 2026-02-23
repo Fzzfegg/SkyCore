@@ -7,6 +7,7 @@ import org.mybad.minecraft.gltf.core.data.GltfRenderModel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -93,6 +94,9 @@ final class DecorationInstance {
         
         boolean matrixPushed = false;
         boolean shadeAdjusted = false;
+        boolean blendStateChanged = false;
+        boolean lightingStateChanged = false;
+        boolean cullStateChanged = false;
         float prevLightX = OpenGlHelper.lastBrightnessX;
         float prevLightY = OpenGlHelper.lastBrightnessY;
         try {
@@ -100,6 +104,19 @@ final class DecorationInstance {
                 Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
             }
             applyLighting(worldX, worldY, worldZ);
+            if (GL11.glIsEnabled(GL11.GL_BLEND)) {
+                GlStateManager.disableBlend();
+                blendStateChanged = true;
+            }
+            if (!GL11.glIsEnabled(GL11.GL_LIGHTING)) {
+                GlStateManager.enableLighting();
+                RenderHelper.enableStandardItemLighting();
+                lightingStateChanged = true;
+            }
+            if (GL11.glIsEnabled(GL11.GL_CULL_FACE)) {
+                GlStateManager.disableCull();
+                cullStateChanged = true;
+            }
             
             GlStateManager.pushMatrix();
             matrixPushed = true;
@@ -124,6 +141,16 @@ final class DecorationInstance {
             return false;
         } finally {
             OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
+            if (cullStateChanged) {
+                GlStateManager.enableCull();
+            }
+            if (lightingStateChanged) {
+                RenderHelper.disableStandardItemLighting();
+                GlStateManager.disableLighting();
+            }
+            if (blendStateChanged) {
+                GlStateManager.enableBlend();
+            }
             if (shadeAdjusted) {
                 GlStateManager.shadeModel(GL11.GL_FLAT);
             }
