@@ -75,7 +75,6 @@ public class IndicatorRendererEvent {
             renderer = fromProto(packet.getPolygon());
         }
         if (renderer == null) {
-            org.mybad.minecraft.SkyCoreMod.LOGGER.warn("[Indicator] unsupported payload action={} id={}", packet.getAction(), packet.getId());
             return;
         }
         String id = packet.getId();
@@ -83,10 +82,6 @@ public class IndicatorRendererEvent {
             id = UUID.randomUUID().toString();
         }
         ACTIVE_INDICATORS.put(id, renderer);
-        org.mybad.minecraft.SkyCoreMod.LOGGER.info("[Indicator] upsert id={} action={} mapSize={} lifetime={} radius={}",
-            id, packet.getAction(), ACTIVE_INDICATORS.size(),
-            renderer.lifetimeMs,
-            renderer instanceof IndicatorRenderer ? ((IndicatorRenderer) renderer).getRadiusForDebug() : -1.0d);
     }
 
     public static Vec2f toPitchYaw(Vec3d a) {

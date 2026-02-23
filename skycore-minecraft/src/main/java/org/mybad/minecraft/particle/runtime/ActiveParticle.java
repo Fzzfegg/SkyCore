@@ -296,9 +296,11 @@ public class ActiveParticle implements ParticleInstance, ParticleContext {
                 return;
             }
             updateContext(this.age);
-            double sx = environment.safeResolve(speeds[0]) / 20.0;
-            double sy = environment.safeResolve(speeds[1]) / 20.0;
-            double sz = environment.safeResolve(speeds[2]) / 20.0;
+            boolean nativeSpeed = data.description() != null && data.description().isNativeSpeed();
+            double divisor = nativeSpeed ? 1.0 : 20.0;
+            double sx = environment.safeResolve(speeds[0]) / divisor;
+            double sy = environment.safeResolve(speeds[1]) / divisor;
+            double sz = environment.safeResolve(speeds[2]) / divisor;
             if (emitter != null) {
                 float scale = emitter.getScale();
                 sx *= scale;

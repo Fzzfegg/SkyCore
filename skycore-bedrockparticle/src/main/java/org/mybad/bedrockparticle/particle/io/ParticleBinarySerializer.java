@@ -16,7 +16,8 @@ import java.util.Map;
  * Binary serializer for Bedrock {@link ParticleData} definitions.
  */
 public final class ParticleBinarySerializer implements BinaryResourceSerializer<ParticleData> {
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
+    private int archiveVersionHint = VERSION;
 
     @Override
     public BinaryResourceType getType() {
@@ -26,6 +27,10 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
     @Override
     public int getVersion() {
         return VERSION;
+    }
+
+    public void setArchiveVersionHint(int version) {
+        this.archiveVersionHint = Math.max(0, version);
     }
 
     @Override
@@ -66,6 +71,7 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
         writeResourceLocation(writer, description == null ? null : description.getBlendTexture());
         writer.writeString(description == null ? "alpha" : safe(description.getBlendMode()));
         writer.writeFloatArray(description == null ? null : description.getBlendColor());
+        writer.writeBoolean(description != null && description.isNativeSpeed());
     }
 
     private ParticleData.Description readDescription(BinaryDataReader reader) throws IOException {
@@ -82,6 +88,10 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
         BedrockResourceLocation blendTexture = readResourceLocation(reader);
         String blendMode = reader.readString();
         float[] blendColor = reader.readFloatArray();
+        boolean nativeSpeed = false;
+        if (archiveVersionHint >= 2) {
+            nativeSpeed = reader.readBoolean();
+        }
         return new ParticleData.Description(
             identifier == null ? "" : identifier,
             texture,
@@ -95,7 +105,8 @@ public final class ParticleBinarySerializer implements BinaryResourceSerializer<
             emissiveStrength,
             blendTexture,
             blendMode == null || blendMode.isEmpty() ? "alpha" : blendMode,
-            blendColor.length == 0 ? null : blendColor
+            blendColor.length == 0 ? null : blendColor,
+            nativeSpeed
         );
     }
 

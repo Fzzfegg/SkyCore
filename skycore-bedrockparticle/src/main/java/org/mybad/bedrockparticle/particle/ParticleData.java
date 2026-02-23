@@ -65,7 +65,8 @@ public final class ParticleData {
             description.getEmissiveStrength(),
             description.getBlendTexture(),
             description.getBlendMode(),
-            description.getBlendColor());
+            description.getBlendColor(),
+            description.isNativeSpeed());
     }
 
     public void setEmissiveTexture(@Nullable BedrockResourceLocation resourceLocation) {
@@ -81,7 +82,8 @@ public final class ParticleData {
             description.getEmissiveStrength(),
             description.getBlendTexture(),
             description.getBlendMode(),
-            description.getBlendColor());
+            description.getBlendColor(),
+            description.isNativeSpeed());
     }
 
     public void setBlendTexture(@Nullable BedrockResourceLocation resourceLocation) {
@@ -97,7 +99,8 @@ public final class ParticleData {
             description.getEmissiveStrength(),
             resourceLocation,
             description.getBlendMode(),
-            description.getBlendColor());
+            description.getBlendColor(),
+            description.isNativeSpeed());
     }
 
     public Description description() {
@@ -124,7 +127,7 @@ public final class ParticleData {
 
     private static final BedrockResourceLocation MISSING_TEXTURE = new BedrockResourceLocation("missingno");
     public static final ParticleData EMPTY = new ParticleData(
-        new Description("empty", MISSING_TEXTURE, null, false, 0f, 0, 0.06f, 1.0f, null, 0f, null, "alpha", null),
+        new Description("empty", MISSING_TEXTURE, null, false, 0f, 0, 0.06f, 1.0f, null, 0f, null, "alpha", null, false),
         Collections.emptyMap(),
         Collections.emptyMap(),
         Collections.emptyMap(),
@@ -161,6 +164,7 @@ public final class ParticleData {
         private final BedrockResourceLocation blendTexture;
         private final String blendMode;
         private final float[] blendColor;
+        private final boolean nativeSpeed;
 
         public Description(String identifier,
                            BedrockResourceLocation texture,
@@ -174,7 +178,8 @@ public final class ParticleData {
                            float emissiveStrength,
                            @Nullable BedrockResourceLocation blendTexture,
                            @Nullable String blendMode,
-                           @Nullable float[] blendColor) {
+                           @Nullable float[] blendColor,
+                           boolean nativeSpeed) {
             this.identifier = identifier;
             this.texture = texture;
             this.material = material;
@@ -188,6 +193,7 @@ public final class ParticleData {
             this.blendTexture = blendTexture;
             this.blendMode = blendMode != null ? blendMode : "alpha";
             this.blendColor = blendColor;
+            this.nativeSpeed = nativeSpeed;
         }
 
         public String getIdentifier() {
@@ -244,6 +250,10 @@ public final class ParticleData {
         @Nullable
         public float[] getBlendColor() {
             return blendColor;
+        }
+
+        public boolean isNativeSpeed() {
+            return nativeSpeed;
         }
 
         public static class Deserializer implements JsonDeserializer<Description> {
@@ -324,8 +334,13 @@ public final class ParticleData {
                 } else if (basicRenderParams.has("blend_color")) {
                     blendColor = readColorArray(basicRenderParams.getAsJsonArray("blend_color"));
                 }
+                // SkyCore extension: allow opting into native-speed handling (skip legacy 1/20 scaling)
+                boolean nativeSpeed = ParticleGsonHelper.getAsBoolean(basicRenderParams, "skycore_native_speed", false);
+                if (!nativeSpeed && basicRenderParams.has("skycoreNativeSpeed")) {
+                    nativeSpeed = ParticleGsonHelper.getAsBoolean(basicRenderParams, "skycoreNativeSpeed", false);
+                }
 
-                return new Description(identifier, texture, material, bloom, bloomStrength, bloomPasses, bloomScale, bloomDownscale, emissiveTexture, emissiveStrength, blendTexture, blendMode, blendColor);
+                return new Description(identifier, texture, material, bloom, bloomStrength, bloomPasses, bloomScale, bloomDownscale, emissiveTexture, emissiveStrength, blendTexture, blendMode, blendColor, nativeSpeed);
             }
 
             private float[] readColorArray(JsonArray array) {

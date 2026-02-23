@@ -70,6 +70,7 @@ final class ParticleResourceCache {
                 reporter.parseFailed(key, path, new IllegalStateException("Unexpected binary type " + archive.getHeader().getType()));
                 return null;
             }
+            binarySerializer.setArchiveVersionHint(archive.getHeader().getVersion());
             BinaryDataReader reader = new BinaryDataReader(archive.getPayload());
             return binarySerializer.read(reader);
         } catch (Exception ex) {
