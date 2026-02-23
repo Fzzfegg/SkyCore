@@ -33,13 +33,6 @@ public final class CustomEntityManager {
         if (instance != null) {
             instance.bindConfiguration(config);
         }
-        String newProfile = config.getName() != null && !config.getName().isEmpty() ? config.getName() : "<unnamed>";
-        if (previous == null) {
-            GltfLog.LOGGER.info("Entity {} 绑定 GLTF profile {}", entityId, newProfile);
-        } else {
-            String oldProfile = previous.getName() != null && !previous.getName().isEmpty() ? previous.getName() : "<unnamed>";
-            GltfLog.LOGGER.info("Entity {} 切换 GLTF profile: {} -> {}", entityId, oldProfile, newProfile);
-        }
     }
 
     public static void removeEntity(UUID entityId) {
@@ -51,7 +44,6 @@ public final class CustomEntityManager {
         if (instance != null) {
             instance.unbindModel();
         }
-        GltfLog.LOGGER.debug("Removed entity appearance for {}", entityId);
     }
 
     public static boolean hasConfiguration(UUID entityId) {
@@ -75,7 +67,6 @@ public final class CustomEntityManager {
                 if (instance != null) {
                     instance.unbindModel();
                 }
-                GltfLog.LOGGER.debug("Pruned stale GLTF entity {}", uuid);
             }
         }
     }
@@ -100,7 +91,6 @@ public final class CustomEntityManager {
         CONFIGS.clear();
         INSTANCES.values().forEach(CustomEntityInstance::unbindModel);
         INSTANCES.clear();
-        GltfLog.LOGGER.debug("Cleared all custom entity instances");
     }
 
     public static boolean renderCustomEntity(EntityLivingBase entity, double x, double y, double z,

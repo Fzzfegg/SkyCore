@@ -100,12 +100,9 @@ public class CustomEntityInstance {
             if (renderModel != null) {
                 renderModel.setGlobalScale(config.getModelScale());
                 renderModel.setDefaultTexture(baseTexture);
-                GltfLog.LOGGER.debug("Bound model to entity instance: {}", config.getModelPath());
-            } else {
-                GltfLog.LOGGER.warn("Failed to load model for entity instance: {}", config.getModelPath());
             }
         } catch (Exception e) {
-            GltfLog.LOGGER.error("Error binding model for entity instance: {}", config.getModelPath(), e);
+            GltfLog.LOGGER.info("Error binding model for entity instance: {}", config.getModelPath(), e);
         }
     }
 

@@ -6,7 +6,10 @@ import org.mybad.minecraft.gltf.client.CustomPlayerManager;
 import org.mybad.minecraft.gltf.core.data.GltfRenderModel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import org.lwjgl.opengl.GL11;
 
 import javax.annotation.Nullable;
@@ -90,10 +93,13 @@ final class DecorationInstance {
         
         boolean matrixPushed = false;
         boolean shadeAdjusted = false;
+        float prevLightX = OpenGlHelper.lastBrightnessX;
+        float prevLightY = OpenGlHelper.lastBrightnessY;
         try {
             if (baseTexture != null) {
                 Minecraft.getMinecraft().getTextureManager().bindTexture(baseTexture);
             }
+            applyLighting(worldX, worldY, worldZ);
             
             GlStateManager.pushMatrix();
             matrixPushed = true;
@@ -117,6 +123,7 @@ final class DecorationInstance {
             GltfLog.LOGGER.error("Error rendering decoration instance", e);
             return false;
         } finally {
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
             if (shadeAdjusted) {
                 GlStateManager.shadeModel(GL11.GL_FLAT);
             }
@@ -124,6 +131,22 @@ final class DecorationInstance {
                 GlStateManager.popMatrix();
             }
         }
+    }
+
+    private void applyLighting(double worldX, double worldY, double worldZ) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null) {
+            return;
+        }
+        BlockPos pos = new BlockPos(
+            MathHelper.floor(worldX),
+            MathHelper.floor(worldY),
+            MathHelper.floor(worldZ)
+        );
+        int combined = mc.world.getCombinedLight(pos, 0);
+        int block = combined & 0xFFFF;
+        int sky = (combined >> 16) & 0xFFFF;
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) block, (float) sky);
     }
     
     private void updateAnimation(@Nullable String requestedClip) {

@@ -26,4 +26,5 @@ public final class SkycorePacketId {
     public static final int INDICATOR_COMMAND = 80;
     public static final int WORLD_ACTOR_COMMAND = 90;
     public static final int GLTF_PROFILE = 100;
+    public static final int GLTF_FORCE_ANIMATION = 101;
 }

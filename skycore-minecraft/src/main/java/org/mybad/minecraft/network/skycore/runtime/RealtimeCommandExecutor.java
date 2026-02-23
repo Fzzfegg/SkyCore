@@ -15,6 +15,8 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.event.EntityRenderEventHandler;
 import org.mybad.minecraft.particle.runtime.BedrockParticleSystem;
 import org.mybad.minecraft.render.entity.EntityAttachmentManager;
+import org.mybad.minecraft.gltf.client.network.RemoteAnimationController;
+import org.mybad.minecraft.gltf.client.network.RemoteAnimationState;
 import org.mybad.minecraft.render.skull.SkullModelManager;
 import org.mybad.minecraft.render.world.WorldActorManager;
 import org.mybad.minecraft.resource.ResourceCacheManager;
@@ -48,6 +50,43 @@ public final class RealtimeCommandExecutor {
         } else {
             handleForceAnimationByName(handler, cacheManager, rawUuid, packet.getClipName());
         }
+    }
+
+    public static void handleGltfForceAnimation(SkyCoreProto.GltfForceAnimation packet) {
+        if (packet == null || packet.getClipId() == null || packet.getClipId().isEmpty()) {
+            return;
+        }
+        java.util.UUID subjectId;
+        try {
+            subjectId = java.util.UUID.fromString(packet.getEntityUuid());
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+        float phase = clampPhase(packet.getPhase());
+        float speed = packet.getSpeed();
+        if (speed == 0f) {
+            speed = 1f;
+        }
+        float blend = packet.getBlendDuration();
+        if (blend < 0f) {
+            blend = 0f;
+        }
+        long serverTime = packet.getServerTime();
+        if (serverTime <= 0L) {
+            serverTime = System.currentTimeMillis();
+        }
+        RemoteAnimationState state = new RemoteAnimationState(
+            subjectId,
+            packet.getClipId(),
+            phase,
+            speed,
+            blend,
+            packet.getLoop(),
+            packet.getHoldLastFrame(),
+            serverTime,
+            System.currentTimeMillis()
+        );
+        RemoteAnimationController.store(state);
     }
 
     public static void handleSetModelAttributes(SkyCoreProto.SetModelAttributes packet) {
@@ -300,6 +339,16 @@ public final class RealtimeCommandExecutor {
             return false;
         }
         return value.trim().toLowerCase(java.util.Locale.ROOT).equals(normalizedTarget);
+    }
+
+    private static float clampPhase(float phase) {
+        if (phase < 0f) {
+            return 0f;
+        }
+        if (phase > 1f) {
+            return 1f;
+        }
+        return phase;
     }
 
 }

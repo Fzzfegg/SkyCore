@@ -189,6 +189,17 @@ message ForceAnimation {
   string entity_uuid = 5;
 }
 
+message GltfForceAnimation {
+  string entity_uuid = 1;
+  string clip_id = 2;
+  float phase = 3;
+  float speed = 4;
+  float blend_duration = 5;
+  bool loop = 6;
+  bool hold_last_frame = 7;
+  int64 server_time = 8;
+}
+
 message ForceSkullAnimation {
   int32 x = 1;
   int32 y = 2;

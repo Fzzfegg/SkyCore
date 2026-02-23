@@ -86,6 +86,9 @@ public final class SkycorePacketRouter {
                     org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry.handleProfileDefinition(
                         SkyCoreProto.GltfProfile.parseFrom(payload));
                     return;
+                case SkycorePacketId.GLTF_FORCE_ANIMATION:
+                    RealtimeCommandExecutor.handleGltfForceAnimation(SkyCoreProto.GltfForceAnimation.parseFrom(payload));
+                    return;
                 default:
                     SkyCoreMod.LOGGER.warn("[SkyCore] 收到未知数据包：{}", packetId);
             }
