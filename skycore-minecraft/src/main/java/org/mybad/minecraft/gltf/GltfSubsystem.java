@@ -22,7 +22,7 @@ public final class GltfSubsystem {
 
 
     public GltfSubsystem(ResourceCacheManager cacheManager) {
-        this.resourceLoader = new GltfResourceLoader(cacheManager.getResolver());
+        this.resourceLoader = new GltfResourceLoader(cacheManager);
     }
 
     public void install() {

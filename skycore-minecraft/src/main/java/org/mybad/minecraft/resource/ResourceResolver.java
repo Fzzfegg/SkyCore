@@ -140,7 +140,7 @@ public final class ResourceResolver {
         if (!isObfuscatedRelative(normalized)) {
             String lower = normalized.toLowerCase(Locale.ROOT);
             if (!hasExplicitNamespace) {
-                if (lower.endsWith(".geo.json")) {
+                if (lower.endsWith(".geo.json") || lower.endsWith(".glb")) {
                     if (!lower.startsWith("models/")) {
                         normalized = "models/" + normalized;
                     }
@@ -350,6 +350,9 @@ public final class ResourceResolver {
             case MODEL:
                 if (lower.endsWith(".geo.json")) {
                     return normalized.substring(0, normalized.length() - ".geo.json".length()) + ".skm";
+                }
+                if (lower.endsWith(".glb")) {
+                    return normalized.substring(0, normalized.length() - ".glb".length()) + ".skm";
                 }
                 break;
             case ANIMATION:

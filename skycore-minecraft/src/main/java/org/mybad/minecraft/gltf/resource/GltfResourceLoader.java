@@ -2,6 +2,7 @@ package org.mybad.minecraft.gltf.resource;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.ResourceLocation;
+import org.mybad.minecraft.resource.ResourceCacheManager;
 import org.mybad.minecraft.resource.ResourceResolver;
 
 import java.io.ByteArrayInputStream;
@@ -16,10 +17,12 @@ import java.util.Objects;
  */
 public final class GltfResourceLoader {
 
+    private final ResourceCacheManager cacheManager;
     private final ResourceResolver resolver;
 
-    public GltfResourceLoader(ResourceResolver resolver) {
-        this.resolver = Objects.requireNonNull(resolver);
+    public GltfResourceLoader(ResourceCacheManager cacheManager) {
+        this.cacheManager = Objects.requireNonNull(cacheManager);
+        this.resolver = cacheManager.getResolver();
     }
 
     public InputStream open(ResourceLocation location) throws IOException {
@@ -27,7 +30,11 @@ public final class GltfResourceLoader {
             throw new FileNotFoundException("GLTF resource location is null");
         }
         String logicalPath = location.getNamespace() + ":" + location.getPath();
-        byte[] bytes = resolver.readResourceBytes(logicalPath);
+        byte[] bytes = cacheManager.loadGltfBytes(logicalPath);
+        if (bytes != null) {
+            return new ByteArrayInputStream(bytes);
+        }
+        bytes = resolver.readResourceBytes(logicalPath);
         if (bytes != null) {
             return new ByteArrayInputStream(bytes);
         }

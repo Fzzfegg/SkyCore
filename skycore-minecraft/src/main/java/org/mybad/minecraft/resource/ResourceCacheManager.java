@@ -5,12 +5,23 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.mybad.bedrockparticle.particle.ParticleData;
 import org.mybad.core.animation.Animation;
+import org.mybad.core.binary.BinaryDataReader;
 import org.mybad.core.binary.BinaryPayloadCipher;
 import org.mybad.core.binary.BinaryPayloadCipherRegistry;
+import org.mybad.core.binary.BinaryResourceFlags;
+import org.mybad.core.binary.BinaryResourceHeader;
+import org.mybad.core.binary.BinaryResourceIO;
+import org.mybad.core.binary.BinaryResourceType;
+import org.mybad.core.binary.SkycoreBinaryArchive;
 import org.mybad.core.data.Model;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.render.geometry.GeometryCache;
+import java.security.GeneralSecurityException;
+import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -26,6 +37,7 @@ public class ResourceCacheManager {
     private final AnimationResourceCache animationCache;
     private final ParticleResourceCache particleCache;
     private final GeometryCache geometryCache;
+    private final ResourceLoadReporter gltfReporter = new ResourceLoadReporter("GLTF");
 
     public ResourceCacheManager() {
         this(null);
@@ -86,6 +98,18 @@ public class ResourceCacheManager {
 
     public ParticleData loadParticle(String path) {
         return particleCache.loadParticle(path);
+    }
+
+    public byte[] loadGltfBytes(String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+        String key = resolver.normalizePath(path);
+        byte[] direct = resolver.readResourceBytes(key);
+        if (direct != null) {
+            return direct;
+        }
+        return readBinaryGltf(key);
     }
 
     public GeometryCache getGeometryCache() {
@@ -153,5 +177,46 @@ public class ResourceCacheManager {
 
     public int getCachedParticleCount() {
         return particleCache.getCachedParticleCount();
+    }
+
+    private byte[] readBinaryGltf(String key) {
+        Path binaryPath = resolver.resolveBinaryPath(key, ResourceResolver.ResourceType.MODEL);
+        if (binaryPath == null) {
+            return null;
+        }
+        try {
+            byte[] bytes = Files.readAllBytes(binaryPath);
+            if (isEncryptedWithoutReadyKey(bytes)) {
+                SkycoreClientHandshake.requestHelloFromServer("key_pending_gltf");
+                return null;
+            }
+            SkycoreBinaryArchive archive = BinaryResourceIO.read(bytes, cipherRegistry::resolve);
+            BinaryResourceType type = archive.getHeader().getType();
+            if (type != BinaryResourceType.MODEL) {
+                gltfReporter.parseFailed(key, binaryPath, new IllegalStateException("Unexpected binary type " + type));
+                return null;
+            }
+            return archive.getPayload();
+        } catch (GeneralSecurityException securityEx) {
+            gltfReporter.parseFailed(key, binaryPath, securityEx);
+            SkycoreClientHandshake.requestHelloFromServer("decrypt_failed_gltf");
+            return null;
+        } catch (IOException ioEx) {
+            gltfReporter.parseFailed(key, binaryPath, ioEx);
+            return null;
+        } catch (Exception ex) {
+            gltfReporter.parseFailed(key, binaryPath, ex);
+            return null;
+        }
+    }
+
+    private boolean isEncryptedWithoutReadyKey(byte[] bytes) {
+        if (bytes == null || bytes.length < BinaryResourceHeader.HEADER_SIZE) {
+            return false;
+        }
+        int flags = ((bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF);
+        boolean encrypted = (flags & BinaryResourceFlags.ENCRYPTED) != 0
+            && (flags & BinaryResourceFlags.ALGO_MASK) != BinaryResourceFlags.ALGO_NONE;
+        return encrypted && !BinaryKeyManager.isKeyReady();
     }
 }

@@ -163,7 +163,11 @@ public final class ResourcePackCompiler {
         try {
             switch (kind) {
                 case MODEL: {
+                    String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
                     byte[] raw = Files.readAllBytes(file);
+                    if (fileName.endsWith(".glb")) {
+                        return raw;
+                    }
                     String json = new String(raw, StandardCharsets.UTF_8);
                     Model model = modelParser.parse(json);
                     modelSerializer.write(writer, model);
@@ -209,7 +213,7 @@ public final class ResourcePackCompiler {
 
     private ResourceKind detectKind(Path file) {
         String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        if (name.endsWith(".geo.json")) {
+        if (name.endsWith(".geo.json") || name.endsWith(".glb")) {
             return ResourceKind.MODEL;
         }
         if (name.endsWith(".animation.json") || name.endsWith(".anim.json")) {
@@ -234,7 +238,7 @@ public final class ResourcePackCompiler {
     private String replaceExtension(String path, String newExt) {
         String normalized = path.replace('\\', '/');
         String lower = normalized.toLowerCase(Locale.ROOT);
-        String[] suffixes = {".geo.json", ".animation.json", ".anim.json", ".json", ".png", ".ogg"};
+        String[] suffixes = {".geo.json", ".glb", ".animation.json", ".anim.json", ".json", ".png", ".ogg"};
         for (String suffix : suffixes) {
             if (lower.endsWith(suffix)) {
                 return normalized.substring(0, normalized.length() - suffix.length()) + newExt;
