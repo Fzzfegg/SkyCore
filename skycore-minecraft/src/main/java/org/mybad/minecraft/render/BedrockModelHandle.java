@@ -48,6 +48,10 @@ public final class BedrockModelHandle {
         wrapper.renderBlock(x, y, z, yaw, partialTicks);
     }
 
+    public void renderBillboard(double x, double y, double z, float yaw, float pitch, float partialTicks) {
+        wrapper.renderBillboard(x, y, z, yaw, pitch, partialTicks);
+    }
+
     public void setAnimation(Animation animation) {
         wrapper.setAnimation(animation);
     }

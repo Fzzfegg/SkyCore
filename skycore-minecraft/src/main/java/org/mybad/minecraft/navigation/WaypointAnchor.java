@@ -22,10 +22,16 @@ final class WaypointAnchor {
     }
 
     boolean ensureHandle(WaypointStyleDefinition style, ResourceCacheManager cacheManager) {
-        if (style == null || cacheManager == null) {
+        if (style == null) {
             return false;
         }
-        String desiredMapping = style.getMapping();
+        return ensureHandle(style.getMapping(), cacheManager);
+    }
+
+    boolean ensureHandle(String desiredMapping, ResourceCacheManager cacheManager) {
+        if (cacheManager == null) {
+            return false;
+        }
         if (desiredMapping == null || desiredMapping.isEmpty()) {
             return false;
         }
@@ -56,6 +62,8 @@ final class WaypointAnchor {
                 double renderY,
                 double renderZ,
                 float yaw,
+                float pitch,
+                boolean faceCamera,
                 float scale,
                 double distance,
                 float partialTicks) {
@@ -74,7 +82,11 @@ final class WaypointAnchor {
             GlStateManager.depthMask(false);
             GlStateManager.enableCull();
         }
-        handle.renderBlock(renderX, renderY, renderZ, yaw, partialTicks);
+        if (faceCamera) {
+            handle.renderBillboard(renderX, renderY, renderZ, yaw, pitch, partialTicks);
+        } else {
+            handle.renderBlock(renderX, renderY, renderZ, yaw, partialTicks);
+        }
         GlStateManager.depthMask(true);
         GlStateManager.enableDepth();
         if (!close) {

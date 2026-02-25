@@ -197,7 +197,7 @@ message NavigationStyle {
   float max_visible_distance = 8;
   bool face_camera = 9;
   NavigationStyleOverlay overlay = 10;
-  NavigationStylePointer pointer = 11;
+  NavigationFootIndicator foot_indicator = 11;
 }
 
 message NavigationStyleOverlay {
@@ -222,6 +222,11 @@ message NavigationOverlayLayer {
   uint32 text_color = 6;
   uint32 background_color = 7;
   float padding = 8;
+  float offset_x = 9;
+  float offset_y = 10;
+  bool shadow = 11;
+  float text_scale = 12;
+  bool anchor_left = 13;
 }
 
 message NavigationStyleConfig {
@@ -229,11 +234,24 @@ message NavigationStyleConfig {
   repeated NavigationStyle styles = 2;
 }
 
-message NavigationStylePointer {
+message AutoNavigateCommand {
+  enum Action {
+    START = 0;
+    STOP = 1;
+  }
+  Action action = 1;
+  double x = 2;
+  double y = 3;
+  double z = 4;
+}
+
+message NavigationFootIndicator {
   bool enabled = 1;
   string mapping = 2;
-  float height_offset = 3;
-  bool face_target = 4;
+  float scale = 3;
+  float vertical_offset = 4;
+  bool stick_to_last_block = 5;
+  bool face_target = 6;
 }
 
 message ConfigIndexEntry {

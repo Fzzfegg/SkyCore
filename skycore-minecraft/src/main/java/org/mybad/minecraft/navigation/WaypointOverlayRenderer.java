@@ -66,17 +66,27 @@ final class WaypointOverlayRenderer {
         }
         int yCursor = -totalHeight / 2;
         for (LayerRenderData data : layers) {
-            int boxLeft = -maxWidth / 2;
-            int boxRight = maxWidth / 2;
-            int boxTop = yCursor;
-            int boxBottom = yCursor + data.height;
+            int offsetX = MathHelper.floor(data.layer.getOffsetX());
+            int offsetY = MathHelper.floor(data.layer.getOffsetY());
+            int boxLeft = -maxWidth / 2 + offsetX;
+            int boxRight = maxWidth / 2 + offsetX;
+            int boxTop = yCursor + offsetY;
+            int boxBottom = yCursor + data.height + offsetY;
             if ((data.backgroundColor >>> 24) != 0) {
                 drawQuad(boxLeft, boxTop, boxRight, boxBottom, data.backgroundColor);
             }
             if (data.type == WaypointStyleDefinition.OverlayLayer.Type.TEXT) {
-                int textX = boxLeft + (maxWidth - data.contentWidth) / 2;
-                int textY = boxTop + MathHelper.floor(data.layer.getPadding());
-                font.drawString(data.text, textX, textY, data.layer.getTextColor(), false);
+                int padding = MathHelper.floor(data.layer.getPadding());
+                int contentLeft = data.layer.isAnchorLeft()
+                    ? boxLeft + padding
+                    : boxLeft + (maxWidth - data.contentWidth) / 2;
+                int textY = boxTop + padding;
+                float textScale = data.layer.getTextScale() <= 0f ? 1.0f : data.layer.getTextScale();
+                GlStateManager.pushMatrix();
+                GlStateManager.translate(contentLeft, textY, 0.0F);
+                GlStateManager.scale(textScale, textScale, textScale);
+                font.drawString(data.text, 0, 0, data.layer.getTextColor(), data.layer.isShadow());
+                GlStateManager.popMatrix();
             } else {
                 int iconWidth = data.contentWidth;
                 int iconHeight = data.contentHeight;
@@ -104,9 +114,12 @@ final class WaypointOverlayRenderer {
             if (layer.getType() == WaypointStyleDefinition.OverlayLayer.Type.TEXT) {
                 String text = formatText(layer.getText(), waypoint, distance);
                 int textWidth = font.getStringWidth(text);
-                int width = MathHelper.floor(textWidth + layer.getPadding() * 2);
-                int height = MathHelper.floor(font.FONT_HEIGHT + layer.getPadding() * 2);
-                result.add(new LayerRenderData(layer, text, textWidth, font.FONT_HEIGHT, width, height));
+                float textScale = layer.getTextScale() <= 0f ? 1.0f : layer.getTextScale();
+                int scaledWidth = MathHelper.floor(textWidth * textScale);
+                int scaledHeight = MathHelper.floor(font.FONT_HEIGHT * textScale);
+                int width = MathHelper.floor(scaledWidth + layer.getPadding() * 2);
+                int height = MathHelper.floor(scaledHeight + layer.getPadding() * 2);
+                result.add(new LayerRenderData(layer, text, scaledWidth, scaledHeight, width, height));
             } else if (layer.getIcon() != null) {
                 int iconWidth = layer.getIconWidth() > 0 ? MathHelper.floor(layer.getIconWidth()) : font.FONT_HEIGHT;
                 int iconHeight = layer.getIconHeight() > 0 ? MathHelper.floor(layer.getIconHeight()) : font.FONT_HEIGHT;

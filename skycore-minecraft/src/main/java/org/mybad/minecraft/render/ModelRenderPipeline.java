@@ -51,7 +51,9 @@ final class ModelRenderPipeline {
                 float modelOffsetZ,
                 int modelOffsetMode,
                 SkinningPipeline skinningPipeline,
-                boolean applyYaw) {
+                boolean applyYaw,
+                boolean billboardMode,
+                float billboardPitch) {
         if (skinningPipeline == null) {
             return;
         }
@@ -78,6 +80,9 @@ final class ModelRenderPipeline {
 
         if (applyYaw) {
             GlStateManager.rotate(180.0F - entityYaw, 0.0F, 1.0F, 0.0F);
+        }
+        if (billboardMode) {
+            GlStateManager.rotate(billboardPitch, 1.0F, 0.0F, 0.0F);
         }
 
         if (renderHurtTint && entity instanceof EntityLivingBase) {

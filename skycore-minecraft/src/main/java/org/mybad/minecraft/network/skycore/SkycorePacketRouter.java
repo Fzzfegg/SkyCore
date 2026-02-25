@@ -92,6 +92,10 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.NAV_STYLE_CONFIG:
                     WaypointService.getInstance().handleStyleConfig(SkyCoreProto.NavigationStyleConfig.parseFrom(payload));
                     return;
+                case SkycorePacketId.AUTO_NAVIGATE_COMMAND:
+                    org.mybad.minecraft.navigation.RemoteAutoNavigator.handleCommand(
+                        SkyCoreProto.AutoNavigateCommand.parseFrom(payload));
+                    return;
                 case SkycorePacketId.GLTF_PROFILE:
                     org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry.handleProfileDefinition(
                         SkyCoreProto.GltfProfile.parseFrom(payload));

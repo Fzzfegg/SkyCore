@@ -1,23 +1,32 @@
 package org.mybad.minecraft.navigation;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.mybad.minecraft.SkyCoreMod;
+import org.mybad.minecraft.config.EntityModelMapping;
+import org.mybad.minecraft.config.SkyCoreConfig;
+import org.mybad.minecraft.render.BedrockModelHandle;
+import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.resource.ResourceCacheManager;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.Collections;
 
 final class WaypointRenderer {
 
     private final WaypointManager manager;
     private final WaypointStyleRegistry styleRegistry;
     private final Map<String, WaypointAnchor> anchors = new HashMap<>();
+    private FootIndicatorInstance footIndicatorHandle;
     private final WaypointOverlayRenderer overlayRenderer = new WaypointOverlayRenderer();
+    private Vec3d lastFootBlockCenter;
 
     WaypointRenderer(WaypointManager manager, WaypointStyleRegistry styleRegistry) {
         this.manager = manager;
@@ -56,10 +65,13 @@ final class WaypointRenderer {
             float yaw = style.isFaceCamera()
                 ? MathHelper.wrapDegrees(mc.getRenderManager().playerViewY)
                 : 0f;
-            anchor.render(waypoint, style, renderX, renderY, renderZ, yaw, finalScale, distance, partialTicks);
+            float pitch = 0f;
+            anchor.render(waypoint, style, renderX, renderY, renderZ, yaw, pitch, style.isFaceCamera(), finalScale, distance, partialTicks);
+            SkyCoreMod.LOGGER.info("[Waypoint] overlay id={} style={} layers={} distance={}m", waypoint.getId(), style.getId(), style.getOverlay().getLayers().size(), String.format("%.2f", distance));
             overlayRenderer.renderOverlay(waypoint, style, renderX, renderY, renderZ, distance);
         }
         cleanupAnchors(seen);
+        renderFootIndicator(mc, cacheManager, partialTicks, playerEyes, cameraX, cameraY, cameraZ);
     }
 
     void clearAnchors() {
@@ -67,6 +79,7 @@ final class WaypointRenderer {
             anchor.dispose();
         }
         anchors.clear();
+        disposeFootIndicator();
     }
 
     void invalidateAll() {
@@ -83,4 +96,152 @@ final class WaypointRenderer {
         });
     }
 
+    private void renderFootIndicator(Minecraft mc,
+                                     ResourceCacheManager cacheManager,
+                                     float partialTicks,
+                                     Vec3d playerEyes,
+                                     double cameraX,
+                                     double cameraY,
+                                     double cameraZ) {
+        if (mc.player == null || cacheManager == null) {
+            disposeFootIndicator();
+            return;
+        }
+        Waypoint tracked = manager.getCurrentTracked();
+        if (tracked == null) {
+            disposeFootIndicator();
+            return;
+        }
+        WaypointStyleDefinition style = styleRegistry.resolve(tracked.getStyleId());
+        WaypointStyleDefinition.FootIndicator indicator = style.getFootIndicator();
+        if (indicator == null || !indicator.isEnabled()) {
+            disposeFootIndicator();
+            return;
+        }
+        ensureFootIndicatorHandle(indicator, cacheManager);
+        if (footIndicatorHandle == null) {
+            return;
+        }
+        Vec3d basePos = resolveFootBase(mc.player, indicator, partialTicks);
+        double renderX = basePos.x - cameraX;
+        double renderY = basePos.y - cameraY + indicator.getVerticalOffset();
+        double renderZ = basePos.z - cameraZ;
+        double distance = basePos.distanceTo(playerEyes);
+        float yaw = indicator.isFaceTarget()
+            ? computeYawTowards(basePos, tracked.getPosition())
+            : MathHelper.wrapDegrees(mc.player.rotationYaw);
+        footIndicatorHandle.render(renderX, renderY, renderZ, yaw, indicator.getScale(), partialTicks);
+    }
+
+    private void ensureFootIndicatorHandle(WaypointStyleDefinition.FootIndicator indicator,
+                                           ResourceCacheManager cacheManager) {
+        if (indicator == null || cacheManager == null) {
+            disposeFootIndicator();
+            return;
+        }
+        if (footIndicatorHandle != null && footIndicatorHandle.matches(indicator.getMapping())) {
+            return;
+        }
+        disposeFootIndicator();
+        EntityModelMapping mapping = SkyCoreConfig.getInstance().getMapping(indicator.getMapping());
+        if (mapping == null) {
+            SkyCoreMod.LOGGER.warn("[Waypoint] Foot indicator mapping {} not found", indicator.getMapping());
+            return;
+        }
+        BedrockModelHandle handle = ModelHandleFactory.create(cacheManager, mapping);
+        if (handle == null) {
+            SkyCoreMod.LOGGER.warn("[Waypoint] Foot indicator mapping {} init failed", indicator.getMapping());
+            return;
+        }
+        applyMappingProperties(handle, mapping);
+        footIndicatorHandle = new FootIndicatorInstance(indicator.getMapping(), handle, mapping.getModelScale());
+    }
+
+    private void disposeFootIndicator() {
+        if (footIndicatorHandle != null) {
+            footIndicatorHandle.dispose();
+            footIndicatorHandle = null;
+        }
+        lastFootBlockCenter = null;
+    }
+
+    private Vec3d resolveFootBase(EntityPlayer player,
+                                  WaypointStyleDefinition.FootIndicator indicator,
+                                  float partialTicks) {
+        double interpX = player.prevPosX + (player.posX - player.prevPosX) * partialTicks;
+        double interpY = player.prevPosY + (player.posY - player.prevPosY) * partialTicks;
+        double interpZ = player.prevPosZ + (player.posZ - player.prevPosZ) * partialTicks;
+        Vec3d target;
+        if (indicator.isStickToLastBlock()) {
+            int blockX = MathHelper.floor(interpX);
+            int blockZ = MathHelper.floor(interpZ);
+            int blockY = MathHelper.floor(interpY - 0.51d);
+            BlockPos below = new BlockPos(blockX, blockY, blockZ);
+            target = new Vec3d(below.getX() + 0.5d, below.getY() + 1.0E-3d, below.getZ() + 0.5d);
+        } else {
+            target = new Vec3d(interpX, interpY - 0.01d, interpZ);
+        }
+        if (lastFootBlockCenter == null) {
+            lastFootBlockCenter = target;
+        } else {
+            double smooth = indicator.isStickToLastBlock() ? 0.65d : 0.4d;
+            lastFootBlockCenter = lastFootBlockCenter.add(target.subtract(lastFootBlockCenter).scale(smooth));
+        }
+        return lastFootBlockCenter;
+    }
+
+    private float computeYawTowards(Vec3d from, Vec3d to) {
+        double dx = to.x - from.x;
+        double dz = to.z - from.z;
+        double angle = Math.toDegrees(Math.atan2(dz, dx)) - 90.0d;
+        return (float) MathHelper.wrapDegrees(angle);
+    }
+
+    private void applyMappingProperties(BedrockModelHandle target, EntityModelMapping mapping) {
+        target.setPrimaryFadeDuration(mapping.getPrimaryFadeSeconds());
+        target.setEmissiveStrength(mapping.getEmissiveStrength());
+        target.setBloomStrength(mapping.getBloomStrength());
+        target.setBloomColor(mapping.getBloomColor());
+        target.setBloomPasses(mapping.getBloomPasses());
+        target.setBloomScaleStep(mapping.getBloomScaleStep());
+        target.setBloomDownscale(mapping.getBloomDownscale());
+        target.setBloomOffset(mapping.getBloomOffset());
+        target.setModelScale(mapping.getModelScale());
+        target.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
+        target.setRenderHurtTint(mapping.isRenderHurtTint());
+        target.setHurtTint(mapping.getHurtTint());
+    }
+
+    private static final class FootIndicatorInstance {
+        private final String mappingName;
+        private final BedrockModelHandle handle;
+        private final float mappingScale;
+
+        FootIndicatorInstance(String mappingName, BedrockModelHandle handle, float mappingScale) {
+            this.mappingName = mappingName;
+            this.handle = handle;
+            this.mappingScale = mappingScale > 0f ? mappingScale : 1.0f;
+        }
+
+        boolean matches(String desired) {
+            return mappingName.equals(desired);
+        }
+
+        void render(double renderX,
+                    double renderY,
+                    double renderZ,
+                    float yaw,
+                    float scale,
+                    float partialTicks) {
+            handle.updateAnimations();
+            handle.setModelScale(mappingScale * scale);
+            GlStateManager.pushMatrix();
+            handle.renderBlock(renderX, renderY, renderZ, yaw, partialTicks);
+            GlStateManager.popMatrix();
+        }
+
+        void dispose() {
+            handle.dispose();
+        }
+    }
 }

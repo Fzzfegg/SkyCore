@@ -26,6 +26,7 @@ final class WaypointStyleDefinition {
     private final float maxVisibleDistance;
     private final boolean faceCamera;
     private final Overlay overlay;
+    private final FootIndicator footIndicator;
 
     private WaypointStyleDefinition(String id,
                                    String mapping,
@@ -36,7 +37,8 @@ final class WaypointStyleDefinition {
                                    float maxScale,
                                    float maxVisibleDistance,
                                    boolean faceCamera,
-                                   Overlay overlay) {
+                                   Overlay overlay,
+                                   FootIndicator footIndicator) {
         this.id = id;
         this.mapping = mapping;
         this.hudIcon = hudIcon;
@@ -47,6 +49,7 @@ final class WaypointStyleDefinition {
         this.maxVisibleDistance = maxVisibleDistance;
         this.faceCamera = faceCamera;
         this.overlay = overlay;
+        this.footIndicator = footIndicator;
     }
 
     static WaypointStyleDefinition defaultStyle() {
@@ -60,7 +63,8 @@ final class WaypointStyleDefinition {
             DEFAULT_MAX_SCALE,
             DEFAULT_MAX_DISTANCE,
             true,
-            Overlay.disabled()
+            Overlay.disabled(),
+            FootIndicator.disabled()
         );
     }
 
@@ -82,6 +86,7 @@ final class WaypointStyleDefinition {
         float maxDistance = proto.getMaxVisibleDistance() > 0f ? proto.getMaxVisibleDistance() : DEFAULT_MAX_DISTANCE;
         boolean faceCamera = proto.getFaceCamera();
         Overlay overlay = Overlay.fromProto(proto.hasOverlay() ? proto.getOverlay() : null);
+        FootIndicator footIndicator = FootIndicator.fromProto(proto.hasFootIndicator() ? proto.getFootIndicator() : null);
         return new WaypointStyleDefinition(
             proto.getId(),
             mapping,
@@ -92,7 +97,8 @@ final class WaypointStyleDefinition {
             maxScale,
             maxDistance,
             faceCamera,
-            overlay
+            overlay,
+            footIndicator
         );
     }
 
@@ -133,6 +139,10 @@ final class WaypointStyleDefinition {
 
     Overlay getOverlay() {
         return overlay;
+    }
+
+    FootIndicator getFootIndicator() {
+        return footIndicator;
     }
 
     float scaleForDistance(double distance) {
@@ -244,6 +254,11 @@ final class WaypointStyleDefinition {
         private final int textColor;
         private final int backgroundColor;
         private final float padding;
+        private final float offsetX;
+        private final float offsetY;
+        private final boolean shadow;
+        private final float textScale;
+        private final boolean anchorLeft;
 
         private OverlayLayer(Type type,
                              ResourceLocation icon,
@@ -252,7 +267,12 @@ final class WaypointStyleDefinition {
                              String text,
                              int textColor,
                              int backgroundColor,
-                             float padding) {
+                             float padding,
+                             float offsetX,
+                             float offsetY,
+                             boolean shadow,
+                             float textScale,
+                             boolean anchorLeft) {
             this.type = type;
             this.icon = icon;
             this.iconWidth = iconWidth;
@@ -261,6 +281,11 @@ final class WaypointStyleDefinition {
             this.textColor = textColor;
             this.backgroundColor = backgroundColor;
             this.padding = padding;
+            this.offsetX = offsetX;
+            this.offsetY = offsetY;
+            this.shadow = shadow;
+            this.textScale = textScale <= 0f ? 1.0f : textScale;
+            this.anchorLeft = anchorLeft;
         }
 
         static @Nullable OverlayLayer fromProto(SkyCoreProto.NavigationOverlayLayer proto) {
@@ -272,13 +297,18 @@ final class WaypointStyleDefinition {
             int textColor = proto.getTextColor() == 0 ? DEFAULT_TEXT_COLOR : (proto.getTextColor() | 0xFF000000);
             int bgColor = proto.getBackgroundColor() == 0 ? DEFAULT_BG_COLOR : proto.getBackgroundColor();
             float padding = proto.getPadding() > 0f ? proto.getPadding() : DEFAULT_PADDING;
+            float offsetX = proto.getOffsetX();
+            float offsetY = proto.getOffsetY();
+            boolean shadow = proto.getShadow();
+            float textScale = proto.getTextScale() > 0f ? proto.getTextScale() : 1.0f;
+            boolean anchorLeft = proto.getAnchorLeft();
             if (type == Type.IMAGE && (icon == null)) {
                 return null;
             }
             if (type == Type.TEXT && (text == null || text.isEmpty())) {
                 return null;
             }
-            return new OverlayLayer(type, icon, iconWidth, iconHeight, text, textColor, bgColor, padding);
+            return new OverlayLayer(type, icon, iconWidth, iconHeight, text, textColor, bgColor, padding, offsetX, offsetY, shadow, textScale, anchorLeft);
         }
 
         Type getType() {
@@ -311,6 +341,93 @@ final class WaypointStyleDefinition {
 
         float getPadding() {
             return padding;
+        }
+
+        float getOffsetX() {
+            return offsetX;
+        }
+
+        float getOffsetY() {
+            return offsetY;
+        }
+
+        boolean isShadow() {
+            return shadow;
+        }
+
+        float getTextScale() {
+            return textScale;
+        }
+
+        boolean isAnchorLeft() {
+            return anchorLeft;
+        }
+    }
+
+    static final class FootIndicator {
+
+        private final boolean enabled;
+        private final String mapping;
+        private final float scale;
+        private final float verticalOffset;
+        private final boolean stickToLastBlock;
+        private final boolean faceTarget;
+
+        private FootIndicator(boolean enabled,
+                              String mapping,
+                              float scale,
+                              float verticalOffset,
+                              boolean stickToLastBlock,
+                              boolean faceTarget) {
+            this.enabled = enabled;
+            this.mapping = mapping;
+            this.scale = scale;
+            this.verticalOffset = verticalOffset;
+            this.stickToLastBlock = stickToLastBlock;
+            this.faceTarget = faceTarget;
+        }
+
+        static FootIndicator disabled() {
+            return new FootIndicator(false, null, 1.0f, 0f, true, true);
+        }
+
+        static FootIndicator fromProto(@Nullable SkyCoreProto.NavigationFootIndicator proto) {
+            if (proto == null || !proto.getEnabled() || proto.getMapping().isEmpty()) {
+                return disabled();
+            }
+            float scale = proto.getScale() > 0f ? proto.getScale() : 1.0f;
+            return new FootIndicator(
+                true,
+                proto.getMapping(),
+                scale,
+                proto.getVerticalOffset(),
+                proto.getStickToLastBlock(),
+                proto.getFaceTarget()
+            );
+        }
+
+        boolean isEnabled() {
+            return enabled && mapping != null && !mapping.isEmpty();
+        }
+
+        String getMapping() {
+            return mapping;
+        }
+
+        float getScale() {
+            return scale;
+        }
+
+        float getVerticalOffset() {
+            return verticalOffset;
+        }
+
+        boolean isStickToLastBlock() {
+            return stickToLastBlock;
+        }
+
+        boolean isFaceTarget() {
+            return faceTarget;
         }
     }
 }

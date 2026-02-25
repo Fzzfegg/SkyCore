@@ -53,6 +53,8 @@ public class BedrockModelWrapper {
     private float modelOffsetY = 0f;
     private float modelOffsetZ = 0f;
     private int modelOffsetMode = EntityModelMapping.OFFSET_MODE_WORLD;
+    private boolean billboardMode = false;
+    private float billboardPitch = 0f;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -139,6 +141,17 @@ public class BedrockModelWrapper {
         renderInternal(null, x, y, z, yaw, partialTicks, true);
     }
 
+    void renderBillboard(double x, double y, double z, float yaw, float pitch, float partialTicks) {
+        billboardMode = true;
+        billboardPitch = pitch;
+        try {
+            renderInternal(null, x, y, z, yaw, partialTicks, true);
+        } finally {
+            billboardMode = false;
+            billboardPitch = 0f;
+        }
+    }
+
     private void renderInternal(@Nullable Entity entity,
                                 double x, double y, double z,
                                 float entityYaw, float partialTicks,
@@ -176,7 +189,9 @@ public class BedrockModelWrapper {
             modelOffsetZ,
             modelOffsetMode,
             skinningPipeline,
-            applyYaw
+            applyYaw,
+            billboardMode,
+            billboardPitch
         );
     }
 
