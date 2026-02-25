@@ -167,6 +167,75 @@ message WorldActorCommand {
   optional int32 lifetime_ticks = 10;
 }
 
+message WaypointTarget {
+  string id = 1;
+  int32 order = 2;
+  double x = 3;
+  double y = 4;
+  double z = 5;
+  string style = 6;
+  enum Status {
+    ACTIVE = 0;
+    COMPLETED = 1;
+    FAILED = 2;
+  }
+  Status status = 7;
+}
+
+message WaypointRemove {
+  string id = 1;
+}
+
+message NavigationStyle {
+  string id = 1;
+  string mapping = 2;
+  string hud_icon = 3;
+  uint32 color = 4;
+  float base_scale = 5;
+  float min_scale = 6;
+  float max_scale = 7;
+  float max_visible_distance = 8;
+  bool face_camera = 9;
+  NavigationStyleOverlay overlay = 10;
+  NavigationStylePointer pointer = 11;
+}
+
+message NavigationStyleOverlay {
+  bool enabled = 1;
+  float vertical_offset = 2;
+  bool scale_with_distance = 3;
+  float min_scale = 4;
+  float max_scale = 5;
+  repeated NavigationOverlayLayer layers = 6;
+}
+
+message NavigationOverlayLayer {
+  enum LayerType {
+    IMAGE = 0;
+    TEXT = 1;
+  }
+  LayerType type = 1;
+  string icon = 2;
+  float icon_width = 3;
+  float icon_height = 4;
+  string text = 5;
+  uint32 text_color = 6;
+  uint32 background_color = 7;
+  float padding = 8;
+}
+
+message NavigationStyleConfig {
+  uint64 revision = 1;
+  repeated NavigationStyle styles = 2;
+}
+
+message NavigationStylePointer {
+  bool enabled = 1;
+  string mapping = 2;
+  float height_offset = 3;
+  bool face_target = 4;
+}
+
 message ConfigIndexEntry {
   string file_name = 1;
   bytes hash = 2;

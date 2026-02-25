@@ -21,6 +21,7 @@ import org.mybad.minecraft.resource.ResourcePackRegistrar;
 import org.mybad.minecraft.resource.TextureReloadHelper;
 import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.minecraft.render.skull.SkullModelManager;
+import org.mybad.minecraft.navigation.WaypointService;
 import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.gltf.GltfSubsystem;
@@ -104,6 +105,7 @@ public class SkyCoreMod {
         MinecraftForge.EVENT_BUS.register(new HiddenReloadHotkey());
         indicatorRendererEvent = new IndicatorRendererEvent();
         MinecraftForge.EVENT_BUS.register(indicatorRendererEvent);
+        MinecraftForge.EVENT_BUS.register(WaypointService.getInstance().getEventHandler());
         if (gltfSubsystem != null) {
             gltfSubsystem.install();
         }
@@ -136,6 +138,7 @@ public class SkyCoreMod {
             gltfSubsystem.uninstall();
             gltfSubsystem.install();
         }
+        WaypointService.getInstance().reload();
         SkullModelManager.clear();
         DebugRenderController.clear();
         TextureReloadHelper.reloadSkyCoreTextures(resourceCacheManager);

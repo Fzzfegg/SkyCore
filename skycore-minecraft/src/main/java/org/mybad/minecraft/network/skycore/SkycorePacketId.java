@@ -27,4 +27,7 @@ public final class SkycorePacketId {
     public static final int WORLD_ACTOR_COMMAND = 90;
     public static final int GLTF_PROFILE = 100;
     public static final int GLTF_FORCE_ANIMATION = 101;
+    public static final int WAYPOINT_UPDATE = 120;
+    public static final int WAYPOINT_REMOVE = 121;
+    public static final int NAV_STYLE_CONFIG = 122;
 }

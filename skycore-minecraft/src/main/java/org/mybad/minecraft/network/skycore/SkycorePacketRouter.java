@@ -3,6 +3,7 @@ package org.mybad.minecraft.network.skycore;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.debug.DebugRenderController;
+import org.mybad.minecraft.navigation.WaypointService;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.network.skycore.runtime.RealtimeCommandExecutor;
 import org.mybad.minecraft.resource.preload.PreloadManager;
@@ -81,6 +82,15 @@ public final class SkycorePacketRouter {
                 case SkycorePacketId.WORLD_ACTOR_COMMAND:
 //                    SkyCoreMod.LOGGER.info("[SkyCore] 收到世界实体指令。");
                     RealtimeCommandExecutor.handleWorldActorCommand(SkyCoreProto.WorldActorCommand.parseFrom(payload));
+                    return;
+                case SkycorePacketId.WAYPOINT_UPDATE:
+                    WaypointService.getInstance().handleWaypointUpdate(SkyCoreProto.WaypointTarget.parseFrom(payload));
+                    return;
+                case SkycorePacketId.WAYPOINT_REMOVE:
+                    WaypointService.getInstance().handleWaypointRemove(SkyCoreProto.WaypointRemove.parseFrom(payload));
+                    return;
+                case SkycorePacketId.NAV_STYLE_CONFIG:
+                    WaypointService.getInstance().handleStyleConfig(SkyCoreProto.NavigationStyleConfig.parseFrom(payload));
                     return;
                 case SkycorePacketId.GLTF_PROFILE:
                     org.mybad.minecraft.gltf.client.network.RemoteProfileRegistry.handleProfileDefinition(

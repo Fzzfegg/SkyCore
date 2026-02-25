@@ -10,9 +10,6 @@ float easeInOutCirc(in float x) {
   return x*x*x*x*x*x*x;
 }
 void main() {
-    if(texcoord.t<0.5){
-       discard;
-    }
     float w=width/2.0;
     float h=height/2.0;
 
