@@ -91,7 +91,7 @@ public final class GuidanceService {
 
         for (SegmentInstance instance : snapshot) {
             instance.advance(deltaSeconds);
-            instance.render(cacheManager, playerEyes, cameraX, cameraY, cameraZ, cameraYaw, cameraPitch, partialTicks);
+            instance.render(cacheManager, cameraX, cameraY, cameraZ, cameraYaw, cameraPitch, partialTicks);
         }
     }
 
@@ -197,7 +197,6 @@ public final class GuidanceService {
         }
 
         void render(ResourceCacheManager cacheManager,
-                    Vec3d playerEyes,
                     double cameraX,
                     double cameraY,
                     double cameraZ,
@@ -210,22 +209,17 @@ public final class GuidanceService {
             handle.updateAnimations();
             float resolvedScale = scaleOverride != null && scaleOverride > 0f ? scaleOverride : mappingScale;
             handle.setModelScale(resolvedScale);
+            double effectiveSpacing = length > MIN_SEGMENT_LENGTH && instanceCount > 0
+                ? length / instanceCount
+                : length;
             for (int i = 0; i < instanceCount; i++) {
-                Vec3d position = computePosition(i);
+                Vec3d position = computePosition(i, effectiveSpacing);
                 double renderX = position.x - cameraX;
                 double renderY = position.y - cameraY;
                 double renderZ = position.z - cameraZ;
-                double distanceSq = position.squareDistanceTo(playerEyes);
-                boolean close = distanceSq <= 36.0d;
                 GlStateManager.pushMatrix();
-                if (close) {
-                    GlStateManager.enableDepth();
-                    GlStateManager.depthMask(true);
-                } else {
-                    GlStateManager.disableDepth();
-                    GlStateManager.depthMask(false);
-                    GlStateManager.enableCull();
-                }
+                GlStateManager.enableDepth();
+                GlStateManager.depthMask(true);
                 if (faceCamera) {
                     handle.renderBillboard(renderX, renderY, renderZ, cameraYaw, cameraPitch, partialTicks);
                 } else {
@@ -233,22 +227,22 @@ public final class GuidanceService {
                 }
                 GlStateManager.depthMask(true);
                 GlStateManager.enableDepth();
-                if (!close) {
-                    GlStateManager.disableCull();
-                }
                 GlStateManager.popMatrix();
             }
         }
 
-        private Vec3d computePosition(int index) {
+        private Vec3d computePosition(int index, double effectiveSpacing) {
+            if (start == null) {
+                return Vec3d.ZERO;
+            }
             Vec3d offset = start;
+            if (direction == null) {
+                return offset;
+            }
             if (length <= MIN_SEGMENT_LENGTH || direction == Vec3d.ZERO) {
                 return offset;
             }
-            double base = progress;
-            if (spacing > 0f) {
-                base += index * spacingStep;
-            }
+            double base = progress + index * effectiveSpacing;
             double along = base % length;
             if (along < 0d) {
                 along += length;
