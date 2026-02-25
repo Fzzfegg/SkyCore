@@ -16,6 +16,8 @@ final class WaypointAnchor {
     private BedrockModelHandle handle;
     private String mappingName;
     private float mappingScale = 1.0f;
+    private float overlayBaseHeight = DEFAULT_OVERLAY_BASE_HEIGHT;
+    private static final float DEFAULT_OVERLAY_BASE_HEIGHT = 2.4f;
 
     WaypointAnchor(String id) {
         this.id = id;
@@ -51,6 +53,7 @@ final class WaypointAnchor {
         }
         applyMappingProperties(created, mapping);
         mappingScale = mapping.getModelScale() > 0f ? mapping.getModelScale() : 1.0f;
+        overlayBaseHeight = resolveOverlayBaseHeight(mapping);
         handle = created;
         mappingName = desiredMapping;
         return true;
@@ -95,6 +98,10 @@ final class WaypointAnchor {
         GlStateManager.popMatrix();
     }
 
+    float getOverlayBaseHeight() {
+        return overlayBaseHeight;
+    }
+
     void dispose() {
         if (handle != null) {
             handle.dispose();
@@ -116,5 +123,19 @@ final class WaypointAnchor {
         target.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         target.setRenderHurtTint(mapping.isRenderHurtTint());
         target.setHurtTint(mapping.getHurtTint());
+    }
+
+    private float resolveOverlayBaseHeight(EntityModelMapping mapping) {
+        if (mapping == null) {
+            return DEFAULT_OVERLAY_BASE_HEIGHT;
+        }
+        if (mapping.getRenderBoxHeight() > 0f) {
+            return mapping.getRenderBoxHeight();
+        }
+        float scale = mapping.getModelScale();
+        if (scale <= 0f) {
+            scale = 1.0f;
+        }
+        return Math.max(1.6f, DEFAULT_OVERLAY_BASE_HEIGHT * scale);
     }
 }

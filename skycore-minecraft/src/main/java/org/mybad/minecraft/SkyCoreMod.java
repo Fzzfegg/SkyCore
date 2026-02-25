@@ -1,6 +1,5 @@
 package org.mybad.minecraft;
 
-import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -22,8 +21,8 @@ import org.mybad.minecraft.resource.ResourcePackRegistrar;
 import org.mybad.minecraft.resource.TextureReloadHelper;
 import org.mybad.minecraft.resource.preload.PreloadManager;
 import org.mybad.minecraft.render.skull.SkullModelManager;
+import org.mybad.minecraft.navigation.GuidanceService;
 import org.mybad.minecraft.navigation.WaypointService;
-import org.mybad.minecraft.navigation.command.CommandAutoWalk;
 import org.mybad.minecraft.network.skycore.SkycoreClientHandshake;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.gltf.GltfSubsystem;
@@ -108,11 +107,10 @@ public class SkyCoreMod {
         indicatorRendererEvent = new IndicatorRendererEvent();
         MinecraftForge.EVENT_BUS.register(indicatorRendererEvent);
         MinecraftForge.EVENT_BUS.register(WaypointService.getInstance().getEventHandler());
+        MinecraftForge.EVENT_BUS.register(GuidanceService.getInstance().getEventHandler());
         if (gltfSubsystem != null) {
             gltfSubsystem.install();
         }
-        ClientCommandHandler.instance.registerCommand(new CommandAutoWalk());
-
         net.minecraftforge.fml.common.network.FMLEventChannel channel = net.minecraftforge.fml.common.network.NetworkRegistry.INSTANCE.newEventDrivenChannel("skycore:main");
         channel.register(new org.mybad.minecraft.network.skycore.SkycorePluginMessageHandler());
     }
@@ -142,6 +140,7 @@ public class SkyCoreMod {
             gltfSubsystem.install();
         }
         WaypointService.getInstance().reload();
+        GuidanceService.getInstance().reload();
         SkullModelManager.clear();
         DebugRenderController.clear();
         TextureReloadHelper.reloadSkyCoreTextures(resourceCacheManager);

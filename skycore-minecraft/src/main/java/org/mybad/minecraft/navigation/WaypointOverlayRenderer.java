@@ -20,6 +20,7 @@ final class WaypointOverlayRenderer {
                        double renderX,
                        double renderY,
                        double renderZ,
+                       double baseHeight,
                        double distance) {
         WaypointStyleDefinition.Overlay overlay = style.getOverlay();
         if (overlay == null || !overlay.isEnabled()) {
@@ -32,7 +33,7 @@ final class WaypointOverlayRenderer {
         double cappedDistance = Math.min(distance, 512.0d);
 
         GlStateManager.pushMatrix();
-        GlStateManager.translate(renderX, renderY + overlay.getVerticalOffset(), renderZ);
+        GlStateManager.translate(renderX, renderY + baseHeight + overlay.getVerticalOffset(), renderZ);
         GlStateManager.rotate(-minecraft.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
         GlStateManager.rotate(minecraft.getRenderManager().playerViewX, 1.0F, 0.0F, 0.0F);
         GlStateManager.scale(-0.016666668F, -0.016666668F, 0.016666668F);
@@ -59,19 +60,18 @@ final class WaypointOverlayRenderer {
             return;
         }
         int maxWidth = 0;
-        int totalHeight = Math.max(0, (layers.size() - 1) * gap);
         for (LayerRenderData data : layers) {
             maxWidth = Math.max(maxWidth, data.width);
-            totalHeight += data.height;
         }
-        int yCursor = -totalHeight / 2;
+        int yCursor = 0;
         for (LayerRenderData data : layers) {
             int offsetX = MathHelper.floor(data.layer.getOffsetX());
             int offsetY = MathHelper.floor(data.layer.getOffsetY());
             int boxLeft = -maxWidth / 2 + offsetX;
             int boxRight = maxWidth / 2 + offsetX;
-            int boxTop = yCursor + offsetY;
-            int boxBottom = yCursor + data.height + offsetY;
+            int baseline = yCursor + offsetY;
+            int boxBottom = baseline;
+            int boxTop = baseline - data.height;
             if ((data.backgroundColor >>> 24) != 0) {
                 drawQuad(boxLeft, boxTop, boxRight, boxBottom, data.backgroundColor);
             }
@@ -95,7 +95,7 @@ final class WaypointOverlayRenderer {
                 GlStateManager.color(1f, 1f, 1f, 1f);
                 drawIcon(data.layer.getIcon(), iconX, iconY, iconWidth, iconHeight);
             }
-            yCursor += data.height + gap;
+            yCursor -= data.height + gap;
         }
 
         GlStateManager.enableDepth();
@@ -147,6 +147,8 @@ final class WaypointOverlayRenderer {
         float g = (color >> 8 & 255) / 255.0F;
         float b = (color & 255) / 255.0F;
         Tessellator tess = Tessellator.getInstance();
+        boolean textureEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+        GlStateManager.disableTexture2D();
         GlStateManager.color(r, g, b, a);
         tess.getBuffer().begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION);
         tess.getBuffer().pos(left, bottom, 0).endVertex();
@@ -154,6 +156,9 @@ final class WaypointOverlayRenderer {
         tess.getBuffer().pos(right, top, 0).endVertex();
         tess.getBuffer().pos(left, top, 0).endVertex();
         tess.draw();
+        if (textureEnabled) {
+            GlStateManager.enableTexture2D();
+        }
     }
 
     private void drawIcon(ResourceLocation icon, int x, int y, int width, int height) {

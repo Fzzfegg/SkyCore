@@ -30,5 +30,6 @@ public final class SkycorePacketId {
     public static final int WAYPOINT_UPDATE = 120;
     public static final int WAYPOINT_REMOVE = 121;
     public static final int NAV_STYLE_CONFIG = 122;
+    public static final int GUIDANCE_SYNC = 123;
     public static final int AUTO_NAVIGATE_COMMAND = 130;
 }

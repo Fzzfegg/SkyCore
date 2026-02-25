@@ -160,6 +160,7 @@ final class WaypointStyleDefinition {
 
         private final boolean enabled;
         private final float verticalOffset;
+        private final float baseHeight;
         private final boolean scaleWithDistance;
         private final float minScale;
         private final float maxScale;
@@ -167,12 +168,14 @@ final class WaypointStyleDefinition {
 
         private Overlay(boolean enabled,
                         float verticalOffset,
+                        float baseHeight,
                         boolean scaleWithDistance,
                         float minScale,
                         float maxScale,
                         List<OverlayLayer> layers) {
             this.enabled = enabled;
             this.verticalOffset = verticalOffset;
+            this.baseHeight = baseHeight;
             this.scaleWithDistance = scaleWithDistance;
             this.minScale = minScale;
             this.maxScale = maxScale;
@@ -180,7 +183,7 @@ final class WaypointStyleDefinition {
         }
 
         static Overlay disabled() {
-            return new Overlay(false, DEFAULT_OFFSET, false, DEFAULT_MIN_SCALE, DEFAULT_MAX_SCALE, Collections.emptyList());
+            return new Overlay(false, DEFAULT_OFFSET, Float.NaN, false, DEFAULT_MIN_SCALE, DEFAULT_MAX_SCALE, Collections.emptyList());
         }
 
         static Overlay fromProto(@Nullable SkyCoreProto.NavigationStyleOverlay proto) {
@@ -198,6 +201,10 @@ final class WaypointStyleDefinition {
                 return disabled();
             }
             float offset = proto.getVerticalOffset() != 0f ? proto.getVerticalOffset() : DEFAULT_OFFSET;
+            float baseHeight = proto.getBaseHeight();
+            if (baseHeight <= 0f) {
+                baseHeight = Float.NaN;
+            }
             boolean scaleDist = proto.getScaleWithDistance();
             float minScale = proto.getMinScale() > 0f ? proto.getMinScale() : DEFAULT_MIN_SCALE;
             float maxScale = proto.getMaxScale() > 0f ? proto.getMaxScale() : DEFAULT_MAX_SCALE;
@@ -206,7 +213,7 @@ final class WaypointStyleDefinition {
                 minScale = maxScale;
                 maxScale = tmp;
             }
-            return new Overlay(true, offset, scaleDist, minScale, maxScale, Collections.unmodifiableList(layers));
+            return new Overlay(true, offset, baseHeight, scaleDist, minScale, maxScale, Collections.unmodifiableList(layers));
         }
 
         boolean isEnabled() {
@@ -215,6 +222,14 @@ final class WaypointStyleDefinition {
 
         float getVerticalOffset() {
             return verticalOffset;
+        }
+
+        boolean hasCustomBaseHeight() {
+            return !Float.isNaN(baseHeight) && baseHeight > 0f;
+        }
+
+        float getBaseHeight() {
+            return baseHeight;
         }
 
         boolean scaleWithDistance() {
@@ -295,7 +310,15 @@ final class WaypointStyleDefinition {
             float iconHeight = proto.getIconHeight() > 0f ? proto.getIconHeight() : 0f;
             String text = proto.getText();
             int textColor = proto.getTextColor() == 0 ? DEFAULT_TEXT_COLOR : (proto.getTextColor() | 0xFF000000);
-            int bgColor = proto.getBackgroundColor() == 0 ? DEFAULT_BG_COLOR : proto.getBackgroundColor();
+            int rawBgColor = proto.getBackgroundColor();
+            int bgColor;
+            if (rawBgColor == 0) {
+                bgColor = DEFAULT_BG_COLOR;
+            } else if ((rawBgColor & 0xFF000000) == 0) {
+                bgColor = rawBgColor | 0xFF000000;
+            } else {
+                bgColor = rawBgColor;
+            }
             float padding = proto.getPadding() > 0f ? proto.getPadding() : DEFAULT_PADDING;
             float offsetX = proto.getOffsetX();
             float offsetY = proto.getOffsetY();

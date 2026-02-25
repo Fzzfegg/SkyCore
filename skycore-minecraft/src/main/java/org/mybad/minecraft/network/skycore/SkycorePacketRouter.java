@@ -3,6 +3,7 @@ package org.mybad.minecraft.network.skycore;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.debug.DebugRenderController;
+import org.mybad.minecraft.navigation.GuidanceService;
 import org.mybad.minecraft.navigation.WaypointService;
 import org.mybad.minecraft.network.skycore.config.RemoteConfigController;
 import org.mybad.minecraft.network.skycore.runtime.RealtimeCommandExecutor;
@@ -91,6 +92,9 @@ public final class SkycorePacketRouter {
                     return;
                 case SkycorePacketId.NAV_STYLE_CONFIG:
                     WaypointService.getInstance().handleStyleConfig(SkyCoreProto.NavigationStyleConfig.parseFrom(payload));
+                    return;
+                case SkycorePacketId.GUIDANCE_SYNC:
+                    GuidanceService.getInstance().handleSync(SkyCoreProto.GuidanceSync.parseFrom(payload));
                     return;
                 case SkycorePacketId.AUTO_NAVIGATE_COMMAND:
                     org.mybad.minecraft.navigation.RemoteAutoNavigator.handleCommand(

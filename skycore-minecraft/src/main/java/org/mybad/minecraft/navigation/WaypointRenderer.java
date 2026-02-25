@@ -12,6 +12,7 @@ import org.mybad.minecraft.config.SkyCoreConfig;
 import org.mybad.minecraft.render.BedrockModelHandle;
 import org.mybad.minecraft.render.ModelHandleFactory;
 import org.mybad.minecraft.resource.ResourceCacheManager;
+import org.lwjgl.opengl.GL11;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,13 +63,17 @@ final class WaypointRenderer {
             double renderY = waypoint.getPosition().y - cameraY;
             double renderZ = waypoint.getPosition().z - cameraZ;
             float finalScale = style.scaleForDistance(distance);
+            float overlayBaseHeight;
+            float baseHeight = style.getOverlay().hasCustomBaseHeight()
+                ? style.getOverlay().getBaseHeight()
+                : anchor.getOverlayBaseHeight();
+            overlayBaseHeight = Math.max(0f, baseHeight) * Math.max(0.01f, finalScale);
             float yaw = style.isFaceCamera()
                 ? MathHelper.wrapDegrees(mc.getRenderManager().playerViewY)
                 : 0f;
             float pitch = 0f;
             anchor.render(waypoint, style, renderX, renderY, renderZ, yaw, pitch, style.isFaceCamera(), finalScale, distance, partialTicks);
-            SkyCoreMod.LOGGER.info("[Waypoint] overlay id={} style={} layers={} distance={}m", waypoint.getId(), style.getId(), style.getOverlay().getLayers().size(), String.format("%.2f", distance));
-            overlayRenderer.renderOverlay(waypoint, style, renderX, renderY, renderZ, distance);
+            overlayRenderer.renderOverlay(waypoint, style, renderX, renderY, renderZ, overlayBaseHeight, distance);
         }
         cleanupAnchors(seen);
         renderFootIndicator(mc, cacheManager, partialTicks, playerEyes, cameraX, cameraY, cameraZ);
@@ -235,9 +240,17 @@ final class WaypointRenderer {
                     float partialTicks) {
             handle.updateAnimations();
             handle.setModelScale(mappingScale * scale);
+            boolean depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+            boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+            GlStateManager.enableDepth();
+            GlStateManager.depthMask(true);
             GlStateManager.pushMatrix();
             handle.renderBlock(renderX, renderY, renderZ, yaw, partialTicks);
             GlStateManager.popMatrix();
+            GlStateManager.depthMask(depthMask);
+            if (!depthEnabled) {
+                GlStateManager.disableDepth();
+            }
         }
 
         void dispose() {

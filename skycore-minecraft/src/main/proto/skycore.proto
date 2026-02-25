@@ -186,6 +186,26 @@ message WaypointRemove {
   string id = 1;
 }
 
+message GuidanceSegment {
+  string id = 1;
+  double start_x = 2;
+  double start_y = 3;
+  double start_z = 4;
+  double end_x = 5;
+  double end_y = 6;
+  double end_z = 7;
+  string mapping = 8;
+  optional float model_scale = 9;
+  optional bool face_camera = 10;
+  float speed = 11;
+  float spacing = 12;
+}
+
+message GuidanceSync {
+  uint64 version = 1;
+  repeated GuidanceSegment segments = 2;
+}
+
 message NavigationStyle {
   string id = 1;
   string mapping = 2;
@@ -207,6 +227,7 @@ message NavigationStyleOverlay {
   float min_scale = 4;
   float max_scale = 5;
   repeated NavigationOverlayLayer layers = 6;
+  float base_height = 7;
 }
 
 message NavigationOverlayLayer {
