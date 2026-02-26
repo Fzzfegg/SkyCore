@@ -62,6 +62,7 @@ final class EntityWrapperCache {
         wrapper.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         wrapper.setRenderHurtTint(mapping.isRenderHurtTint());
         wrapper.setHurtTint(mapping.getHurtTint());
+        wrapper.setLightning(mapping.isLightning());
 
         EntityAnimationController controller = buildController(mapping);
         EntityWrapperEntry created = new EntityWrapperEntry(wrapper, controller, entity.getUniqueID(), entityName, tick, mapping);

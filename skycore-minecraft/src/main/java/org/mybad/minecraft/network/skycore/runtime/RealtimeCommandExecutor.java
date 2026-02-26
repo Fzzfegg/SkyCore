@@ -144,6 +144,9 @@ public final class RealtimeCommandExecutor {
                 if (packet.hasPrimaryFadeSeconds()) {
                     mapping.setPrimaryFadeSeconds(packet.getPrimaryFadeSeconds());
                 }
+                if (packet.hasLightning()) {
+                    mapping.setLightning(packet.getLightning());
+                }
                 if (handler != null) {
                     handler.invalidateWrapper(mappingName);
                 }

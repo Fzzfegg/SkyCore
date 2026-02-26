@@ -135,6 +135,7 @@ public final class WorldActorManager {
             double renderX = entry.posX - cameraX;
             double renderY = entry.posY - cameraY;
             double renderZ = entry.posZ - cameraZ;
+            entry.wrapper.setPackedLightFromWorld(entry.posX, entry.posY, entry.posZ);
             entry.wrapper.renderBlock(renderX, renderY, renderZ, entry.yaw, partialTicks);
             if (dispatcher != null) {
                 dispatcher.dispatchAnimationEvents(null, entry, entry, entry.wrapper, partialTicks);
@@ -159,6 +160,7 @@ public final class WorldActorManager {
         handle.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());
+        handle.setLightning(mapping.isLightning());
     }
 
     private static final class WorldActorEntry implements AnimationEventContext, AnimationEventTarget {

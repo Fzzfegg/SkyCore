@@ -88,6 +88,11 @@ final class EntityAttributeOverrideStore {
         if (proto.hasBloomDownscale()) {
             bloomDownscale = proto.getBloomDownscale();
         }
+
+        Boolean lightning = base != null ? base.lightning : null;
+        if (proto.hasLightning()) {
+            lightning = proto.getLightning();
+        }
         return new EntityAttributeOverride(
             scale,
             emissiveStrength,
@@ -96,7 +101,8 @@ final class EntityAttributeOverrideStore {
             bloomOffset,
             bloomPasses,
             bloomScaleStep,
-            bloomDownscale
+            bloomDownscale,
+            lightning
         );
     }
 

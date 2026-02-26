@@ -33,10 +33,18 @@ public final class WaypointService {
     }
 
     public void handleWaypointRemove(@Nullable SkyCoreProto.WaypointRemove proto) {
-        if (proto == null || proto.getId().isEmpty()) {
+        if (proto == null) {
             return;
         }
-        manager.remove(proto.getId());
+        String rawId = proto.getId() == null ? "" : proto.getId().trim();
+        if (rawId.isEmpty()) {
+            return;
+        }
+        if ("*".equals(rawId)) {
+            clearWaypoints();
+            return;
+        }
+        manager.remove(rawId);
     }
 
     public void handleStyleConfig(@Nullable SkyCoreProto.NavigationStyleConfig config) {

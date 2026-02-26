@@ -290,6 +290,7 @@ public final class EntityAttachmentManager {
                     double renderX = instance.posX - cameraX;
                     double renderY = instance.posY - cameraY;
                     double renderZ = instance.posZ - cameraZ;
+                    instance.wrapper.setPackedLightFromWorld(instance.posX, instance.posY, instance.posZ);
                     instance.wrapper.renderBlock(renderX, renderY, renderZ, instance.yaw, partialTicks);
                     if (dispatcher != null) {
                         dispatcher.dispatchAnimationEvents(null, instance, instance, instance.wrapper, partialTicks);
@@ -350,6 +351,7 @@ public final class EntityAttachmentManager {
         handle.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());
+        handle.setLightning(mapping.isLightning());
     }
 
     private void spawnWorldAttachment(SkyCoreProto.EntityAttachment packet,

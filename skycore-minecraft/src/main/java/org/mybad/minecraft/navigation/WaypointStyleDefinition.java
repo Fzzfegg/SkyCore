@@ -395,23 +395,32 @@ final class WaypointStyleDefinition {
         private final float verticalOffset;
         private final boolean stickToLastBlock;
         private final boolean faceTarget;
+        private final String targetMapping;
+        private final float targetScale;
+        private final float targetVerticalOffset;
 
         private FootIndicator(boolean enabled,
                               String mapping,
                               float scale,
                               float verticalOffset,
                               boolean stickToLastBlock,
-                              boolean faceTarget) {
+                              boolean faceTarget,
+                              String targetMapping,
+                              float targetScale,
+                              float targetVerticalOffset) {
             this.enabled = enabled;
             this.mapping = mapping;
             this.scale = scale;
             this.verticalOffset = verticalOffset;
             this.stickToLastBlock = stickToLastBlock;
             this.faceTarget = faceTarget;
+            this.targetMapping = targetMapping;
+            this.targetScale = targetScale;
+            this.targetVerticalOffset = targetVerticalOffset;
         }
 
         static FootIndicator disabled() {
-            return new FootIndicator(false, null, 1.0f, 0f, true, true);
+            return new FootIndicator(false, null, 1.0f, 0f, true, true, null, 1.0f, 0f);
         }
 
         static FootIndicator fromProto(@Nullable SkyCoreProto.NavigationFootIndicator proto) {
@@ -419,13 +428,19 @@ final class WaypointStyleDefinition {
                 return disabled();
             }
             float scale = proto.getScale() > 0f ? proto.getScale() : 1.0f;
+            String targetMapping = proto.getTargetMapping().isEmpty() ? proto.getMapping() : proto.getTargetMapping();
+            float targetScale = proto.getTargetScale() > 0f ? proto.getTargetScale() : scale;
+            float targetOffset = proto.getTargetVerticalOffset();
             return new FootIndicator(
                 true,
                 proto.getMapping(),
                 scale,
                 proto.getVerticalOffset(),
                 proto.getStickToLastBlock(),
-                proto.getFaceTarget()
+                proto.getFaceTarget(),
+                targetMapping,
+                targetScale,
+                targetOffset
             );
         }
 
@@ -451,6 +466,18 @@ final class WaypointStyleDefinition {
 
         boolean isFaceTarget() {
             return faceTarget;
+        }
+
+        String getTargetMapping() {
+            return targetMapping != null && !targetMapping.isEmpty() ? targetMapping : mapping;
+        }
+
+        float getTargetScale() {
+            return targetScale > 0f ? targetScale : scale;
+        }
+
+        float getTargetVerticalOffset() {
+            return targetVerticalOffset;
         }
     }
 }

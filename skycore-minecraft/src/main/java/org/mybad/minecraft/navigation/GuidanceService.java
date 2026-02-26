@@ -38,21 +38,23 @@ public final class GuidanceService {
     }
 
     public synchronized void handleSync(SkyCoreProto.GuidanceSync proto) {
-        segments.values().forEach(SegmentInstance::dispose);
-        segments.clear();
         if (proto == null || proto.getSegmentsCount() == 0) {
-            SkyCoreMod.LOGGER.info("[Guidance] 已清空远程路径段。");
-            lastUpdateNanos = -1L;
+            clearSegments();
+            SkyCoreMod.LOGGER.info("[Guidance] 收到清空指令。");
             return;
         }
         for (SkyCoreProto.GuidanceSegment segmentProto : proto.getSegmentsList()) {
             SegmentInstance instance = SegmentInstance.fromProto(segmentProto);
-            if (instance != null) {
-                segments.put(instance.getId(), instance);
+            if (instance == null) {
+                continue;
+            }
+            SegmentInstance previous = segments.put(instance.getId(), instance);
+            if (previous != null) {
+                previous.dispose();
             }
         }
         lastUpdateNanos = -1L;
-        SkyCoreMod.LOGGER.info("[Guidance] 已更新 {} 条路径 (version={}).", segments.size(), proto.getVersion());
+        SkyCoreMod.LOGGER.info("[Guidance] 更新/追加 {} 条路径 (version={}).", proto.getSegmentsCount(), proto.getVersion());
     }
 
     void renderWorld(float partialTicks) {
@@ -217,6 +219,7 @@ public final class GuidanceService {
                 double renderX = position.x - cameraX;
                 double renderY = position.y - cameraY;
                 double renderZ = position.z - cameraZ;
+                handle.setPackedLightFromWorld(position.x, position.y, position.z);
                 GlStateManager.pushMatrix();
                 GlStateManager.enableDepth();
                 GlStateManager.depthMask(true);
@@ -297,6 +300,7 @@ public final class GuidanceService {
             target.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
             target.setRenderHurtTint(mapping.isRenderHurtTint());
             target.setHurtTint(mapping.getHurtTint());
+            target.setLightning(mapping.isLightning());
         }
     }
 }

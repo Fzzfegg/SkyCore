@@ -136,8 +136,22 @@ final class WaypointOverlayRenderer {
             return waypoint.getId() + "  " + String.format("%.1fm", distance);
         }
         String formatted = template.replace("{distance}", String.format("%.1f", distance));
+        formatted = formatted.replace("%distance%", String.format("%.1f", distance));
         formatted = formatted.replace("{id}", waypoint.getId());
         formatted = formatted.replace("{order}", Integer.toString(waypoint.getOrder()));
+        java.util.List<String> labels = waypoint.getPresetLabels();
+        for (int i = 0; i < labels.size(); i++) {
+            String var = "{label" + (i + 1) + "}";
+            formatted = formatted.replace(var, labels.get(i));
+            formatted = formatted.replace("%label" + (i + 1) + "%", labels.get(i));
+        }
+        if (waypoint.getPresetResource() != null && !waypoint.getPresetResource().isEmpty()) {
+            formatted = formatted.replace("{resource}", waypoint.getPresetResource());
+            formatted = formatted.replace("%resource%", waypoint.getPresetResource());
+        } else {
+            formatted = formatted.replace("{resource}", "");
+            formatted = formatted.replace("%resource%", "");
+        }
         return formatted;
     }
 

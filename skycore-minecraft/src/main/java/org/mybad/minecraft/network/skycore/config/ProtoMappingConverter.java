@@ -62,6 +62,7 @@ public final class ProtoMappingConverter {
         if (!proto.getGltfProfile().isEmpty()) {
             mapping.setGltfProfileId(nullIfEmpty(proto.getGltfProfile()));
         }
+        mapping.setLightning(proto.getLightning());
         return mapping;
     }
 

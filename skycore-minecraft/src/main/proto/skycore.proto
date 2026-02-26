@@ -40,6 +40,7 @@ message EntityMapping {
   string gltf_profile = 32;
   string hash = 33;
   uint64 version = 34;
+  bool lightning = 35;
 }
 
 message MappingFile {
@@ -180,6 +181,16 @@ message WaypointTarget {
     FAILED = 2;
   }
   Status status = 7;
+  message PresetExtra {
+    repeated string labels = 1;
+    string resource = 2;
+    float max_distance = 3;
+    float clear_distance = 4;
+    string npc_id = 5;
+    float npc_search_radius = 6;
+    bool use_npc_position = 7;
+  }
+  optional PresetExtra preset = 20;
 }
 
 message WaypointRemove {
@@ -273,6 +284,9 @@ message NavigationFootIndicator {
   float vertical_offset = 4;
   bool stick_to_last_block = 5;
   bool face_target = 6;
+  string target_mapping = 7;
+  float target_scale = 8;
+  float target_vertical_offset = 9;
 }
 
 message ConfigIndexEntry {
@@ -344,6 +358,7 @@ message SetModelAttributes {
   optional float bloom_scale_step = 16;
   optional float bloom_downscale = 17;
   repeated EntityAttributeOverride overrides = 18;
+  optional bool lightning = 19;
 }
 
 message EntityAttributeOverride {
@@ -363,6 +378,7 @@ message EntityAttributeOverride {
   optional float bloom_scale_step = 14;
   optional float bloom_downscale = 15;
   optional bool reset = 16;
+  optional bool lightning = 17;
 }
 
 message SpawnParticle {

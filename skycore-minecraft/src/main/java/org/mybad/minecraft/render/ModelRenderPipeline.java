@@ -3,6 +3,7 @@ package org.mybad.minecraft.render;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
@@ -53,11 +54,31 @@ final class ModelRenderPipeline {
                 SkinningPipeline skinningPipeline,
                 boolean applyYaw,
                 boolean billboardMode,
-                float billboardPitch) {
+                float billboardPitch,
+                boolean lightning,
+                int packedLightOverride) {
         if (skinningPipeline == null) {
             return;
         }
         Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+        float prevLightX = OpenGlHelper.lastBrightnessX;
+        float prevLightY = OpenGlHelper.lastBrightnessY;
+        float baseLightX = prevLightX;
+        float baseLightY = prevLightY;
+        int resolvedPackedLight = -1;
+        if (entity != null) {
+            resolvedPackedLight = entity.getBrightnessForRender();
+        } else if (packedLightOverride >= 0) {
+            resolvedPackedLight = packedLightOverride;
+        }
+        if (lightning && resolvedPackedLight >= 0) {
+            baseLightX = resolvedPackedLight & 0xFFFF;
+            baseLightY = (resolvedPackedLight >> 16) & 0xFFFF;
+        } else if (!lightning) {
+            baseLightX = 240f;
+            baseLightY = 240f;
+        }
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, baseLightX, baseLightY);
 
         if (enableCull) {
             GlStateManager.enableCull();
@@ -68,8 +89,15 @@ final class ModelRenderPipeline {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.disableColorMaterial();
+        if (lightning) {
+            GlStateManager.enableLighting();
+            GlStateManager.enableColorMaterial();
+            RenderHelper.enableStandardItemLighting();
+        } else {
+            GlStateManager.disableLighting();
+            GlStateManager.disableColorMaterial();
+            RenderHelper.disableStandardItemLighting();
+        }
 
         GlStateManager.pushMatrix();
         GlStateManager.translate((float) x, (float) y, (float) z);
@@ -96,9 +124,8 @@ final class ModelRenderPipeline {
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         }
 
-        int lightX = (int) OpenGlHelper.lastBrightnessX;
-        int lightY = (int) OpenGlHelper.lastBrightnessY;
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float) lightX, (float) lightY);
+        int lightX = (int) baseLightX;
+        int lightY = (int) baseLightY;
 
         boolean gpu = skinningPipeline.ensureGpuSkinningReady();
         if (!gpu) {
@@ -139,12 +166,16 @@ final class ModelRenderPipeline {
         }
         GlStateManager.popMatrix();
 
+        if (lightning) {
+            RenderHelper.disableStandardItemLighting();
+        }
         GlStateManager.disableBlend();
         GlStateManager.disableRescaleNormal();
         GlStateManager.enableDepth();
         GlStateManager.enableCull();
         GlStateManager.enableColorMaterial();
         GlStateManager.enableLighting();
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
     }
 
     private void applyModelOffset(float offsetX, float offsetY, float offsetZ, int mode, float entityYaw) {

@@ -2,10 +2,13 @@ package org.mybad.minecraft.navigation;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.TextFormatting;
 import org.mybad.minecraft.SkyCoreMod;
 import org.mybad.minecraft.config.EntityModelMapping;
 import org.mybad.minecraft.config.SkyCoreConfig;
@@ -19,6 +22,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.Collections;
+import javax.annotation.Nullable;
 
 final class WaypointRenderer {
 
@@ -48,6 +52,9 @@ final class WaypointRenderer {
         double cameraY = mc.getRenderManager().viewerPosY;
         double cameraZ = mc.getRenderManager().viewerPosZ;
         Set<String> seen = new HashSet<>();
+        Waypoint tracked = manager.getCurrentTracked();
+        Vec3d trackedAnchorPos = null;
+        Vec3d trackedTargetPos = null;
         for (Waypoint waypoint : manager.getOrderedWaypoints()) {
             if (!waypoint.isActive()) {
                 continue;
@@ -58,10 +65,21 @@ final class WaypointRenderer {
                 continue;
             }
             seen.add(waypoint.getId());
-            double distance = waypoint.distanceTo(playerEyes);
-            double renderX = waypoint.getPosition().x - cameraX;
-            double renderY = waypoint.getPosition().y - cameraY;
-            double renderZ = waypoint.getPosition().z - cameraZ;
+            ResolvedWaypointPose pose = resolvePose(waypoint, mc, playerEyes, partialTicks);
+            Vec3d anchorPos = pose.anchorPos;
+            Vec3d targetIndicatorPos = pose.targetPos;
+            double distance = anchorPos.distanceTo(playerEyes);
+            if (waypoint.shouldAutoClear(distance)) {
+                manager.remove(waypoint.getId());
+                WaypointAnchor removed = anchors.remove(waypoint.getId());
+                if (removed != null) {
+                    removed.dispose();
+                }
+                continue;
+            }
+            double renderX = anchorPos.x - cameraX;
+            double renderY = anchorPos.y - cameraY;
+            double renderZ = anchorPos.z - cameraZ;
             float finalScale = style.scaleForDistance(distance);
             float overlayBaseHeight;
             float baseHeight = style.getOverlay().hasCustomBaseHeight()
@@ -72,11 +90,15 @@ final class WaypointRenderer {
                 ? MathHelper.wrapDegrees(mc.getRenderManager().playerViewY)
                 : 0f;
             float pitch = 0f;
-            anchor.render(waypoint, style, renderX, renderY, renderZ, yaw, pitch, style.isFaceCamera(), finalScale, distance, partialTicks);
+            anchor.render(waypoint, style, anchorPos, targetIndicatorPos, cameraX, cameraY, cameraZ, yaw, pitch, style.isFaceCamera(), finalScale, distance, partialTicks, playerEyes);
             overlayRenderer.renderOverlay(waypoint, style, renderX, renderY, renderZ, overlayBaseHeight, distance);
+            if (tracked != null && waypoint.getId().equals(tracked.getId())) {
+                trackedAnchorPos = anchorPos;
+                trackedTargetPos = targetIndicatorPos;
+            }
         }
         cleanupAnchors(seen);
-        renderFootIndicator(mc, cacheManager, partialTicks, playerEyes, cameraX, cameraY, cameraZ);
+        renderFootIndicator(mc, cacheManager, partialTicks, playerEyes, cameraX, cameraY, cameraZ, trackedAnchorPos, trackedTargetPos);
     }
 
     void clearAnchors() {
@@ -107,7 +129,9 @@ final class WaypointRenderer {
                                      Vec3d playerEyes,
                                      double cameraX,
                                      double cameraY,
-                                     double cameraZ) {
+                                     double cameraZ,
+                                     @Nullable Vec3d trackedAnchorPos,
+                                     @Nullable Vec3d trackedTargetPos) {
         if (mc.player == null || cacheManager == null) {
             disposeFootIndicator();
             return;
@@ -132,10 +156,99 @@ final class WaypointRenderer {
         double renderY = basePos.y - cameraY + indicator.getVerticalOffset();
         double renderZ = basePos.z - cameraZ;
         double distance = basePos.distanceTo(playerEyes);
+        Vec3d facingTarget = trackedTargetPos != null ? trackedTargetPos
+            : trackedAnchorPos != null ? trackedAnchorPos
+            : tracked.getPosition();
         float yaw = indicator.isFaceTarget()
-            ? computeYawTowards(basePos, tracked.getPosition())
+            ? computeYawTowards(basePos, facingTarget)
             : MathHelper.wrapDegrees(mc.player.rotationYaw);
-        footIndicatorHandle.render(renderX, renderY, renderZ, yaw, indicator.getScale(), partialTicks);
+        footIndicatorHandle.render(basePos, renderX, renderY, renderZ, yaw, indicator.getScale(), partialTicks);
+    }
+
+    private ResolvedWaypointPose resolvePose(Waypoint waypoint,
+                                             Minecraft mc,
+                                             Vec3d playerEyes,
+                                             float partialTicks) {
+        Vec3d anchorPos = waypoint.getPosition();
+        Vec3d targetPos = anchorPos;
+        if (waypoint.hasNpcBinding()) {
+            Vec3d searchCenter = anchorPos;
+            if (waypoint.shouldUseNpcPosition() && playerEyes != null) {
+                double lenSq = anchorPos.x * anchorPos.x + anchorPos.y * anchorPos.y + anchorPos.z * anchorPos.z;
+                if (lenSq < 1.0E-4d) {
+                    searchCenter = playerEyes;
+                }
+            }
+            Vec3d npcPos = findNpcPosition(mc, waypoint, searchCenter, partialTicks);
+            if (npcPos != null) {
+                targetPos = npcPos;
+                if (waypoint.shouldUseNpcPosition()) {
+                    anchorPos = npcPos;
+                }
+            }
+        }
+        return new ResolvedWaypointPose(anchorPos, targetPos);
+    }
+
+    private Vec3d findNpcPosition(Minecraft mc,
+                                  Waypoint waypoint,
+                                  Vec3d searchCenter,
+                                  float partialTicks) {
+        if (mc.world == null) {
+            return null;
+        }
+        String npcId = waypoint.getNpcId();
+        if (npcId == null || npcId.isEmpty()) {
+            return null;
+        }
+        double radius = waypoint.getNpcSearchRadius();
+        boolean restrictRadius = radius > 0 && !waypoint.shouldUseNpcPosition();
+        double radiusSq = radius * radius;
+        EntityLivingBase best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (Entity entity : mc.world.loadedEntityList) {
+            if (!(entity instanceof EntityLivingBase)) {
+                continue;
+            }
+            String candidate = extractComparableName(entity);
+            if (candidate == null || !candidate.equalsIgnoreCase(npcId)) {
+                continue;
+            }
+            double dx = entity.posX - searchCenter.x;
+            double dy = entity.posY - searchCenter.y;
+            double dz = entity.posZ - searchCenter.z;
+            double distSq = dx * dx + dy * dy + dz * dz;
+            if (restrictRadius && distSq > radiusSq) {
+                continue;
+            }
+            if (distSq < bestDistance) {
+                best = (EntityLivingBase) entity;
+                bestDistance = distSq;
+            }
+        }
+        if (best == null) {
+            return null;
+        }
+        double interpX = best.prevPosX + (best.posX - best.prevPosX) * partialTicks;
+        double interpY = best.prevPosY + (best.posY - best.prevPosY) * partialTicks;
+        double interpZ = best.prevPosZ + (best.posZ - best.prevPosZ) * partialTicks;
+        double baseY = best.getEntityBoundingBox() != null ? best.getEntityBoundingBox().minY : interpY;
+        return new Vec3d(interpX, baseY + 1.0E-3d, interpZ);
+    }
+
+    private String extractComparableName(Entity entity) {
+        String name = null;
+        if (entity.hasCustomName()) {
+            name = entity.getCustomNameTag();
+        }
+        if (name == null || name.isEmpty()) {
+            name = entity.getName();
+        }
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
+        String stripped = TextFormatting.getTextWithoutFormattingCodes(name);
+        return stripped == null ? name : stripped;
     }
 
     private void ensureFootIndicatorHandle(WaypointStyleDefinition.FootIndicator indicator,
@@ -215,6 +328,17 @@ final class WaypointRenderer {
         target.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         target.setRenderHurtTint(mapping.isRenderHurtTint());
         target.setHurtTint(mapping.getHurtTint());
+        target.setLightning(mapping.isLightning());
+    }
+
+    private static final class ResolvedWaypointPose {
+        final Vec3d anchorPos;
+        final Vec3d targetPos;
+
+        ResolvedWaypointPose(Vec3d anchorPos, Vec3d targetPos) {
+            this.anchorPos = anchorPos;
+            this.targetPos = targetPos == null ? anchorPos : targetPos;
+        }
     }
 
     private static final class FootIndicatorInstance {
@@ -232,7 +356,8 @@ final class WaypointRenderer {
             return mappingName.equals(desired);
         }
 
-        void render(double renderX,
+        void render(Vec3d worldPos,
+                    double renderX,
                     double renderY,
                     double renderZ,
                     float yaw,
@@ -240,6 +365,9 @@ final class WaypointRenderer {
                     float partialTicks) {
             handle.updateAnimations();
             handle.setModelScale(mappingScale * scale);
+            if (worldPos != null) {
+                handle.setPackedLightFromWorld(worldPos.x, worldPos.y, worldPos.z);
+            }
             boolean depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
             boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
             GlStateManager.enableDepth();

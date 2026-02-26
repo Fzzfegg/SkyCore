@@ -53,6 +53,7 @@ public final class ModelHandleFactory {
         if (handle != null) {
             handle.setBlendMode(parseBlendMode(mapping.getBlendMode()));
             handle.setBlendColor(mapping.getBlendColor());
+            handle.setLightning(mapping.isLightning());
         }
         return handle;
     }

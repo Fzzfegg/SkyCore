@@ -344,6 +344,9 @@ public final class EntityRenderDispatcher {
 
         float bloomDownscale = override != null && override.bloomDownscale != null ? override.bloomDownscale : mapping.getBloomDownscale();
         handle.setBloomDownscale(bloomDownscale);
+
+        boolean lightning = override != null && override.lightning != null ? override.lightning : mapping.isLightning();
+        handle.setLightning(lightning);
     }
 
     private float[] copyBloomOffset(float[] source) {

@@ -132,6 +132,18 @@ public final class BedrockModelHandle {
         wrapper.setBlendColor(color);
     }
 
+    public void setLightning(boolean lightning) {
+        wrapper.setLightning(lightning);
+    }
+
+    public void setPackedLightOverride(int packedLight) {
+        wrapper.setPackedLightOverride(packedLight);
+    }
+
+    public void setPackedLightFromWorld(double worldX, double worldY, double worldZ) {
+        wrapper.setPackedLightFromWorld(worldX, worldY, worldZ);
+    }
+
     public void setHurtTint(float[] hurtTint) {
         wrapper.setHurtTint(hurtTint);
     }

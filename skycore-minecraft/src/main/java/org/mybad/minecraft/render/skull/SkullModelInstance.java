@@ -260,6 +260,7 @@ final class SkullModelInstance implements AnimationEventContext {
         handle.setModelOffset(mapping.getOffsetX(), mapping.getOffsetY(), mapping.getOffsetZ(), mapping.getOffsetMode());
         handle.setRenderHurtTint(mapping.isRenderHurtTint());
         handle.setHurtTint(mapping.getHurtTint());
+        handle.setLightning(mapping.isLightning());
     }
 
     @Override

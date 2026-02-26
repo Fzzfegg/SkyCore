@@ -9,6 +9,7 @@ final class EntityAttributeOverride {
     final Integer bloomPasses;
     final Float bloomScaleStep;
     final Float bloomDownscale;
+    final Boolean lightning;
 
     EntityAttributeOverride(Float scale,
                             Float emissiveStrength,
@@ -17,7 +18,8 @@ final class EntityAttributeOverride {
                             float[] bloomOffset,
                             Integer bloomPasses,
                             Float bloomScaleStep,
-                            Float bloomDownscale) {
+                            Float bloomDownscale,
+                            Boolean lightning) {
         this.scale = scale;
         this.emissiveStrength = emissiveStrength;
         this.bloomStrength = bloomStrength;
@@ -26,6 +28,7 @@ final class EntityAttributeOverride {
         this.bloomPasses = bloomPasses;
         this.bloomScaleStep = bloomScaleStep;
         this.bloomDownscale = bloomDownscale;
+        this.lightning = lightning;
     }
 
     EntityAttributeOverride merge(EntityAttributeOverride other) {
@@ -40,7 +43,8 @@ final class EntityAttributeOverride {
             other.bloomOffset != null ? other.bloomOffset : this.bloomOffset,
             other.bloomPasses != null ? other.bloomPasses : this.bloomPasses,
             other.bloomScaleStep != null ? other.bloomScaleStep : this.bloomScaleStep,
-            other.bloomDownscale != null ? other.bloomDownscale : this.bloomDownscale
+            other.bloomDownscale != null ? other.bloomDownscale : this.bloomDownscale,
+            other.lightning != null ? other.lightning : this.lightning
         );
     }
 }

@@ -72,6 +72,9 @@ public class EntityModelMapping {
     private float[] hurtTint;
     /** 是否渲染原版实体阴影（默认: true） */
     private boolean renderShadow = true;
+    /** 是否开启环境光渲染（默认: false） */
+    @SerializedName(value = "lightning", alternate = {"lighting"})
+    private boolean lightning = false;
     /** 自定义渲染包围盒宽度（XZ方向，单位格） */
     private float renderBoxWidth = 0f;
     /** 自定义渲染包围盒高度（单位格） */
@@ -118,6 +121,7 @@ public class EntityModelMapping {
     public boolean isRenderHurtTint() { return renderHurtTint; }
     public float[] getHurtTint() { return hurtTint; }
     public boolean isRenderShadow() { return renderShadow; }
+    public boolean isLightning() { return lightning; }
     public float getRenderBoxWidth() { return renderBoxWidth; }
     public float getRenderBoxHeight() { return renderBoxHeight; }
     public float getRenderBoxDepth() { return renderBoxDepth; }
@@ -162,6 +166,7 @@ public class EntityModelMapping {
     public void setRenderHurtTint(boolean renderHurtTint) { this.renderHurtTint = renderHurtTint; }
     public void setHurtTint(float[] hurtTint) { this.hurtTint = hurtTint; }
     public void setRenderShadow(boolean renderShadow) { this.renderShadow = renderShadow; }
+    public void setLightning(boolean lightning) { this.lightning = lightning; }
     public void setRenderBoxWidth(float renderBoxWidth) { this.renderBoxWidth = renderBoxWidth; }
     public void setRenderBoxHeight(float renderBoxHeight) { this.renderBoxHeight = renderBoxHeight; }
     public void setRenderBoxDepth(float renderBoxDepth) { this.renderBoxDepth = renderBoxDepth; }

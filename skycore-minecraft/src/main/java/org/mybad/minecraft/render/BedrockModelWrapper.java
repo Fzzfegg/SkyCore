@@ -17,6 +17,8 @@ import org.mybad.minecraft.render.transform.LocatorTransform;
 
 import java.util.List;
 import javax.annotation.Nullable;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.math.BlockPos;
 
 @SideOnly(Side.CLIENT)
 public class BedrockModelWrapper {
@@ -55,6 +57,7 @@ public class BedrockModelWrapper {
     private int modelOffsetMode = EntityModelMapping.OFFSET_MODE_WORLD;
     private boolean billboardMode = false;
     private float billboardPitch = 0f;
+    private boolean lightning = false;
 
     /** 纹理尺寸 */
     private final int textureWidth;
@@ -69,6 +72,7 @@ public class BedrockModelWrapper {
 
     /** 是否启用背面剔除 */
     private final boolean enableCull;
+    private int packedLightOverride = -1;
 
     BedrockModelWrapper(Model model, Animation animation, ResourceLocation texture) {
         this(model, animation, texture, null, true, null, null);
@@ -191,8 +195,11 @@ public class BedrockModelWrapper {
             skinningPipeline,
             applyYaw,
             billboardMode,
-            billboardPitch
+            billboardPitch,
+            lightning,
+            packedLightOverride
         );
+        packedLightOverride = -1;
     }
 
     /**
@@ -356,6 +363,32 @@ public class BedrockModelWrapper {
             return 1f;
         }
         return value;
+    }
+
+    void setLightning(boolean lightning) {
+        this.lightning = lightning;
+    }
+
+    void setPackedLightOverride(int packedLight) {
+        if (packedLight < 0) {
+            this.packedLightOverride = -1;
+        } else {
+            this.packedLightOverride = packedLight;
+        }
+    }
+
+    void setPackedLightFromWorld(double worldX, double worldY, double worldZ) {
+        int packed = sampleWorldLight(worldX, worldY, worldZ);
+        setPackedLightOverride(packed);
+    }
+
+    private static int sampleWorldLight(double worldX, double worldY, double worldZ) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.world == null) {
+            return -1;
+        }
+        BlockPos pos = new BlockPos(worldX, worldY, worldZ);
+        return mc.world.getCombinedLight(pos, 0);
     }
 
     void setModelScale(float scale) {
