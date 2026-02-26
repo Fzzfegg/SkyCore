@@ -208,9 +208,13 @@ public final class GuidanceService {
             if (!ensureHandle(cacheManager)) {
                 return;
             }
-            handle.updateAnimations();
+            BedrockModelHandle localHandle = handle;
+            if (localHandle == null) {
+                return;
+            }
+            localHandle.updateAnimations();
             float resolvedScale = scaleOverride != null && scaleOverride > 0f ? scaleOverride : mappingScale;
-            handle.setModelScale(resolvedScale);
+            localHandle.setModelScale(resolvedScale);
             double effectiveSpacing = length > MIN_SEGMENT_LENGTH && instanceCount > 0
                 ? length / instanceCount
                 : length;
@@ -219,14 +223,14 @@ public final class GuidanceService {
                 double renderX = position.x - cameraX;
                 double renderY = position.y - cameraY;
                 double renderZ = position.z - cameraZ;
-                handle.setPackedLightFromWorld(position.x, position.y, position.z);
+                localHandle.setPackedLightFromWorld(position.x, position.y, position.z);
                 GlStateManager.pushMatrix();
                 GlStateManager.enableDepth();
                 GlStateManager.depthMask(true);
                 if (faceCamera) {
-                    handle.renderBillboard(renderX, renderY, renderZ, cameraYaw, cameraPitch, partialTicks);
+                    localHandle.renderBillboard(renderX, renderY, renderZ, cameraYaw, cameraPitch, partialTicks);
                 } else {
-                    handle.renderBlock(renderX, renderY, renderZ, facingYaw, partialTicks);
+                    localHandle.renderBlock(renderX, renderY, renderZ, facingYaw, partialTicks);
                 }
                 GlStateManager.depthMask(true);
                 GlStateManager.enableDepth();

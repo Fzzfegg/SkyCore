@@ -18,6 +18,7 @@ import org.mybad.skycoreproto.SkyCoreProto;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class IndicatorRendererEvent {
     public static IndicatorRendererEvent instance;
@@ -26,7 +27,7 @@ public class IndicatorRendererEvent {
     public static ShaderManager RECTANGLE_SHADER;
     private static final Minecraft mc = Minecraft.getMinecraft();
     public static final RenderManager RENDER_MANAGER = mc.getRenderManager();
-    public static Map<String, IndicatorRenderer3> ACTIVE_INDICATORS = new HashMap<>();
+    public static Map<String, IndicatorRenderer3> ACTIVE_INDICATORS = new ConcurrentHashMap<>();
 
     public IndicatorRendererEvent() {
         instance = this;
@@ -102,17 +103,27 @@ public class IndicatorRendererEvent {
         if (ACTIVE_INDICATORS.isEmpty()) {return;}
         ensureShadersLoaded();
 
-        Iterator<Entry<String, IndicatorRenderer3>> iter = ACTIVE_INDICATORS.entrySet().iterator();
         long now = System.currentTimeMillis();
-        while (iter.hasNext()) {
-            Entry<String, IndicatorRenderer3> entry = iter.next();
+        List<String> expired = null;
+        for (Entry<String, IndicatorRenderer3> entry : ACTIVE_INDICATORS.entrySet()) {
             IndicatorRenderer3 renderer = entry.getValue();
+            if (renderer == null) {
+                continue;
+            }
             if (now > renderer.startTimeMs + renderer.lifetimeMs) {
-                iter.remove();
-            } else {
-                GlStateManager.pushMatrix();
-                renderIndicator(renderer);
-                GlStateManager.popMatrix();
+                if (expired == null) {
+                    expired = new ArrayList<>();
+                }
+                expired.add(entry.getKey());
+                continue;
+            }
+            GlStateManager.pushMatrix();
+            renderIndicator(renderer);
+            GlStateManager.popMatrix();
+        }
+        if (expired != null) {
+            for (String key : expired) {
+                ACTIVE_INDICATORS.remove(key);
             }
         }
     }

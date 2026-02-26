@@ -69,6 +69,10 @@ public final class EntityRenderDispatcher {
         }
         String mappingName = mappingResult.mappingName;
         EntityModelMapping mapping = mappingResult.mapping;
+        if (entity.isDead) {
+            event.setCanceled(true);
+            return;
+        }
         if (mapping != null && mapping.getGltfProfileId() != null && !mapping.getGltfProfileId().isEmpty()
             && !(entity instanceof EntityPlayer)) {
             GltfProfile profile = RemoteProfileRegistry.getProfile(mapping.getGltfProfileId());
