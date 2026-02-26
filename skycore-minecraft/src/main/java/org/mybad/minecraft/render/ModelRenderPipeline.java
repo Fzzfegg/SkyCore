@@ -61,8 +61,8 @@ final class ModelRenderPipeline {
             return;
         }
         Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
-        float prevLightX = OpenGlHelper.lastBrightnessX;
-        float prevLightY = OpenGlHelper.lastBrightnessY;
+        final float prevLightX = OpenGlHelper.lastBrightnessX;
+        final float prevLightY = OpenGlHelper.lastBrightnessY;
         float baseLightX = prevLightX;
         float baseLightY = prevLightY;
         int resolvedPackedLight = -1;
@@ -80,6 +80,10 @@ final class ModelRenderPipeline {
         }
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, baseLightX, baseLightY);
 
+        final boolean prevLighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
+        final boolean prevColorMaterial = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
+        boolean appliedStandardLighting = false;
+
         if (enableCull) {
             GlStateManager.enableCull();
         } else {
@@ -90,13 +94,17 @@ final class ModelRenderPipeline {
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableTexture2D();
         if (lightning) {
-            GlStateManager.enableLighting();
-            GlStateManager.enableColorMaterial();
+            if (!prevLighting) {
+                GlStateManager.enableLighting();
+            }
+            if (!prevColorMaterial) {
+                GlStateManager.enableColorMaterial();
+            }
             RenderHelper.enableStandardItemLighting();
+            appliedStandardLighting = true;
         } else {
             GlStateManager.disableLighting();
             GlStateManager.disableColorMaterial();
-            RenderHelper.disableStandardItemLighting();
         }
 
         GlStateManager.pushMatrix();
@@ -134,6 +142,11 @@ final class ModelRenderPipeline {
             GlStateManager.disableRescaleNormal();
             GlStateManager.enableDepth();
             GlStateManager.enableCull();
+            if (appliedStandardLighting) {
+                RenderHelper.disableStandardItemLighting();
+            }
+            restoreLightingState(prevLighting, prevColorMaterial);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
             return;
         }
 
@@ -166,16 +179,28 @@ final class ModelRenderPipeline {
         }
         GlStateManager.popMatrix();
 
-        if (lightning) {
+        if (appliedStandardLighting) {
             RenderHelper.disableStandardItemLighting();
         }
         GlStateManager.disableBlend();
         GlStateManager.disableRescaleNormal();
         GlStateManager.enableDepth();
         GlStateManager.enableCull();
-        GlStateManager.enableColorMaterial();
-        GlStateManager.enableLighting();
+        restoreLightingState(prevLighting, prevColorMaterial);
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, prevLightX, prevLightY);
+    }
+
+    private static void restoreLightingState(boolean prevLighting, boolean prevColorMaterial) {
+        if (prevColorMaterial) {
+            GlStateManager.enableColorMaterial();
+        } else {
+            GlStateManager.disableColorMaterial();
+        }
+        if (prevLighting) {
+            GlStateManager.enableLighting();
+        } else {
+            GlStateManager.disableLighting();
+        }
     }
 
     private void applyModelOffset(float offsetX, float offsetY, float offsetZ, int mode, float entityYaw) {
